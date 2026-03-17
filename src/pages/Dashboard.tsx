@@ -51,6 +51,13 @@ function dashboardGreetingName(user: { username: string | null; full_name: strin
   return n || null
 }
 
+/** Τοπική ώρα: Καλημέρα (πρωί–μεσημέρι), Καλησπέρα (απόγευμα–νύχτα). */
+function timeOfDayGreetingGr(): "Καλημέρα" | "Καλησπέρα" {
+  const h = new Date().getHours()
+  if (h >= 5 && h < 15) return "Καλημέρα"
+  return "Καλησπέρα"
+}
+
 export default function Dashboard() {
   const { businessId, user } = useAuth()
   const greetAs = dashboardGreetingName(user)
@@ -119,7 +126,7 @@ export default function Dashboard() {
               <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">Dashboard</h1>
               {greetAs ? (
                 <span className="text-sm md:text-base font-medium text-muted-foreground">
-                  Γεια σου, <span className="text-foreground">{greetAs}</span>
+                  {timeOfDayGreetingGr()}, <span className="text-foreground">{greetAs}</span>
                 </span>
               ) : null}
             </div>
@@ -221,7 +228,7 @@ export default function Dashboard() {
             </h1>
             {greetAs ? (
               <span className="text-sm md:text-base font-medium text-muted-foreground">
-                Γεια σου, <span className="text-foreground">{greetAs}</span>
+                {timeOfDayGreetingGr()}, <span className="text-foreground">{greetAs}</span>
               </span>
             ) : null}
           </div>
