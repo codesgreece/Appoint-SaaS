@@ -182,7 +182,7 @@ export default function Settings() {
       await resetDemoBusiness(businessId)
       toast({
         title: "Επαναφορά Demo ολοκληρώθηκε",
-        description: "Όλοι οι πελάτες, ραντεβού και υπηρεσίες διαγράφηκαν. Η επιχείρηση είναι έτοιμη για νέα χρήση.",
+        description: "Πελάτες, ραντεβού, υπηρεσίες και ιστορικό αιτημάτων υποστήριξης διαγράφηκαν.",
       })
       window.location.reload()
     } catch (err) {
@@ -355,7 +355,7 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <p className="text-muted-foreground">
-                  Διαγραφή όλων των πελατών, ραντεβού και υπηρεσιών αυτής της Demo επιχείρησης, ώστε να είναι έτοιμη για επόμενο χρήστη. Μετά την επαναφορά μπορείτε να αλλάξετε κωδικό και να δώσετε πρόσβαση σε άλλον.
+                  Διαγραφή πελατών, ραντεβού, υπηρεσιών και ιστορικού αιτημάτων υποστήριξης, ώστε να είναι έτοιμη για επόμενο χρήστη. Μετά την επαναφορά μπορείτε να αλλάξετε κωδικό.
                 </p>
                 <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                   <DialogTrigger asChild>
@@ -367,7 +367,7 @@ export default function Settings() {
                     <DialogHeader>
                       <DialogTitle>Επαναφορά Demo;</DialogTitle>
                       <DialogDescription>
-                        Θα διαγραφούν οριστικά όλοι οι πελάτες, τα ραντεβού και οι υπηρεσίες. Αυτή η ενέργεια δεν αναιρείται.
+                        Θα διαγραφούν οριστικά πελάτες, ραντεβού, υπηρεσίες και αιτήματα υποστήριξης. Η ενέργεια δεν αναιρείται.
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

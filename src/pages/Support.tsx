@@ -230,6 +230,16 @@ export default function Support() {
                       </Badge>
                     </div>
                     <p className="whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
+                    {r.internal_notes?.trim() ? (
+                      <div className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Απάντηση από την υποστήριξη
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">
+                          {r.internal_notes.trim()}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}

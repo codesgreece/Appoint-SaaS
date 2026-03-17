@@ -44,8 +44,16 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
+function dashboardGreetingName(user: { username: string | null; full_name: string } | null): string | null {
+  const u = user?.username?.trim()
+  if (u) return u
+  const n = user?.full_name?.trim()
+  return n || null
+}
+
 export default function Dashboard() {
-  const { businessId } = useAuth()
+  const { businessId, user } = useAuth()
+  const greetAs = dashboardGreetingName(user)
   const [stats, setStats] = useState<Awaited<ReturnType<typeof fetchDashboardStats>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [setupLoading, setSetupLoading] = useState(true)
@@ -107,7 +115,14 @@ export default function Dashboard() {
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">Dashboard</h1>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">Dashboard</h1>
+              {greetAs ? (
+                <span className="text-sm md:text-base font-medium text-muted-foreground">
+                  Γεια σου, <span className="text-foreground">{greetAs}</span>
+                </span>
+              ) : null}
+            </div>
             <p className="text-sm text-muted-foreground">Επισκόπηση επιχείρησης</p>
           </div>
           <Skeleton className="h-9 w-32 rounded-full" />
@@ -200,9 +215,16 @@ export default function Dashboard() {
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
-          <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            {greetAs ? (
+              <span className="text-sm md:text-base font-medium text-muted-foreground">
+                Γεια σου, <span className="text-foreground">{greetAs}</span>
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs md:text-sm text-muted-foreground">Premium επισκόπηση της επιχείρησής σου.</p>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">

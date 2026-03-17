@@ -67,9 +67,16 @@ export default function PlatformTools() {
   async function setSupportReply(id: string, reply: string) {
     setUpdatingId(id)
     try {
-      const { error } = await supabase.from("support_requests").update({ internal_notes: reply }).eq("id", id)
+      const { error } = await supabase
+        .from("support_requests")
+        .update({ internal_notes: reply || null, has_unread_reply: Boolean(reply) })
+        .eq("id", id)
       if (error) throw error
-      setSupportRows((prev) => prev.map((r) => (r.id === id ? { ...r, internal_notes: reply } : r)))
+      setSupportRows((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, internal_notes: reply || null, has_unread_reply: Boolean(reply) } : r
+        )
+      )
     } finally {
       setUpdatingId((prev) => (prev === id ? null : prev))
     }
@@ -229,7 +236,10 @@ export default function PlatformTools() {
                       </p>
                       <p className="text-sm whitespace-pre-wrap">{r.message}</p>
                       <div className="mt-3 space-y-1">
-                        <Label className="text-xs">Απάντηση / Σημειώσεις (μόνο admin)</Label>
+                        <Label className="text-xs">Απάντηση προς την επιχείρηση</Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          Εμφανίζεται στο μενού Υποστήριξη του admin της επιχείρησης.
+                        </p>
                         <Textarea
                           defaultValue={r.internal_notes ?? ""}
                           onBlur={(e) => {
