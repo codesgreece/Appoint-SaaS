@@ -230,8 +230,7 @@ export default function PlatformBusinesses() {
         maxUsers = 1
         maxCustomers = 20
         maxAppointments = 50
-        // Demo: πολύ μικρή διάρκεια (3 ημέρες) ανεξάρτητα από τον επιλεγμένο κύκλο
-        expires.setDate(now.getDate() + 3)
+        // Demo: χωρίς ημερομηνία λήξης
       } else if (plan === "starter") {
         maxUsers = 3
         maxCustomers = 300
@@ -269,7 +268,7 @@ export default function PlatformBusinesses() {
         subscription_plan: plan,
         subscription_status: "active",
         subscription_started_at: now.toISOString(),
-        subscription_expires_at: expires.toISOString(),
+        subscription_expires_at: plan === "demo" ? null : expires.toISOString(),
         max_users: maxUsers,
         max_customers: maxCustomers,
         max_appointments: maxAppointments,
@@ -318,14 +317,18 @@ export default function PlatformBusinesses() {
     // Για premium_plus κρατάμε τα υπάρχοντα custom όρια.
 
     try {
+      const updatePayload: Record<string, unknown> = {
+        subscription_plan: newPlan,
+        max_users: maxUsers,
+        max_customers: maxCustomers,
+        max_appointments: maxAppointments,
+      }
+      if (newPlan === "demo") {
+        updatePayload.subscription_expires_at = null
+      }
       const { error } = await supabase
         .from("businesses")
-        .update({
-          subscription_plan: newPlan,
-          max_users: maxUsers,
-          max_customers: maxCustomers,
-          max_appointments: maxAppointments,
-        })
+        .update(updatePayload)
         .eq("id", businessId)
       if (error) throw error
       await loadBusinesses()
@@ -762,7 +765,7 @@ export default function PlatformBusinesses() {
               )}
               {businessForm.subscription_plan === "demo" && (
                 <p className="text-sm text-muted-foreground">
-                  Διάρκεια πλάνου Demo: <span className="font-medium text-foreground">3 ημέρες</span> (σταθερό).
+                  Πλάνο Demo: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>.
                 </p>
               )}
               {businessForm.subscription_plan === "premium_plus" && (
@@ -857,10 +860,12 @@ export default function PlatformBusinesses() {
                   <dd>U: {detailsBusiness.max_users ?? "—"} / C: {detailsBusiness.max_customers ?? "—"} / A: {detailsBusiness.max_appointments ?? "—"}</dd>
                   <dt className="text-muted-foreground">Λήξη συνδρομής</dt>
                   <dd className="flex flex-col gap-2">
-                    {detailsBusiness.subscription_expires_at
-                      ? new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR")
-                      : "—"}
-                    {user?.role === "super_admin" && (
+                    {detailsBusiness.subscription_plan === "demo"
+                      ? "Χωρίς λήξη"
+                      : detailsBusiness.subscription_expires_at
+                        ? new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR")
+                        : "—"}
+                    {user?.role === "super_admin" && detailsBusiness.subscription_plan !== "demo" && (
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <Input
                           type="date"

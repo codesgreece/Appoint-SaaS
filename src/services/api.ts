@@ -511,6 +511,21 @@ export async function countAppointmentsForBusiness(businessId: string): Promise<
   return count ?? 0
 }
 
+/**
+ * Resets a Demo business: deletes all payments, appointments, customers and services.
+ * Only call when business subscription_plan is "demo". Order respects FK constraints.
+ */
+export async function resetDemoBusiness(businessId: string): Promise<void> {
+  const { error: paymentsErr } = await supabase.from("payments").delete().eq("business_id", businessId)
+  if (paymentsErr) throw paymentsErr
+  const { error: jobsErr } = await supabase.from("appointments_jobs").delete().eq("business_id", businessId)
+  if (jobsErr) throw jobsErr
+  const { error: customersErr } = await supabase.from("customers").delete().eq("business_id", businessId)
+  if (customersErr) throw customersErr
+  const { error: servicesErr } = await supabase.from("services").delete().eq("business_id", businessId)
+  if (servicesErr) throw servicesErr
+}
+
 export async function fetchActivityLogs(_businessId: string, entityType?: string, entityId?: string) {
   let q = supabase.from("activity_logs").select("*, user:users(full_name)").order("created_at", { ascending: false }).limit(50)
   if (entityType) q = q.eq("entity_type", entityType)

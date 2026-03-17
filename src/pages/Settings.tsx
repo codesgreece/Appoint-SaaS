@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchBusiness } from "@/services/api"
+import { fetchBusiness, resetDemoBusiness } from "@/services/api"
 import type { Business, User } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,15 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function Settings() {
   const { businessId, user, supabaseUser } = useAuth()
@@ -19,7 +28,14 @@ export default function Settings() {
   const [savingBusiness, setSavingBusiness] = useState(false)
   const [savingAccount, setSavingAccount] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
-  // Support requests moved to dedicated Support page.
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null)
+  const [resettingDemo, setResettingDemo] = useState(false)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const canResetDemo =
+    businessId &&
+    user &&
+    (user.role === "admin" || user.role === "super_admin") &&
+    subscriptionPlan === "demo"
 
   const [businessForm, setBusinessForm] = useState({
     name: "",
@@ -48,6 +64,7 @@ export default function Settings() {
     fetchBusiness(businessId)
       .then((b) => {
         if (b) {
+          setSubscriptionPlan(b.subscription_plan ?? null)
           setBusinessForm({
             name: b.name ?? "",
             business_type: b.business_type ?? "",
@@ -158,7 +175,24 @@ export default function Settings() {
     }
   }
 
-  // (removed)
+  async function handleResetDemo() {
+    if (!businessId) return
+    try {
+      setResettingDemo(true)
+      await resetDemoBusiness(businessId)
+      toast({
+        title: "Επαναφορά Demo ολοκληρώθηκε",
+        description: "Όλοι οι πελάτες, ραντεβού και υπηρεσίες διαγράφηκαν. Η επιχείρηση είναι έτοιμη για νέα χρήση.",
+      })
+      window.location.reload()
+    } catch (err) {
+      console.error("Reset demo error:", err)
+      const message = err instanceof Error ? err.message : "Αποτυχία επαναφοράς"
+      toast({ title: "Σφάλμα", description: message, variant: "destructive" })
+    } finally {
+      setResettingDemo(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -313,6 +347,46 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {canResetDemo && (
+            <Card className="border-amber-500/50 bg-amber-500/5">
+              <CardHeader>
+                <CardTitle>Επαναφορά Demo</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="text-muted-foreground">
+                  Διαγραφή όλων των πελατών, ραντεβού και υπηρεσιών αυτής της Demo επιχείρησης, ώστε να είναι έτοιμη για επόμενο χρήστη. Μετά την επαναφορά μπορείτε να αλλάξετε κωδικό και να δώσετε πρόσβαση σε άλλον.
+                </p>
+                <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive" disabled={resettingDemo}>
+                      {resettingDemo ? "Επαναφορά..." : "Επαναφορά Demo"}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent showClose={!resettingDemo}>
+                    <DialogHeader>
+                      <DialogTitle>Επαναφορά Demo;</DialogTitle>
+                      <DialogDescription>
+                        Θα διαγραφούν οριστικά όλοι οι πελάτες, τα ραντεβού και οι υπηρεσίες. Αυτή η ενέργεια δεν αναιρείται.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setResetDialogOpen(false)} disabled={resettingDemo}>
+                        Ακύρωση
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleResetDemo}
+                        disabled={resettingDemo}
+                      >
+                        {resettingDemo ? "Επαναφορά..." : "Επαναφορά"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
