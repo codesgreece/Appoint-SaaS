@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { UserCircle, Plus, Shield, UserCheck, Headphones, AtSign, MoreHorizontal, UserX, Trash2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import {

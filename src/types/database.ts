@@ -48,6 +48,12 @@ export interface User {
   avatar_url: string | null
   created_at: string
   updated_at: string
+  /** Populated by app when loading business limits for the current tenant (not from DB). */
+  business_limits?: {
+    max_users?: number | null
+    max_customers?: number | null
+    max_appointments?: number | null
+  }
 }
 
 export interface SupportRequest {
