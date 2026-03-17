@@ -51,6 +51,7 @@ interface BusinessRow {
   address: string | null
   subscription_plan: string | null
   subscription_status: string | null
+  subscription_expires_at: string | null
   max_users: number | null
   max_customers: number | null
   max_appointments: number | null
@@ -112,6 +113,8 @@ export default function PlatformBusinesses() {
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [addAdminOpen, setAddAdminOpen] = useState(false)
   const [addAdminSubmitting, setAddAdminSubmitting] = useState(false)
+  const [detailsExpiryDate, setDetailsExpiryDate] = useState("")
+  const [updatingExpiry, setUpdatingExpiry] = useState(false)
 
   const [businessForm, setBusinessForm] = useState(initialBusinessForm)
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
@@ -540,6 +543,32 @@ export default function PlatformBusinesses() {
 
   const detailsBusiness = detailsBusinessId ? businesses.find((b) => b.id === detailsBusinessId) : null
 
+  useEffect(() => {
+    if (detailsBusiness?.subscription_expires_at) {
+      setDetailsExpiryDate(detailsBusiness.subscription_expires_at.slice(0, 10))
+    } else {
+      setDetailsExpiryDate("")
+    }
+  }, [detailsBusiness?.id, detailsBusiness?.subscription_expires_at])
+
+  async function handleUpdateExpiry() {
+    if (!detailsBusinessId || !detailsExpiryDate) return
+    setUpdatingExpiry(true)
+    try {
+      const { error } = await supabase
+        .from("businesses")
+        .update({ subscription_expires_at: new Date(detailsExpiryDate).toISOString() })
+        .eq("id", detailsBusinessId)
+      if (error) throw error
+      await loadBusinesses()
+      toast({ title: "Ενημερώθηκε", description: "Η λήξη συνδρομής αποθηκεύτηκε." })
+    } catch (err) {
+      toast({ title: "Σφάλμα", description: err instanceof Error ? err.message : "Αποτυχία ενημέρωσης λήξης", variant: "destructive" })
+    } finally {
+      setUpdatingExpiry(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -705,30 +734,37 @@ export default function PlatformBusinesses() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Διάρκεια ενεργού</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Select value={billingCycle} onValueChange={(v) => setBillingCycle(v as BillingCycle)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Ανά μήνα</SelectItem>
-                      <SelectItem value="yearly">Ανά χρόνο</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={durationCount}
-                    onChange={(e) => setDurationCount(Math.max(1, Number(e.target.value) || 1))}
-                    placeholder={billingCycle === "monthly" ? "Μήνες" : "Χρόνια"}
-                  />
+              {businessForm.subscription_plan !== "demo" && (
+                <div className="space-y-2">
+                  <Label>Διάρκεια ενεργού</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={billingCycle} onValueChange={(v) => setBillingCycle(v as BillingCycle)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Ανά μήνα</SelectItem>
+                        <SelectItem value="yearly">Ανά χρόνο</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={durationCount}
+                      onChange={(e) => setDurationCount(Math.max(1, Number(e.target.value) || 1))}
+                      placeholder={billingCycle === "monthly" ? "Μήνες" : "Χρόνια"}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Η συνδρομή θα είναι active για {durationCount} {billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Η συνδρομή θα είναι active για {durationCount} {billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
+              )}
+              {businessForm.subscription_plan === "demo" && (
+                <p className="text-sm text-muted-foreground">
+                  Διάρκεια πλάνου Demo: <span className="font-medium text-foreground">3 ημέρες</span> (σταθερό).
                 </p>
-              </div>
+              )}
               {businessForm.subscription_plan === "premium_plus" && (
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Όρια χρήσης (μόνο για Premium+)</Label>
@@ -819,6 +855,25 @@ export default function PlatformBusinesses() {
                   <dd>{detailsBusiness.subscription_status ?? "—"}</dd>
                   <dt className="text-muted-foreground">Όρια</dt>
                   <dd>U: {detailsBusiness.max_users ?? "—"} / C: {detailsBusiness.max_customers ?? "—"} / A: {detailsBusiness.max_appointments ?? "—"}</dd>
+                  <dt className="text-muted-foreground">Λήξη συνδρομής</dt>
+                  <dd className="flex flex-col gap-2">
+                    {detailsBusiness.subscription_expires_at
+                      ? new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR")
+                      : "—"}
+                    {user?.role === "super_admin" && (
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <Input
+                          type="date"
+                          className="h-8 w-[160px]"
+                          value={detailsExpiryDate}
+                          onChange={(e) => setDetailsExpiryDate(e.target.value)}
+                        />
+                        <Button size="sm" variant="outline" onClick={handleUpdateExpiry} disabled={updatingExpiry || !detailsExpiryDate}>
+                          {updatingExpiry ? "Αποθήκευση..." : "Ενημέρωση λήξης"}
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
                   <dt className="text-muted-foreground">Δημιουργήθηκε</dt>
                   <dd>{new Date(detailsBusiness.created_at).toLocaleString()}</dd>
                 </dl>

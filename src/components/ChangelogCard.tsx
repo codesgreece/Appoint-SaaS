@@ -6,10 +6,74 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 const FALLBACK_ENTRIES: ChangelogEntry[] = [
   {
-    id: 1,
+    id: 11,
     created_at: new Date().toISOString(),
-    title: "Νέα καρτέλα Υποστήριξη",
-    description: "Οι επιχειρήσεις μπορούν να στέλνουν προτάσεις και αναφορές προβλημάτων απευθείας μέσα από την εφαρμογή.",
+    title: "Πλάνα & διάρκεια στη διαχείριση επιχειρήσεων",
+    description:
+      "Super admin: αλλαγή πλάνου ανά επιχείρηση από τις Λεπτομέρειες. Νέο πεδίο Λήξη συνδρομής με ημερομηνία και κουμπί «Ενημέρωση λήξης». Δημιουργία επιχείρησης με πλάνο Demo: κρύβεται η επιλογή διάρκειας, εμφανίζεται «3 ημέρες (σταθερό)».",
+    visible: true,
+  },
+  {
+    id: 10,
+    created_at: new Date().toISOString(),
+    title: "Διαγραφή χρήστη από Ομάδα (διόρθωση Forbidden)",
+    description:
+      "Διόρθωση σφάλματος Forbidden κατά τη διαγραφή μέλους από Super Admin. Ο super_admin μπορεί πλέον να διαγράφει χρήστες ακόμα και χωρίς business_id.",
+    visible: true,
+  },
+  {
+    id: 9,
+    created_at: new Date().toISOString(),
+    title: "Διαγραφή πελάτη και ραντεβού",
+    description:
+      "Κατά τη διαγραφή πελάτη διαγράφονται αυτόματα και όλα τα ραντεβού (και οι πληρωμές τους). Δεν εμφανίζεται πλέον σφάλμα foreign key.",
+    visible: true,
+  },
+  {
+    id: 8,
+    created_at: new Date().toISOString(),
+    title: "Διαγραφή ραντεβού (μόνο admin)",
+    description:
+      "Στην καρτέλα Ραντεβού προστέθηκε ενέργεια «Διαγραφή ραντεβού» στο μενού Ενέργειες. Εμφανίζεται μόνο για admin και super_admin.",
+    visible: true,
+  },
+  {
+    id: 7,
+    created_at: new Date().toISOString(),
+    title: "Πλάνο Demo και χειροκίνητη αλλαγή πλάνου",
+    description:
+      "Νέο πλάνο Demo (1 χρήστης, 20 πελάτες, 50 ραντεβού, 3 ημέρες). Στο superadmin panel επιλογή πλάνου ανά επιχείρηση και όρια ανά πλάνο.",
+    visible: true,
+  },
+  {
+    id: 6,
+    created_at: new Date().toISOString(),
+    title: "Όρια πλάνων (Starter / Pro / Premium)",
+    description:
+      "Τα πλάνα εφαρμόζουν πλέον πραγματικά όρια: απαγόρευση νέων χρηστών/πελατών/ραντεβού όταν φτάνετε το όριο. Στην Ομάδα, Πελάτες και Ραντεβού εμφανίζονται ενδείξεις χρήσης (π.χ. 2/3 μέλη, 120/300 πελάτες).",
+    visible: true,
+  },
+  {
+    id: 5,
+    created_at: new Date().toISOString(),
+    title: "Ρύθμιση ωραρίου και δικαιωμάτων ανά μέλος",
+    description:
+      "Στην Ομάδα: ρύθμιση ωραρίου εργασίας ανά ημέρα και δικαιώματα (βλέπει reports, αλλάζει τιμές, διαγράφει ραντεβού). Στα ραντεβού ελέγχεται ωράριο και επικάλυψη.",
+    visible: true,
+  },
+  {
+    id: 4,
+    created_at: new Date().toISOString(),
+    title: "Ιστορικό πελάτη και ημερολόγιο",
+    description:
+      "Από τη λίστα πελατών μπορείτε να ανοίξετε Ιστορικό: ραντεβού, υπηρεσίες, ποσά. Στο Ημερολόγιο: φίλτρα, κουμπί Σήμερα, δημιουργία ραντεβού με κλικ σε ημέρα, κλείδωμα περασμένων ημερών.",
+    visible: true,
+  },
+  {
+    id: 3,
+    created_at: new Date().toISOString(),
+    title: "Βελτιωμένο UI με glass / gradients",
+    description: "Νέο, πιο μοντέρνο layout για μενού, πίνακες και κάρτες.",
     visible: true,
   },
   {
@@ -20,10 +84,11 @@ const FALLBACK_ENTRIES: ChangelogEntry[] = [
     visible: true,
   },
   {
-    id: 3,
+    id: 1,
     created_at: new Date().toISOString(),
-    title: "Βελτιωμένο UI με glass / gradients",
-    description: "Νέο, πιο μοντέρνο layout για μενού, πίνακες και κάρτες.",
+    title: "Νέα καρτέλα Υποστήριξη",
+    description:
+      "Οι επιχειρήσεις μπορούν να στέλνουν προτάσεις και αναφορές προβλημάτων απευθείας μέσα από την εφαρμογή.",
     visible: true,
   },
 ]

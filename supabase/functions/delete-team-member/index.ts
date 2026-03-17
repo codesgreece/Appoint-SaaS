@@ -32,8 +32,10 @@ Deno.serve(async (req) => {
       .select("id, role, business_id")
       .eq("id", authUser.id)
       .maybeSingle()
-    if (callerErr || !caller || !caller.business_id) return json({ success: false, error: "Forbidden" }, 403)
+    if (callerErr || !caller) return json({ success: false, error: "Forbidden" }, 403)
     if (!["admin", "super_admin"].includes(caller.role)) return json({ success: false, error: "Forbidden" }, 403)
+    // admin must belong to a business; super_admin may have null business_id
+    if (caller.role === "admin" && !caller.business_id) return json({ success: false, error: "Forbidden" }, 403)
 
     let body: Record<string, unknown>
     try {
@@ -52,7 +54,8 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (targetErr || !target) return json({ success: false, error: "User not found" }, 404)
     if (target.role === "super_admin") return json({ success: false, error: "Cannot delete super_admin" }, 403)
-    if (target.business_id !== caller.business_id) return json({ success: false, error: "Forbidden" }, 403)
+    // super_admin can delete any user; admin only within same business
+    if (caller.role !== "super_admin" && target.business_id !== caller.business_id) return json({ success: false, error: "Forbidden" }, 403)
 
     // Delete profile row first
     const { error: profileDelErr } = await supabase.from("users").delete().eq("id", user_id)
