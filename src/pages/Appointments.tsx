@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { Plus, Search, Calendar, MoreHorizontal, Filter } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchAppointments, fetchCustomers, fetchTeam, fetchServices, updateAppointment } from "@/services/api"
+import { fetchAppointments, fetchCustomers, fetchTeam, fetchServices, updateAppointment, deleteAppointment } from "@/services/api"
 import type { AppointmentJob, AppointmentJobStatus } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -172,6 +172,20 @@ export default function Appointments() {
       toast({ title: "Ενημερώθηκε", description: "Η κατάσταση ενημερώθηκε." })
     } catch (e) {
       toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία ενημέρωσης", variant: "destructive" })
+    }
+  }
+
+  const canDeleteAppointment = user && (user.role === "admin" || user.role === "super_admin")
+
+  async function handleDeleteAppointment(a: AppointmentRow) {
+    if (!confirm(`Διαγραφή ραντεβού «${a.title}» της ${a.scheduled_date};`)) return
+    if (!businessId) return
+    try {
+      await deleteAppointment(a.id)
+      setAppointments((prev) => prev.filter((x) => x.id !== a.id))
+      toast({ title: "Διαγράφηκε", description: "Το ραντεβού διαγράφηκε." })
+    } catch (e) {
+      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία διαγραφής", variant: "destructive" })
     }
   }
 
@@ -360,6 +374,14 @@ export default function Appointments() {
                                   Ολοκλήρωση
                                 </DropdownMenuItem>
                               )}
+                              {canDeleteAppointment && (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteAppointment(a)}
+                                >
+                                  Διαγραφή ραντεβού
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -428,6 +450,14 @@ export default function Appointments() {
                                   {a.status !== "completed" && (
                                     <DropdownMenuItem onClick={() => quickUpdateStatus(a, "completed")}>
                                       Ολοκλήρωση
+                                    </DropdownMenuItem>
+                                  )}
+                                  {canDeleteAppointment && (
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => handleDeleteAppointment(a)}
+                                    >
+                                      Διαγραφή ραντεβού
                                     </DropdownMenuItem>
                                   )}
                                 </DropdownMenuContent>

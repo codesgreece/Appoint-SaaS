@@ -9,6 +9,7 @@ import {
   deleteCustomer,
   fetchAppointments,
   fetchBusiness,
+  deleteAppointment,
 } from "@/services/api"
 import type { Customer } from "@/types"
 import { useToast } from "@/hooks/use-toast"
@@ -104,11 +105,16 @@ export default function Customers() {
   }
 
   async function handleDelete(c: Customer) {
-    if (!confirm(`Διαγραφή πελάτη ${c.first_name} ${c.last_name};`)) return
+    if (!confirm(`Διαγραφή πελάτη ${c.first_name} ${c.last_name}; Θα διαγραφούν και όλα τα ραντεβού του.`)) return
+    if (!businessId) return
     try {
+      const appointments = await fetchAppointments(businessId, { customerId: c.id })
+      for (const a of appointments) {
+        await deleteAppointment(a.id)
+      }
       await deleteCustomer(c.id)
       setCustomers((prev) => prev.filter((x) => x.id !== c.id))
-      toast({ title: "Διαγράφηκε", description: "Ο πελάτης διαγράφηκε." })
+      toast({ title: "Διαγράφηκε", description: "Ο πελάτης και τα ραντεβού του διαγράφηκαν." })
     } catch (e) {
       toast({ title: "Σφάλμα", description: (e as Error).message, variant: "destructive" })
     }

@@ -253,6 +253,14 @@ export async function updateAppointment(id: string, payload: Partial<Appointment
   return data as AppointmentJob
 }
 
+/** Deletes an appointment and its related payments. Call this before deleting a customer who has appointments. */
+export async function deleteAppointment(id: string): Promise<void> {
+  const { error: paymentsError } = await supabase.from("payments").delete().eq("appointment_job_id", id)
+  if (paymentsError) throw paymentsError
+  const { error: jobError } = await supabase.from("appointments_jobs").delete().eq("id", id)
+  if (jobError) throw jobError
+}
+
 export async function fetchTeam(_businessId: string): Promise<User[]> {
   const { data, error } = await supabase.from("users").select("*").order("full_name")
   if (error) throw error
