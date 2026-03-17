@@ -1,0 +1,938 @@
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import type { AppointmentJob, AppointmentJobStatus, Customer, User, Service, Payment, PaymentStatus } from "@/types"
+import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { AlertCircle } from "lucide-react"
+import { formatDate } from "@/lib/utils"
+
+const statusOptions: AppointmentJobStatus[] = [
+  "pending",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "no_show",
+  "rescheduled",
+]
+
+const schema = z.object({
+  title: z.string().min(1, "Απαιτείται"),
+  customer_id: z.string().min(1, "Επιλέξτε πελάτη"),
+  assigned_user_id: z.string().optional(),
+  service_id: z.string().optional(),
+  // keep enum values in sync with AppointmentJobStatus
+  status: z.enum(
+    ["pending", "confirmed", "in_progress", "completed", "cancelled", "no_show", "rescheduled"] as [
+      AppointmentJobStatus,
+      ...AppointmentJobStatus[],
+    ],
+  ),
+  scheduled_date: z.string().min(1, "Απαιτείται ημερομηνία"),
+  start_time: z.string().min(1),
+  end_time: z.string().min(1),
+  description: z.string().optional(),
+  cost_estimate: z.coerce.number().optional().nullable(),
+  final_cost: z.coerce.number().optional().nullable(),
+  creation_notes: z.string().optional(),
+  completion_notes: z.string().optional(),
+  recurrence_rule: z.string().optional().nullable(),
+})
+
+type FormValues = z.infer<typeof schema>
+
+function toTimeInputValue(t: string | undefined | null): string {
+  if (!t) return "09:00"
+  const s = String(t)
+  if (/^\d{2}:\d{2}$/.test(s)) return s
+  const match = s.match(/^(\d{1,2}):(\d{2})/)
+  if (match) return `${match[1].padStart(2, "0")}:${match[2]}`
+  return "09:00"
+}
+
+function addMinutesToTime(timeHHMM: string, minutes: number): string {
+  const [hh, mm] = timeHHMM.split(":").map((x) => Number(x))
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return timeHHMM
+  const total = hh * 60 + mm + minutes
+  const next = ((total % (24 * 60)) + (24 * 60)) % (24 * 60)
+  const nh = Math.floor(next / 60)
+  const nm = next % 60
+  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`
+}
+
+function timeToMinutes(timeHHMM: string): number {
+  const [hh, mm] = timeHHMM.split(":").map((x) => Number(x))
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0
+  return hh * 60 + mm
+}
+
+function toDateInputValue(d: string | Date | undefined | null): string {
+  if (!d) return ""
+  const date = typeof d === "string" ? new Date(d) : d
+  if (isNaN(date.getTime())) return ""
+  return date.toISOString().slice(0, 10)
+}
+
+interface AppointmentFormProps {
+  initial?: Partial<AppointmentJob> & {
+    customer?: Customer
+    assigned_user?: User | Pick<User, "full_name" | "email"> | null
+  }
+  customers?: Customer[] | null
+  team?: User[] | null
+  services?: Service[] | null
+  businessId: string | null
+  presetDate?: string
+  onSaved: () => void
+  onCancel: () => void
+}
+
+export function AppointmentForm({
+  initial,
+  customers,
+  team,
+  services,
+  businessId,
+  presetDate,
+  onSaved,
+  onCancel,
+}: AppointmentFormProps) {
+  const { toast } = useToast()
+  const safeCustomers = Array.isArray(customers) ? customers : []
+  const safeTeam = Array.isArray(team) ? team : []
+  const safeServices = Array.isArray(services) ? services : []
+
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>(safeCustomers)
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false)
+  const [newFirstName, setNewFirstName] = useState("")
+  const [newLastName, setNewLastName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newAddress, setNewAddress] = useState("")
+  const [newArea, setNewArea] = useState("")
+  const [newPostalCode, setNewPostalCode] = useState("")
+  const [newCompany, setNewCompany] = useState("")
+  const [newVatNumber, setNewVatNumber] = useState("")
+  const [newNotes, setNewNotes] = useState("")
+  const [newTags, setNewTags] = useState("")
+  const [creatingCustomer, setCreatingCustomer] = useState(false)
+
+  useEffect(() => {
+    setCustomerOptions(Array.isArray(customers) ? customers : [])
+  }, [customers])
+
+  const today = new Date().toISOString().slice(0, 10)
+  const defaultDate = presetDate ?? today
+
+  let initError: string | null = null
+  let defaultValues: FormValues
+
+  try {
+    defaultValues = initial
+      ? {
+          title: initial.title ?? "",
+          customer_id: initial.customer_id ?? "",
+          assigned_user_id: initial.assigned_user_id ?? "",
+          service_id: initial.service_id ?? "",
+          status: (initial.status as FormValues["status"]) || "pending",
+          scheduled_date: toDateInputValue(initial.scheduled_date),
+          start_time: toTimeInputValue(initial.start_time),
+          end_time: toTimeInputValue(initial.end_time),
+          description: initial.description ?? "",
+          cost_estimate: initial.cost_estimate != null ? Number(initial.cost_estimate) : undefined,
+          final_cost: initial.final_cost != null ? Number(initial.final_cost) : undefined,
+          creation_notes: initial.creation_notes ?? "",
+          completion_notes: initial.completion_notes ?? "",
+          recurrence_rule: initial.recurrence_rule ?? "",
+        }
+      : {
+          title: "",
+          customer_id: "",
+          assigned_user_id: "",
+          service_id: "",
+          status: "pending",
+          scheduled_date: defaultDate,
+          start_time: "09:00",
+          end_time: "10:00",
+          description: "",
+          cost_estimate: undefined,
+          final_cost: undefined,
+          creation_notes: "",
+          completion_notes: "",
+          recurrence_rule: "",
+        }
+  } catch (e) {
+    console.error("AppointmentForm init error:", e)
+    initError = e instanceof Error ? e.message : "Απροσδόκητο σφάλμα φόρτωσης φόρμας."
+    defaultValues = {
+      title: "",
+      customer_id: "",
+      assigned_user_id: "",
+      service_id: "",
+      status: "pending",
+      scheduled_date: defaultDate,
+      start_time: "09:00",
+      end_time: "10:00",
+      description: "",
+      cost_estimate: undefined,
+      final_cost: undefined,
+      creation_notes: "",
+      completion_notes: "",
+      recurrence_rule: "",
+    }
+  }
+
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues,
+  })
+
+  const customerIdRaw = watch("customer_id") ?? ""
+  const assignedUserIdRaw = watch("assigned_user_id") ?? ""
+  const serviceIdRaw = watch("service_id") ?? ""
+  const status = watch("status") ?? "pending"
+  const watchedFinalCost = watch("final_cost")
+  const watchedCostEstimate = watch("cost_estimate")
+  const watchedStartTime = watch("start_time") ?? "09:00"
+  const watchedEndTime = watch("end_time") ?? "10:00"
+
+  const serviceById = useMemo(() => {
+    const map = new Map<string, Service>()
+    for (const s of safeServices) map.set(s.id, s)
+    return map
+  }, [safeServices])
+
+  const lastAutoRef = useRef<{ serviceId: string | null; endTime: string | null }>({ serviceId: null, endTime: null })
+
+  // Smart defaults: when selecting a service, auto-fill cost estimate and end time if user hasn't customized them.
+  useEffect(() => {
+    const sid = serviceIdRaw && serviceIdRaw.length > 0 ? serviceIdRaw : ""
+    if (!sid) {
+      lastAutoRef.current = { serviceId: null, endTime: null }
+      return
+    }
+    const svc = serviceById.get(sid)
+    if (!svc) return
+
+    // Auto-fill cost_estimate only if empty.
+    if ((watchedCostEstimate == null || watchedCostEstimate === undefined || String(watchedCostEstimate) === "") && svc.price != null) {
+      setValue("cost_estimate", Number(svc.price) as any, { shouldDirty: true })
+    }
+
+    // Auto-fill end_time if duration exists and end_time looks auto-generated (or unchanged since last auto-fill).
+    if (svc.duration_minutes != null && Number.isFinite(Number(svc.duration_minutes))) {
+      const nextEnd = addMinutesToTime(toTimeInputValue(watchedStartTime), Number(svc.duration_minutes))
+      const prevAuto = lastAutoRef.current.endTime
+      const currentEnd = toTimeInputValue(watchedEndTime)
+      const shouldUpdateEnd =
+        !prevAuto || currentEnd === prevAuto || currentEnd === "10:00"
+
+      if (shouldUpdateEnd) {
+        setValue("end_time", nextEnd, { shouldDirty: true })
+        lastAutoRef.current = { serviceId: sid, endTime: nextEnd }
+      }
+    }
+  }, [serviceIdRaw, serviceById, setValue, watchedCostEstimate, watchedStartTime, watchedEndTime])
+
+  // Payment state (for existing appointments)
+  const [payment, setPayment] = useState<Payment | null>(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentSaving, setPaymentSaving] = useState(false)
+  const [paidAmountInput, setPaidAmountInput] = useState("")
+  const [paymentMethodInput, setPaymentMethodInput] = useState("")
+  const [paymentNotesInput, setPaymentNotesInput] = useState("")
+
+  useEffect(() => {
+    if (!initial?.id) return
+    setPaymentLoading(true)
+    import("@/services/api")
+      .then(({ fetchPaymentForAppointment }) => fetchPaymentForAppointment(initial.id!))
+      .then((p) => {
+        if (p) {
+          setPayment(p)
+          setPaidAmountInput(p.paid_amount != null ? String(p.paid_amount) : "")
+          setPaymentMethodInput(p.payment_method ?? "")
+          setPaymentNotesInput(p.notes ?? "")
+        }
+      })
+      .finally(() => setPaymentLoading(false))
+  }, [initial?.id])
+
+  const totalAmountRaw =
+    watchedFinalCost != null && watchedFinalCost !== undefined
+      ? Number(watchedFinalCost || 0)
+      : watchedCostEstimate != null && watchedCostEstimate !== undefined
+        ? Number(watchedCostEstimate || 0)
+        : payment?.amount ?? 0
+
+  const totalAmount = Number.isFinite(totalAmountRaw) ? Math.max(0, totalAmountRaw) : 0
+  const paidAmount = Number.isFinite(Number(paidAmountInput)) ? Math.max(0, Number(paidAmountInput || 0)) : 0
+
+  let derivedAmount = totalAmount
+  if (derivedAmount <= 0 && paidAmount > 0) {
+    derivedAmount = paidAmount
+  }
+
+  let paymentStatus: PaymentStatus = "unpaid"
+  if (paidAmount <= 0) {
+    paymentStatus = "unpaid"
+  } else if (paidAmount < derivedAmount) {
+    paymentStatus = "partial"
+  } else {
+    paymentStatus = "paid"
+  }
+
+  const remainingBalance = Math.max(0, derivedAmount - paidAmount)
+
+  // Radix Select does not allow empty-string values; map internal empty/undefined to sentinel values.
+  const customerSelectValue = customerIdRaw || "none"
+  const assignedUserSelectValue = assignedUserIdRaw || "unassigned"
+  const serviceSelectValue = serviceIdRaw || "none"
+
+  async function onFormSubmit(data: FormValues) {
+    try {
+      if (!businessId) {
+        throw new Error("Λείπει το αναγνωριστικό επιχείρησης. Κάντε επαναφόρτωση και δοκιμάστε ξανά.")
+      }
+
+      const { fetchAppointments, fetchStaffProfileForUser, fetchBusiness, countAppointmentsForBusiness } = await import("@/services/api")
+
+      // Έλεγχος ορίων πλάνου για συνολικά ραντεβού (max_appointments).
+      const biz = await fetchBusiness(businessId)
+      if (biz?.max_appointments != null) {
+        const totalAppointments = await countAppointmentsForBusiness(businessId)
+        if (!initial?.id && totalAppointments >= biz.max_appointments) {
+          toast({
+            title: "Όριο ραντεβού πλάνου",
+            description: "Έχεις φτάσει το μέγιστο πλήθος ραντεβού για το τρέχον πλάνο επιχείρησης.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
+      // Έλεγχος για επικαλυπτόμενα ραντεβού στην ίδια ημέρα (και, αν έχει οριστεί, για τον ίδιο υπεύθυνο).
+      const sameDayAppointments = await fetchAppointments(businessId, {
+        from: data.scheduled_date,
+        to: data.scheduled_date,
+      })
+
+      const newStart = timeToMinutes(data.start_time)
+      const newEnd = timeToMinutes(data.end_time)
+
+      const hasOverlap = sameDayAppointments.some((a) => {
+        if (initial?.id && a.id === initial.id) return false
+        // Αν έχει οριστεί υπεύθυνος, ελέγχουμε μόνο για τον ίδιο υπεύθυνο.
+        if (data.assigned_user_id && a.assigned_user_id && a.assigned_user_id !== data.assigned_user_id) {
+          return false
+        }
+        const existingStart = timeToMinutes(a.start_time)
+        const existingEnd = timeToMinutes(a.end_time)
+        return newStart < existingEnd && newEnd > existingStart
+      })
+
+      if (hasOverlap) {
+        toast({
+          title: "Μη διαθέσιμη ώρα",
+          description: "Υπάρχει ήδη ραντεβού σε αυτό το διάστημα. Διάλεξε άλλη ώρα ή υπεύθυνο.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Έλεγχος ωραρίου εργασίας υπεύθυνου (αν έχει οριστεί).
+      if (data.assigned_user_id) {
+        const profile = await fetchStaffProfileForUser(data.assigned_user_id)
+        const availability = profile?.availability as any | null
+        const schedule = availability?.schedule as
+          | {
+              [day: string]: { enabled: boolean; from: string; to: string }
+            }
+          | undefined
+        if (schedule) {
+          const weekday = new Date(`${data.scheduled_date}T00:00:00`).getDay() // 0 Κυρ, 1 Δευ...
+          const keyMap: Record<number, string> = {
+            0: "sun",
+            1: "mon",
+            2: "tue",
+            3: "wed",
+            4: "thu",
+            5: "fri",
+            6: "sat",
+          }
+          const key = keyMap[weekday]
+          const def = schedule[key]
+          if (def?.enabled && def.from && def.to) {
+            const workStart = timeToMinutes(def.from)
+            const workEnd = timeToMinutes(def.to)
+            const outside =
+              newStart < workStart ||
+              newEnd > workEnd ||
+              newStart >= workEnd ||
+              newEnd <= workStart
+            if (outside) {
+              toast({
+                title: "Εκτός ωραρίου εργασίας",
+                description: `Το ραντεβού είναι εκτός δηλωμένου ωραρίου για τον υπεύθυνο (${def.from}–${def.to}). Προσαρμόστε την ώρα ή το ωράριο.`,
+                variant: "destructive",
+              })
+              return
+            }
+          }
+        }
+      }
+
+      const payload = {
+        business_id: businessId,
+        title: data.title,
+        customer_id: data.customer_id,
+        assigned_user_id: data.assigned_user_id && data.assigned_user_id.length > 0 ? data.assigned_user_id : null,
+        service_id: data.service_id && data.service_id.length > 0 ? data.service_id : null,
+        status: data.status as AppointmentJobStatus,
+        scheduled_date: data.scheduled_date,
+        start_time: data.start_time,
+        end_time: data.end_time,
+        description: data.description || null,
+        cost_estimate: data.cost_estimate ?? null,
+        final_cost: data.final_cost ?? null,
+        creation_notes: data.creation_notes || null,
+        completion_notes: data.completion_notes || null,
+        recurrence_rule: data.recurrence_rule || null,
+      }
+      const { createAppointment, updateAppointment } = await import("@/services/api")
+      if (initial?.id) {
+        await updateAppointment(initial.id, payload)
+      } else {
+        await createAppointment(payload)
+      }
+      onSaved()
+    } catch (err) {
+      console.error("Appointment save error:", err)
+      const message = err instanceof Error ? err.message : "Αποτυχία αποθήκευσης"
+      toast({ title: "Σφάλμα", description: message, variant: "destructive" })
+    }
+  }
+
+  async function handleSavePayment() {
+    try {
+      if (!initial?.id) {
+        toast({ title: "Σφάλμα", description: "Η πληρωμή μπορεί να αποθηκευτεί μόνο για υπάρχον ραντεβού.", variant: "destructive" })
+        return
+      }
+      if (!businessId) {
+        toast({ title: "Σφάλμα", description: "Λείπει το αναγνωριστικό επιχείρησης.", variant: "destructive" })
+        return
+      }
+      if (derivedAmount <= 0 && paidAmount <= 0) {
+        toast({ title: "Σφάλμα", description: "Ορίστε ποσό ή πληρωμένο ποσό πριν την αποθήκευση.", variant: "destructive" })
+        return
+      }
+
+      setPaymentSaving(true)
+      const { upsertPaymentForAppointment } = await import("@/services/api")
+      const payload = {
+        id: payment?.id,
+        business_id: businessId,
+        appointment_job_id: initial.id!,
+        amount: derivedAmount,
+        paid_amount: paidAmount,
+        remaining_balance: remainingBalance,
+        payment_status: paymentStatus,
+        payment_method: paymentMethodInput || null,
+        notes: paymentNotesInput || null,
+        deposit: null,
+      } as const
+
+      console.debug("Saving appointment payment with payload:", payload)
+      const updated = await upsertPaymentForAppointment(payload)
+      setPayment(updated)
+      toast({ title: "Πληρωμή αποθηκεύτηκε", description: "Η πληρωμή ενημερώθηκε επιτυχώς." })
+    } catch (err) {
+      console.error("Save payment error:", err)
+      const message = err instanceof Error ? err.message : "Αποτυχία αποθήκευσης πληρωμής"
+      toast({ title: "Σφάλμα", description: message, variant: "destructive" })
+    } finally {
+      setPaymentSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
+      {initError && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4" />
+          <div>
+            <p className="font-medium">Σφάλμα φόρτωσης φόρμας</p>
+            <p className="text-xs text-destructive/80">
+              {initError} Αν το πρόβλημα συνεχιστεί, ελέγξτε τα δεδομένα του ραντεβού ή δημιουργήστε νέο.
+            </p>
+          </div>
+        </div>
+      )}
+      <Card className="border-border/60 bg-card/60">
+        <CardHeader className="space-y-1.5">
+          <CardTitle className="flex items-center justify-between gap-2 text-sm">
+            <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+              {initial?.id ? "Επεξεργασία ραντεβού" : "Νέο ραντεβού"}
+            </span>
+            <span className="inline-flex items-center rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+              {formatDate(defaultValues.scheduled_date)} • {defaultValues.start_time}–{defaultValues.end_time}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Τίτλος</Label>
+              <Input {...register("title")} placeholder="Τίτλος ραντεβού" />
+              {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Πελάτης</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 text-[11px]"
+                  onClick={() => setCreateCustomerOpen(true)}
+                >
+                  Νέος πελάτης
+                </Button>
+              </div>
+              <Select
+                value={customerSelectValue}
+                onValueChange={(v) => {
+                  if (v === "none") {
+                    setValue("customer_id", "")
+                  } else {
+                    setValue("customer_id", v)
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Επιλέξτε πελάτη" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Επιλέξτε πελάτη —</SelectItem>
+                  {customerOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.customer_id && <p className="text-sm text-destructive">{errors.customer_id.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Υπεύθυνος</Label>
+              <Select
+                value={assignedUserSelectValue}
+                onValueChange={(v) => {
+                  if (v === "unassigned") {
+                    setValue("assigned_user_id", "")
+                  } else {
+                    setValue("assigned_user_id", v)
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Επιλέξτε" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">—</SelectItem>
+                  {safeTeam.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Υπηρεσία</Label>
+              <Select
+                value={serviceSelectValue}
+                onValueChange={(v) => {
+                  if (v === "none") {
+                    setValue("service_id", "")
+                  } else {
+                    setValue("service_id", v)
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Επιλέξτε" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {safeServices.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Κατάσταση</Label>
+              <Select
+                value={status}
+                onValueChange={(v) => setValue("status", (v as FormValues["status"]) ?? "pending")}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2 md:col-span-1">
+              <Label>Ημ/νία</Label>
+              <Input type="date" {...register("scheduled_date")} />
+              {errors.scheduled_date && <p className="text-sm text-destructive">{errors.scheduled_date.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Ώρα έναρξης</Label>
+              <Input type="time" {...register("start_time")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Ώρα λήξης</Label>
+              <Input type="time" {...register("end_time")} />
+            </div>
+            <div className="space-y-2">
+              <Label>Εκτίμηση κόστους (€)</Label>
+              <Input type="number" step="0.01" {...register("cost_estimate")} />
+            </div>
+            <div className="space-y-2 md:col-span-1">
+              <Label>Τελικό κόστος (€)</Label>
+              <Input type="number" step="0.01" {...register("final_cost")} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Περιγραφή</Label>
+              <Input {...register("description")} placeholder="Σύντομη περιγραφή εργασίας..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Σημειώσεις δημιουργίας</Label>
+              <Input {...register("creation_notes")} placeholder="Ειδικές οδηγίες, προτιμήσεις κ.λπ." />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Σημειώσεις ολοκλήρωσης</Label>
+            <Input {...register("completion_notes")} placeholder="Τι έγινε στο ραντεβού" />
+          </div>
+          <div className="space-y-2">
+            <Label>Επανάληψη (π.χ. WEEKLY, MONTHLY)</Label>
+            <Input {...register("recurrence_rule")} placeholder="Προαιρετικά, κανόνας επανάληψης" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {initial?.id && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-base">Πληρωμή</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {paymentLoading ? (
+              <p className="text-sm text-muted-foreground">Φόρτωση στοιχείων πληρωμής...</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Τελικό ποσό (€)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {derivedAmount > 0 ? derivedAmount.toFixed(2) : "0.00"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Κατάσταση πληρωμής</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {paymentStatus === "paid" ? "Πληρωμένο" : paymentStatus === "partial" ? "Μερικό" : "Απλήρωτο"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="paid-amount">Πληρωμένο ποσό (€)</Label>
+                    <Input
+                      id="paid-amount"
+                      type="number"
+                      step="0.01"
+                      value={paidAmountInput}
+                      onChange={(e) => setPaidAmountInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Υπόλοιπο (€)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {remainingBalance.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Τρόπος πληρωμής</Label>
+                    <Input
+                      id="payment-method"
+                      placeholder="π.χ. Μετρητά, Κάρτα"
+                      value={paymentMethodInput}
+                      onChange={(e) => setPaymentMethodInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-notes">Σημειώσεις πληρωμής</Label>
+                    <Input
+                      id="payment-notes"
+                      placeholder="Σημειώσεις"
+                      value={paymentNotesInput}
+                      onChange={(e) => setPaymentNotesInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Ημερομηνία πληρωμής</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {payment?.created_at ? formatDate(payment.created_at) : "Θα οριστεί κατά την πρώτη πληρωμή"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button type="button" variant="outline" onClick={handleSavePayment} disabled={paymentSaving}>
+                    {paymentSaving ? "Αποθήκευση..." : "Αποθήκευση πληρωμής"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Νέος πελάτης</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-first-name">Όνομα *</Label>
+                <Input
+                  id="new-first-name"
+                  value={newFirstName}
+                  onChange={(e) => setNewFirstName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-last-name">Επώνυμο *</Label>
+                <Input
+                  id="new-last-name"
+                  value={newLastName}
+                  onChange={(e) => setNewLastName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-phone">Τηλέφωνο</Label>
+                <Input
+                  id="new-phone"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-email">Email</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="new-address">Διεύθυνση *</Label>
+                <Input
+                  id="new-address"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-area">Περιοχή</Label>
+                <Input
+                  id="new-area"
+                  value={newArea}
+                  onChange={(e) => setNewArea(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-postal-code">Τ.Κ.</Label>
+                <Input
+                  id="new-postal-code"
+                  value={newPostalCode}
+                  onChange={(e) => setNewPostalCode(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-company">Εταιρεία</Label>
+                <Input
+                  id="new-company"
+                  value={newCompany}
+                  onChange={(e) => setNewCompany(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-vat-number">ΑΦΜ</Label>
+                <Input
+                  id="new-vat-number"
+                  value={newVatNumber}
+                  onChange={(e) => setNewVatNumber(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="new-notes">Σημειώσεις</Label>
+                <Input
+                  id="new-notes"
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="new-tags">Tags (χωρισμένα με κόμμα)</Label>
+                <Input
+                  id="new-tags"
+                  value={newTags}
+                  onChange={(e) => setNewTags(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              * Υποχρεωτικά πεδία. Απαιτείται τουλάχιστον ένα από Τηλέφωνο ή Email.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateCustomerOpen(false)}
+                disabled={creatingCustomer}
+              >
+                Ακύρωση
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    if (!businessId) {
+                      toast({
+                        title: "Σφάλμα",
+                        description: "Λείπει το αναγνωριστικό επιχείρησης. Δεν μπορεί να δημιουργηθεί πελάτης.",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    if (!newFirstName.trim() || !newLastName.trim() || !newAddress.trim()) {
+                      toast({
+                        title: "Σφάλμα",
+                        description: "Συμπληρώστε όνομα, επώνυμο και διεύθυνση.",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+                    if (!newPhone.trim() && !newEmail.trim()) {
+                      toast({
+                        title: "Σφάλμα",
+                        description: "Συμπληρώστε τουλάχιστον τηλέφωνο ή email.",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+
+                    const normalizedEmail = newEmail.trim().toLowerCase()
+                    const normalizedPhone = newPhone.trim()
+                    const duplicate = customerOptions.find((c) => {
+                      const samePhone = normalizedPhone && c.phone === normalizedPhone
+                      const sameEmail =
+                        normalizedEmail && c.email && c.email.toLowerCase() === normalizedEmail
+                      return samePhone || sameEmail
+                    })
+                    if (duplicate) {
+                      toast({
+                        title: "Υπάρχει ήδη πελάτης",
+                        description: "Βρέθηκε πελάτης με ίδιο τηλέφωνο ή email. Επιλέχθηκε ο υπάρχων πελάτης.",
+                      })
+                      setValue("customer_id", duplicate.id)
+                      setCreateCustomerOpen(false)
+                      return
+                    }
+
+                    setCreatingCustomer(true)
+                    const { createCustomer, fetchBusiness } = await import("@/services/api")
+
+                    const biz = await fetchBusiness(businessId)
+                    if (biz?.max_customers != null && customerOptions.length >= biz.max_customers) {
+                      toast({
+                        title: "Όριο πελατών πλάνου",
+                        description: "Έχεις φτάσει το μέγιστο πλήθος πελατών για το τρέχον πλάνο επιχείρησης.",
+                        variant: "destructive",
+                      })
+                      setCreatingCustomer(false)
+                      return
+                    }
+                    const payload = {
+                      business_id: businessId,
+                      first_name: newFirstName.trim(),
+                      last_name: newLastName.trim(),
+                      phone: normalizedPhone || null,
+                      email: normalizedEmail || null,
+                      address: newAddress.trim(),
+                      area: newArea.trim() || null,
+                      postal_code: newPostalCode.trim() || null,
+                      company: newCompany.trim() || null,
+                      vat_number: newVatNumber.trim() || null,
+                      notes: newNotes.trim() || null,
+                      tags: newTags
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter(Boolean),
+                    } as Partial<Customer> & { business_id: string }
+
+                    const created = (await createCustomer(payload)) as Customer
+                    setCustomerOptions((prev) => [created, ...prev])
+                    setValue("customer_id", created.id)
+                    toast({
+                      title: "Πελάτης δημιουργήθηκε",
+                      description: "Ο νέος πελάτης προστέθηκε και επιλέχθηκε στο ραντεβού.",
+                    })
+                    setCreateCustomerOpen(false)
+                  } catch (err) {
+                    console.error("Create inline customer error:", err)
+                    const message = err instanceof Error ? err.message : "Αποτυχία δημιουργίας πελάτη"
+                    toast({ title: "Σφάλμα", description: message, variant: "destructive" })
+                  } finally {
+                    setCreatingCustomer(false)
+                  }
+                }}
+                disabled={creatingCustomer}
+              >
+                {creatingCustomer ? "Δημιουργία..." : "Αποθήκευση πελάτη"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Ακύρωση
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Αποθήκευση..." : "Αποθήκευση"}
+        </Button>
+      </div>
+    </form>
+  )
+}
