@@ -234,7 +234,7 @@ export default function PlatformBusinesses() {
         maxUsers = 1
         maxCustomers = 0
         maxAppointments = 0
-        subscription_status = "pending_purchase"
+        subscription_status = "none"
         subscription_started_at = null
         subscription_expires_at = null
       } else if (createTypeSnapshot === "demo") {
@@ -343,7 +343,7 @@ export default function PlatformBusinesses() {
         updatePayload.subscription_expires_at = null
       }
       if (newPlan === "unsubscribed") {
-        updatePayload.subscription_status = "pending_purchase"
+        updatePayload.subscription_status = "none"
         updatePayload.subscription_started_at = null
       } else if (newPlan !== "demo") {
         updatePayload.subscription_status = "active"
