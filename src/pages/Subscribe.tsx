@@ -12,6 +12,7 @@ import {
   PLAN_DISPLAY,
   PLAN_PRICES,
   DURATION_LABELS,
+  STARTER_TEST_PACKAGE,
   type PurchasablePlan,
   type PurchaseDurationMonths,
 } from "@/lib/subscription-catalog"
@@ -25,6 +26,7 @@ export default function Subscribe() {
   const navigate = useNavigate()
   const [plan, setPlan] = useState<PurchasablePlan>("pro")
   const [months, setMonths] = useState<PurchaseDurationMonths>(12)
+  const [starterTestPack, setStarterTestPack] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   if (user?.role === "super_admin") {
@@ -47,10 +49,12 @@ export default function Subscribe() {
     if (!businessId) return
     try {
       setSubmitting(true)
+      const duration_months =
+        plan === "starter" && starterTestPack ? STARTER_TEST_PACKAGE.durationMonths : months
       await activateSubscriptionPurchase({
         business_id: businessId,
         plan,
-        duration_months: months,
+        duration_months,
       })
       await refreshTenantBusiness()
       toast({
@@ -69,7 +73,8 @@ export default function Subscribe() {
     }
   }
 
-  const price = PLAN_PRICES[plan][months]
+  const price =
+    plan === "starter" && starterTestPack ? STARTER_TEST_PACKAGE.priceEuro : PLAN_PRICES[plan][months]
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
@@ -102,7 +107,10 @@ export default function Subscribe() {
             <button
               key={p}
               type="button"
-              onClick={() => setPlan(p)}
+              onClick={() => {
+                setPlan(p)
+                if (p !== "starter") setStarterTestPack(false)
+              }}
               className={cn(
                 "relative rounded-2xl border-2 p-5 text-left transition-all",
                 plan === p
@@ -159,6 +167,35 @@ export default function Subscribe() {
           ))}
         </div>
 
+        {plan === "starter" && (
+          <Card className="mx-auto max-w-3xl mb-6 border-primary/40 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{STARTER_TEST_PACKAGE.label}</CardTitle>
+              <p className="text-xs text-muted-foreground font-normal">{STARTER_TEST_PACKAGE.subtitle}</p>
+            </CardHeader>
+            <CardContent>
+              <button
+                type="button"
+                onClick={() => {
+                  setStarterTestPack(true)
+                  setMonths(1)
+                }}
+                className={cn(
+                  "w-full rounded-xl border-2 p-4 text-left transition-all",
+                  starterTestPack
+                    ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                    : "border-border/60 bg-card hover:border-primary/40"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">0,10 €</span>
+                  <span className="text-xs text-muted-foreground">Ίδιο πλάνο Starter · για έλεγχο πληρωμής</span>
+                </div>
+              </button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="mx-auto max-w-3xl border-border/60 bg-card/80">
           <CardHeader>
             <CardTitle className="text-base">Διάρκεια συνδρομής</CardTitle>
@@ -172,7 +209,10 @@ export default function Subscribe() {
               <button
                 key={m}
                 type="button"
-                onClick={() => setMonths(m)}
+                onClick={() => {
+                  setMonths(m)
+                  setStarterTestPack(false)
+                }}
                 className={cn(
                   "relative rounded-xl border p-4 text-center transition-all",
                   months === m ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border/60 hover:bg-muted/50"
@@ -196,10 +236,14 @@ export default function Subscribe() {
             <span className="text-muted-foreground">Επιλογή: </span>
             <strong>{PLAN_DISPLAY[plan].title}</strong>
             <span className="text-muted-foreground"> · </span>
-            <strong>{DURATION_LABELS[months]}</strong>
+            <strong>{starterTestPack && plan === "starter" ? DURATION_LABELS[1] : DURATION_LABELS[months]}</strong>
             <span className="text-muted-foreground"> · </span>
-            <strong className="text-primary text-lg">{price}€</strong>
-            {months === 12 && <p className="text-xs text-muted-foreground mt-1">Ισχύς 14 μήνες (συμπεριλαμβάνονται 2 δώρο)</p>}
+            <strong className="text-primary text-lg">
+              {price < 1 ? price.toFixed(2).replace(".", ",") : price}€
+            </strong>
+            {months === 12 && !starterTestPack && (
+              <p className="text-xs text-muted-foreground mt-1">Ισχύς 14 μήνες (συμπεριλαμβάνονται 2 δώρο)</p>
+            )}
           </div>
           <Button size="lg" className="w-full sm:w-auto min-w-[240px]" onClick={handlePurchase} disabled={submitting}>
             {submitting ? "Ενεργοποίηση..." : "Ολοκλήρωση αγοράς & ενεργοποίηση"}

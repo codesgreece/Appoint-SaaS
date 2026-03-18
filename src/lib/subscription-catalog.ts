@@ -23,3 +23,11 @@ export const DURATION_LABELS: Record<PurchaseDurationMonths, string> = {
   6: "6 μήνες",
   12: "12 μήνες (ετήσιο)",
 }
+
+/** Starter μόνο: χαμηλή τιμή για δοκιμή ροής πληρωμής (ίδια όρια & διάρκεια 1 μήνα). */
+export const STARTER_TEST_PACKAGE = {
+  priceEuro: 0.1,
+  label: "Πακέτο δοκιμής",
+  subtitle: "0,10 € · 1 μήνας · ίδια όρια Starter",
+  durationMonths: 1 as const,
+} as const
