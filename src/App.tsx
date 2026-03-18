@@ -3,6 +3,7 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
+import { SubscriptionGate } from "@/components/SubscriptionGate"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { Toaster } from "@/components/ui/sonner"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -10,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext"
 
 import Login from "@/pages/Login"
 import ResetPassword from "@/pages/ResetPassword"
+import Subscribe from "@/pages/Subscribe"
 import Dashboard from "@/pages/Dashboard"
 import Customers from "@/pages/Customers"
 import Services from "@/pages/Services"
@@ -29,6 +31,16 @@ import PlatformPlans from "@/pages/platform/Plans"
 import PlatformUsers from "@/pages/platform/Users"
 import PlatformTools from "@/pages/platform/Tools"
 
+function TenantApp({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <SubscriptionGate>
+        <AppLayout>{children}</AppLayout>
+      </SubscriptionGate>
+    </ProtectedRoute>
+  )
+}
+
 function Home() {
   const { user, loading } = useAuth()
   if (loading) return null
@@ -44,193 +56,175 @@ export default function App() {
         <BrowserRouter>
           <AuthProvider>
             <WorkspaceProvider>
-            <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="/terms"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <Terms />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/privacy"
-            element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <PrivacyPolicy />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Home />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/customers"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Customers />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/services"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Services />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/appointments"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Appointments />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/calendar"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Calendar />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/team"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Team />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/payments"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Payments />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/reports"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Reports />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Settings />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/support"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Support />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/faq"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <FAQ />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/platform/overview"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <AppLayout>
-                    <PlatformOverview />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/platform/businesses"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <AppLayout>
-                    <PlatformBusinesses />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/platform/plans"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <AppLayout>
-                    <PlatformPlans />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/platform/users"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <AppLayout>
-                    <PlatformUsers />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/platform/tools"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <AppLayout>
-                    <PlatformTools />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-            <Toaster />
-          </WorkspaceProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route
+                  path="/subscribe"
+                  element={
+                    <ProtectedRoute>
+                      <Subscribe />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/terms"
+                  element={
+                    <TenantApp>
+                      <Terms />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/privacy"
+                  element={
+                    <TenantApp>
+                      <PrivacyPolicy />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <TenantApp>
+                      <Home />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/customers"
+                  element={
+                    <TenantApp>
+                      <Customers />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/services"
+                  element={
+                    <TenantApp>
+                      <Services />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/appointments"
+                  element={
+                    <TenantApp>
+                      <Appointments />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/calendar"
+                  element={
+                    <TenantApp>
+                      <Calendar />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/team"
+                  element={
+                    <TenantApp>
+                      <Team />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/payments"
+                  element={
+                    <TenantApp>
+                      <Payments />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <TenantApp>
+                      <Reports />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <TenantApp>
+                      <Settings />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/support"
+                  element={
+                    <TenantApp>
+                      <Support />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/faq"
+                  element={
+                    <TenantApp>
+                      <FAQ />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/platform/overview"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <AppLayout>
+                        <PlatformOverview />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/platform/businesses"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <AppLayout>
+                        <PlatformBusinesses />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/platform/plans"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <AppLayout>
+                        <PlatformPlans />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/platform/users"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <AppLayout>
+                        <PlatformUsers />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/platform/tools"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <AppLayout>
+                        <PlatformTools />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+              <Toaster />
+            </WorkspaceProvider>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>

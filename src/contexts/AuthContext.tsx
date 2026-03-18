@@ -10,10 +10,18 @@ interface AuthState {
   businessName: string | null
   loading: boolean
   bootstrapError: string | null
+  /** Για tenant: πλάνο επιχείρησης (unsubscribed = κλειδωμένο panel). */
+  tenantSubscriptionPlan: string | null
+  tenantSubscriptionExpiresAt: string | null
+  tenantSubscriptionLoaded: boolean
 }
 
 const AuthContext = createContext<
-  AuthState & { signOut: () => Promise<void>; retryBootstrap: () => Promise<void> }
+  AuthState & {
+    signOut: () => Promise<void>
+    retryBootstrap: () => Promise<void>
+    refreshTenantBusiness: () => Promise<void>
+  }
   | null
 >(null)
 
@@ -24,29 +32,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [bootstrapError, setBootstrapError] = useState<string | null>(null)
+  const [tenantSubscriptionPlan, setTenantSubscriptionPlan] = useState<string | null>(null)
+  const [tenantSubscriptionExpiresAt, setTenantSubscriptionExpiresAt] = useState<string | null>(null)
+  const [tenantSubscriptionLoaded, setTenantSubscriptionLoaded] = useState(true)
+
+  const refreshTenantBusiness = React.useCallback(async () => {
+    const bid = businessId
+    const role = user?.role
+    if (!bid) {
+      setBusinessName(null)
+      setTenantSubscriptionPlan(null)
+      setTenantSubscriptionExpiresAt(null)
+      setTenantSubscriptionLoaded(true)
+      return
+    }
+    if (role === "super_admin") {
+      const { data } = await supabase.from("businesses").select("name").eq("id", bid).maybeSingle()
+      setBusinessName((data as { name?: string | null } | null)?.name ?? null)
+      return
+    }
+    const { data } = await supabase
+      .from("businesses")
+      .select("name, subscription_plan, subscription_expires_at")
+      .eq("id", bid)
+      .maybeSingle()
+    const row = data as {
+      name?: string | null
+      subscription_plan?: string | null
+      subscription_expires_at?: string | null
+    } | null
+    setBusinessName(row?.name ?? null)
+    setTenantSubscriptionPlan(row?.subscription_plan ?? null)
+    setTenantSubscriptionExpiresAt(row?.subscription_expires_at ?? null)
+    setTenantSubscriptionLoaded(true)
+  }, [businessId, user?.role])
 
   useEffect(() => {
     let cancelled = false
-    async function loadBusinessName() {
-      if (!businessId) {
-        setBusinessName(null)
-        return
+    if (!businessId) {
+      setBusinessName(null)
+      setTenantSubscriptionPlan(null)
+      setTenantSubscriptionExpiresAt(null)
+      setTenantSubscriptionLoaded(true)
+      return
+    }
+    if (user?.role === "super_admin") {
+      setTenantSubscriptionPlan(null)
+      setTenantSubscriptionExpiresAt(null)
+      setTenantSubscriptionLoaded(true)
+      ;(async () => {
+        const { data } = await supabase.from("businesses").select("name").eq("id", businessId).maybeSingle()
+        if (!cancelled) setBusinessName((data as { name?: string | null } | null)?.name ?? null)
+      })()
+      return () => {
+        cancelled = true
       }
-      const { data, error } = await supabase
+    }
+    setTenantSubscriptionLoaded(false)
+    ;(async () => {
+      const { data } = await supabase
         .from("businesses")
-        .select("name")
+        .select("name, subscription_plan, subscription_expires_at")
         .eq("id", businessId)
         .maybeSingle()
       if (cancelled) return
-      if (error || !data) {
-        setBusinessName(null)
-        return
-      }
-      setBusinessName((data as { name?: string | null }).name ?? null)
+      const row = data as {
+        name?: string | null
+        subscription_plan?: string | null
+        subscription_expires_at?: string | null
+      } | null
+      setBusinessName(row?.name ?? null)
+      setTenantSubscriptionPlan(row?.subscription_plan ?? null)
+      setTenantSubscriptionExpiresAt(row?.subscription_expires_at ?? null)
+      setTenantSubscriptionLoaded(true)
+    })()
+    return () => {
+      cancelled = true
     }
-    loadBusinessName()
-    return () => { cancelled = true }
-  }, [businessId])
+  }, [businessId, user?.role])
 
   useEffect(() => {
     console.log("[Auth] start bootstrap")
@@ -193,6 +256,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setBusinessId(null)
     setBusinessName(null)
     setBootstrapError(null)
+    setTenantSubscriptionPlan(null)
+    setTenantSubscriptionExpiresAt(null)
+    setTenantSubscriptionLoaded(true)
   }
 
   return (
@@ -204,8 +270,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         businessName,
         loading,
         bootstrapError,
+        tenantSubscriptionPlan,
+        tenantSubscriptionExpiresAt,
+        tenantSubscriptionLoaded,
         signOut,
         retryBootstrap,
+        refreshTenantBusiness,
       }}
     >
       {children}

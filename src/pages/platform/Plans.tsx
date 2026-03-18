@@ -1,8 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-type FixedPlanKey = "demo" | "starter" | "pro" | "premium" | "premium_plus"
+type FixedPlanKey = "unsubscribed" | "demo" | "starter" | "pro" | "premium" | "premium_plus"
 
 const FIXED_PLANS: Record<FixedPlanKey, { label: string; max_users?: number; max_customers?: number; max_appointments?: number; note: string }> = {
+  unsubscribed: {
+    label: "Χωρίς συνδρομή",
+    max_users: 1,
+    max_customers: 0,
+    max_appointments: 0,
+    note: "Νέα επιχείρηση· ο πελάτης ενεργοποιεί Starter, Pro ή Premium από το panel.",
+  },
   demo: {
     label: "Demo",
     max_users: 1,

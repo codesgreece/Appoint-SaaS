@@ -394,6 +394,21 @@ export async function deleteTeamMember(payload: { user_id: string }) {
   return result
 }
 
+export async function activateSubscriptionPurchase(payload: {
+  business_id: string
+  plan: "starter" | "pro" | "premium"
+  duration_months: 1 | 3 | 6 | 12
+}): Promise<{ subscription_expires_at?: string }> {
+  const result = await invokeAuthedFunction<{
+    success?: boolean
+    error?: string
+    subscription_expires_at?: string
+  }>("activate-subscription", payload as unknown as Record<string, unknown>)
+  if ((result as { error?: string })?.error) throw new Error(String((result as { error?: string }).error))
+  if (!(result as { success?: boolean }).success) throw new Error("Αποτυχία ενεργοποίησης συνδρομής.")
+  return result as { subscription_expires_at?: string }
+}
+
 export async function fetchServices(_businessId: string): Promise<Service[]> {
   const { data, error } = await supabase.from("services").select("*").order("name")
   if (error) throw error

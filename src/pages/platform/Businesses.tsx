@@ -81,18 +81,17 @@ const initialBusinessForm = {
   phone: "",
   email: "",
   address: "",
-  subscription_plan: "starter",
-  subscription_status: "active",
-  // Τα παρακάτω χρησιμοποιούνται μόνο για το Premium+ (custom) πλάνο
   max_users: 10,
   max_customers: 2000,
   max_appointments: 10000,
 }
 
-type PlanKey = "demo" | "starter" | "pro" | "premium" | "premium_plus"
+type PlanKey = "unsubscribed" | "demo" | "starter" | "pro" | "premium" | "premium_plus"
 type BillingCycle = "monthly" | "yearly"
+type CreateBusinessType = "standard" | "demo" | "premium_plus"
 
 const PLAN_LABEL: Record<PlanKey, string> = {
+  unsubscribed: "Χωρίς συνδρομή (αγορά από πελάτη)",
   demo: "Demo (δοκιμαστικό)",
   starter: "Starter",
   pro: "Pro",
@@ -117,6 +116,7 @@ export default function PlatformBusinesses() {
   const [updatingExpiry, setUpdatingExpiry] = useState(false)
 
   const [businessForm, setBusinessForm] = useState(initialBusinessForm)
+  const [createType, setCreateType] = useState<CreateBusinessType>("standard")
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [durationCount, setDurationCount] = useState(1)
   const [addAdminForm, setAddAdminForm] = useState({ full_name: "", username: "", password: "" })
@@ -214,49 +214,54 @@ export default function PlatformBusinesses() {
       return
     }
     setCreating(true)
+    const createTypeSnapshot = createType
     try {
       const now = new Date()
       const expires = new Date(now)
       if (billingCycle === "monthly") expires.setMonth(expires.getMonth() + Math.max(1, durationCount))
       else expires.setFullYear(expires.getFullYear() + Math.max(1, durationCount))
 
-      const plan = (businessForm.subscription_plan as PlanKey) ?? "starter"
+      let plan: PlanKey
+      let maxUsers: number | null
+      let maxCustomers: number | null
+      let maxAppointments: number | null
+      let subscription_status: string
+      let subscription_started_at: string | null
+      let subscription_expires_at: string | null
 
-      let maxUsers: number | null = null
-      let maxCustomers: number | null = null
-      let maxAppointments: number | null = null
-
-      if (plan === "demo") {
+      if (createTypeSnapshot === "standard") {
+        plan = "unsubscribed"
+        maxUsers = 1
+        maxCustomers = 0
+        maxAppointments = 0
+        subscription_status = "pending_purchase"
+        subscription_started_at = null
+        subscription_expires_at = null
+      } else if (createTypeSnapshot === "demo") {
+        plan = "demo"
         maxUsers = 1
         maxCustomers = 20
         maxAppointments = 50
-        // Demo: χωρίς ημερομηνία λήξης
-      } else if (plan === "starter") {
-        maxUsers = 3
-        maxCustomers = 300
-        maxAppointments = 1000
-      } else if (plan === "pro") {
-        maxUsers = 10
-        maxCustomers = 2000
-        maxAppointments = 10000
-      } else if (plan === "premium") {
-        maxUsers = 30
-        maxCustomers = 10000
-        maxAppointments = 50000
-      } else if (plan === "premium_plus") {
-        // Premium+ : τα όρια είναι custom και υποχρεωτικά
+        subscription_status = "active"
+        subscription_started_at = now.toISOString()
+        subscription_expires_at = null
+      } else {
         if (!businessForm.max_users || !businessForm.max_customers || !businessForm.max_appointments) {
           toast({
             title: "Σφάλμα",
-            description: "Συμπληρώστε όρια χρηστών, πελατών και ραντεβού για το Premium+ πλάνο.",
+            description: "Συμπληρώστε όρια χρηστών, πελατών και ραντεβού για το Premium+.",
             variant: "destructive",
           })
           setCreating(false)
           return
         }
+        plan = "premium_plus"
         maxUsers = businessForm.max_users
         maxCustomers = businessForm.max_customers
         maxAppointments = businessForm.max_appointments
+        subscription_status = "active"
+        subscription_started_at = now.toISOString()
+        subscription_expires_at = expires.toISOString()
       }
 
       const { error } = await supabase.from("businesses").insert({
@@ -266,9 +271,9 @@ export default function PlatformBusinesses() {
         email: businessForm.email || null,
         address: businessForm.address || null,
         subscription_plan: plan,
-        subscription_status: "active",
-        subscription_started_at: now.toISOString(),
-        subscription_expires_at: plan === "demo" ? null : expires.toISOString(),
+        subscription_status,
+        subscription_started_at,
+        subscription_expires_at,
         max_users: maxUsers,
         max_customers: maxCustomers,
         max_appointments: maxAppointments,
@@ -276,11 +281,18 @@ export default function PlatformBusinesses() {
       if (error) throw error
       setCreateOpen(false)
       setBusinessForm(initialBusinessForm)
+      setCreateType("standard")
       setBillingCycle("monthly")
       setDurationCount(1)
       await loadBusinesses()
       await loadAdminUsernames()
-      toast({ title: "Επιχείρηση δημιουργήθηκε", description: "Η επιχείρηση δημιουργήθηκε επιτυχώς." })
+      toast({
+        title: "Επιχείρηση δημιουργήθηκε",
+        description:
+          createTypeSnapshot === "standard"
+            ? "Προσθέστε διαχειριστή. Ο πελάτης θα ενεργοποιήσει πλάνο από «Αγορά προγράμματος»."
+            : "Η επιχείρηση δημιουργήθηκε επιτυχώς.",
+      })
     } catch (err) {
       console.error("Create business error:", err)
       toast({ title: "Σφάλμα", description: err instanceof Error ? err.message : "Αποτυχία δημιουργίας.", variant: "destructive" })
@@ -297,7 +309,11 @@ export default function PlatformBusinesses() {
     let maxCustomers = target.max_customers
     let maxAppointments = target.max_appointments
 
-    if (newPlan === "demo") {
+    if (newPlan === "unsubscribed") {
+      maxUsers = 1
+      maxCustomers = 0
+      maxAppointments = 0
+    } else if (newPlan === "demo") {
       maxUsers = 1
       maxCustomers = 20
       maxAppointments = 50
@@ -323,8 +339,14 @@ export default function PlatformBusinesses() {
         max_customers: maxCustomers,
         max_appointments: maxAppointments,
       }
-      if (newPlan === "demo") {
+      if (newPlan === "demo" || newPlan === "unsubscribed") {
         updatePayload.subscription_expires_at = null
+      }
+      if (newPlan === "unsubscribed") {
+        updatePayload.subscription_status = "pending_purchase"
+        updatePayload.subscription_started_at = null
+      } else if (newPlan !== "demo") {
+        updatePayload.subscription_status = "active"
       }
       const { error } = await supabase
         .from("businesses")
@@ -721,25 +743,33 @@ export default function PlatformBusinesses() {
                 <Label htmlFor="b-address">Διεύθυνση</Label>
                 <Input id="b-address" value={businessForm.address} onChange={(e) => setBusinessForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="b-plan">Πλάνο</Label>
-                <Select
-                  value={(businessForm.subscription_plan as PlanKey) ?? "starter"}
-                  onValueChange={(v) => setBusinessForm((f) => ({ ...f, subscription_plan: v }))}
-                >
-                  <SelectTrigger id="b-plan">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PLAN_LABEL) as PlanKey[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PLAN_LABEL[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Τύπος επιχείρησης</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {(
+                    [
+                      { key: "standard" as const, title: "Κανονική", desc: "Χωρίς πλάνο — ο πελάτης αγοράζει Starter/Pro/Premium μετά την είσοδο." },
+                      { key: "demo" as const, title: "Demo", desc: "Δοκιμαστικό πλάνο με όρια, χωρίς λήξη." },
+                      { key: "premium_plus" as const, title: "Premium+", desc: "Custom όρια + διάρκεια από εσάς." },
+                    ] as const
+                  ).map(({ key, title, desc }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCreateType(key)}
+                      className={`rounded-lg border p-3 text-left text-xs transition-colors ${
+                        createType === key ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="font-semibold text-sm text-foreground">{title}</span>
+                      <p className="mt-1 text-muted-foreground leading-snug">{desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {businessForm.subscription_plan !== "demo" && (
+              {createType === "premium_plus" && (
                 <div className="space-y-2">
-                  <Label>Διάρκεια ενεργού</Label>
+                  <Label>Διάρκεια συνδρομής (Premium+)</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={billingCycle} onValueChange={(v) => setBillingCycle(v as BillingCycle)}>
                       <SelectTrigger>
@@ -759,16 +789,21 @@ export default function PlatformBusinesses() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Η συνδρομή θα είναι active για {durationCount} {billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
+                    Λήξη μετά από {durationCount} {billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
                   </p>
                 </div>
               )}
-              {businessForm.subscription_plan === "demo" && (
-                <p className="text-sm text-muted-foreground">
-                  Πλάνο Demo: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>.
+              {createType === "demo" && (
+                <p className="text-sm text-muted-foreground sm:col-span-2">
+                  Demo: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>, όρια 1 χρήστης / 20 πελάτες / 50 ραντεβού.
                 </p>
               )}
-              {businessForm.subscription_plan === "premium_plus" && (
+              {createType === "standard" && (
+                <p className="text-sm text-muted-foreground sm:col-span-2">
+                  Ο πελάτης βλέπει μόνο την <strong>Αγορά προγράμματος</strong> μέχρι να ενεργοποιήσει Starter, Pro ή Premium.
+                </p>
+              )}
+              {createType === "premium_plus" && (
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Όρια χρήσης (μόνο για Premium+)</Label>
                   <div className="grid grid-cols-3 gap-2">
@@ -836,7 +871,7 @@ export default function PlatformBusinesses() {
                   <dd className="flex items-center gap-2">
                     {user?.role === "super_admin" ? (
                       <Select
-                        value={(detailsBusiness.subscription_plan as PlanKey) ?? "starter"}
+                        value={(detailsBusiness.subscription_plan as PlanKey) ?? "unsubscribed"}
                         onValueChange={(v) => handleChangeBusinessPlan(detailsBusiness.id, v as PlanKey)}
                       >
                         <SelectTrigger className="h-8 w-full max-w-[220px]">

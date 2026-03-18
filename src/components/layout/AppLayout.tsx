@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Menu,
   LogOut,
+  ShoppingBag,
   Moon,
   Sun,
   Search,
@@ -64,10 +65,34 @@ const platformNavItems = [
   { to: "/privacy", icon: ShieldCheck, label: "Πολιτική απορρήτου" },
 ]
 
+const lockedNavItems = [
+  { to: "/subscribe", icon: ShoppingBag, label: "Αγορά προγράμματος" },
+  { to: "/settings", icon: Settings, label: "Ρυθμίσεις" },
+]
+
+function planLabelGr(plan: string | null): string {
+  const m: Record<string, string> = {
+    starter: "Starter",
+    pro: "Pro",
+    premium: "Premium",
+    premium_plus: "Premium+",
+    demo: "Demo",
+    unsubscribed: "—",
+  }
+  return plan ? m[plan] ?? plan : "—"
+}
+
+function daysUntilSubscriptionEnd(iso: string | null): number | null {
+  if (!iso) return null
+  const end = new Date(iso).getTime()
+  if (Number.isNaN(end)) return null
+  return Math.max(0, Math.ceil((end - Date.now()) / 86400000))
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, signOut, businessName } = useAuth()
+  const { user, signOut, businessName, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
   const { setTheme, resolvedTheme } = useTheme()
   const { mode, setMode } = useWorkspace()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -172,7 +197,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
         <nav className="flex flex-col gap-1.5 p-2.5">
-          {(user?.role === "super_admin" && mode === "platform" ? platformNavItems : businessNavItems).map((item) => {
+          {(() => {
+            const subscriptionLocked =
+              user?.role !== "super_admin" && tenantSubscriptionPlan === "unsubscribed"
+            if (user?.role === "super_admin" && mode === "platform") return platformNavItems
+            if (subscriptionLocked) return lockedNavItems
+            return businessNavItems
+          })().map((item) => {
             const isActive = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to))
             return (
               <Link
@@ -308,6 +339,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
+        {user?.role !== "super_admin" &&
+          tenantSubscriptionPlan &&
+          tenantSubscriptionPlan !== "unsubscribed" &&
+          tenantSubscriptionPlan !== "demo" &&
+          tenantSubscriptionExpiresAt && (
+            <div className="border-b border-primary/25 bg-primary/10 px-3 py-2 text-center text-[11px] md:text-xs text-foreground">
+              <span className="font-medium">{planLabelGr(tenantSubscriptionPlan)}</span>
+              <span className="text-muted-foreground"> · </span>
+              Υπολείπονται{" "}
+              <strong>{daysUntilSubscriptionEnd(tenantSubscriptionExpiresAt) ?? 0}</strong> ημέρες στη συνδρομή
+              <span className="text-muted-foreground hidden sm:inline">
+                {" "}
+                (λήξη {new Date(tenantSubscriptionExpiresAt).toLocaleDateString("el-GR")})
+              </span>
+            </div>
+          )}
         <main className="p-3 md:p-4 lg:p-5">{children}</main>
       </div>
     </div>
