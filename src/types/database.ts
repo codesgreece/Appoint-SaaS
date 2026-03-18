@@ -15,7 +15,13 @@ export type AppointmentJobStatus =
 
 export type PaymentStatus = "unpaid" | "partial" | "paid"
 
-export type SubscriptionStatus = "active" | "trialing" | "past_due" | "cancelled" | "none"
+export type SubscriptionStatus =
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "cancelled"
+  | "none"
+  | "pending_purchase"
 
 export interface Business {
   id: string
