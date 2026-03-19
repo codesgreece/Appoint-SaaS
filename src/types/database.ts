@@ -73,6 +73,18 @@ export interface SupportRequest {
   updated_at: string
 }
 
+export type SupportRequestMessageSenderRole = "admin" | "super_admin"
+
+export interface SupportRequestMessage {
+  id: string
+  support_request_id: string
+  business_id: string
+  sender_user_id: string
+  sender_role: SupportRequestMessageSenderRole
+  content: string
+  created_at: string
+}
+
 export interface ChangelogEntry {
   id: number
   created_at: string

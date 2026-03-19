@@ -3,7 +3,7 @@ import { Lightbulb, Bug, Send, History } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import type { SupportRequest } from "@/types"
+import type { SupportRequest, SupportRequestMessage } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,9 @@ export default function Support() {
   const [sending, setSending] = useState<"suggestion" | "issue" | null>(null)
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<SupportRequest[]>([])
+  const [messagesByRequestId, setMessagesByRequestId] = useState<Record<string, SupportRequestMessage[]>>({})
+  const [draftByRequestId, setDraftByRequestId] = useState<Record<string, string>>({})
+  const [chatSendingId, setChatSendingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!businessId) return
@@ -36,7 +39,29 @@ export default function Support() {
           .limit(50)
         if (!active) return
         if (error) throw error
-        setRows((data ?? []) as SupportRequest[])
+        const nextRows = (data ?? []) as SupportRequest[]
+        setRows(nextRows)
+
+        const ids = nextRows.map((r) => r.id)
+        if (ids.length === 0) {
+          setMessagesByRequestId({})
+          return
+        }
+
+        const { data: msgData, error: msgError } = await supabase
+          .from("support_request_messages")
+          .select("*")
+          .in("support_request_id", ids)
+          .order("created_at", { ascending: true })
+        if (msgError) throw msgError
+
+        const grouped: Record<string, SupportRequestMessage[]> = {}
+        ;(msgData ?? []).forEach((m) => {
+          const mm = m as SupportRequestMessage
+          if (!grouped[mm.support_request_id]) grouped[mm.support_request_id] = []
+          grouped[mm.support_request_id].push(mm)
+        })
+        setMessagesByRequestId(grouped)
       } catch (e) {
         console.error("Support fetch error:", e)
       } finally {
@@ -58,7 +83,35 @@ export default function Support() {
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(50)
-    setRows((data ?? []) as SupportRequest[])
+
+    const nextRows = (data ?? []) as SupportRequest[]
+    setRows(nextRows)
+
+    const ids = nextRows.map((r) => r.id)
+    if (ids.length === 0) {
+      setMessagesByRequestId({})
+      return
+    }
+
+    const { data: msgData, error: msgError } = await supabase
+      .from("support_request_messages")
+      .select("*")
+      .in("support_request_id", ids)
+      .order("created_at", { ascending: true })
+
+    if (msgError) {
+      console.error("Support messages fetch error:", msgError)
+      setMessagesByRequestId({})
+      return
+    }
+
+    const grouped: Record<string, SupportRequestMessage[]> = {}
+    ;(msgData ?? []).forEach((m) => {
+      const mm = m as SupportRequestMessage
+      if (!grouped[mm.support_request_id]) grouped[mm.support_request_id] = []
+      grouped[mm.support_request_id].push(mm)
+    })
+    setMessagesByRequestId(grouped)
   }
 
   async function submit(type: "suggestion" | "issue") {
@@ -88,6 +141,38 @@ export default function Support() {
       toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία αποστολής", variant: "destructive" })
     } finally {
       setSending(null)
+    }
+  }
+
+  async function sendChatMessage(requestId: string) {
+    if (!businessId || !user) return
+    const content = (draftByRequestId[requestId] ?? "").trim()
+    if (!content) {
+      toast({ title: "Σφάλμα", description: "Γράψτε ένα μήνυμα πριν την αποστολή.", variant: "destructive" })
+      return
+    }
+
+    setChatSendingId(requestId)
+    try {
+      const payload = {
+        support_request_id: requestId,
+        business_id: businessId,
+        sender_user_id: user.id,
+        sender_role: "admin" as const,
+        content,
+      }
+
+      const { error } = await supabase.from("support_request_messages").insert(payload)
+      if (error) throw error
+
+      setDraftByRequestId((prev) => ({ ...prev, [requestId]: "" }))
+      // Status is controlled only by super_admin (incident closes only when super_admin marks it resolved).
+      await refresh()
+      toast({ title: "Εστάλη", description: "Το μήνυμα καταχωρήθηκε." })
+    } catch (e) {
+      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία αποστολής", variant: "destructive" })
+    } finally {
+      setChatSendingId((prev) => (prev === requestId ? null : prev))
     }
   }
 
@@ -203,12 +288,12 @@ export default function Support() {
             <p className="text-muted-foreground text-sm">Δεν υπάρχουν αιτήματα ακόμα.</p>
           ) : (
             <div className="space-y-2">
-              {rows.slice(0, 12).map((r) => (
+              {rows.map((r) => (
                 <div
                   key={r.id}
                   className="rounded-xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs flex items-start justify-between gap-3"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={r.type === "issue" ? "destructive" : "secondary"}
@@ -229,23 +314,90 @@ export default function Support() {
                         {r.status}
                       </Badge>
                     </div>
-                    <p className="whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
-                    {r.internal_notes?.trim() ? (
-                      <div className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                          Απάντηση από την υποστήριξη
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">
-                          {r.internal_notes.trim()}
-                        </p>
+                    <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2">
+                      <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                        <div className="flex justify-end">
+                          <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Εσυ</p>
+                            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
+                          </div>
+                        </div>
+
+                        {(messagesByRequestId[r.id] ?? []).map((m, idx, msgs) => {
+                          const firstUnreadSupportIdx = r.has_unread_reply
+                            ? msgs.findIndex((x) => x.sender_role === "super_admin")
+                            : -1
+
+                          return (
+                            <div key={m.id}>
+                              {idx === firstUnreadSupportIdx ? (
+                                <div className="mb-2 flex items-center gap-2 py-1">
+                                  <div className="h-px flex-1 bg-primary/25" />
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                                    Μη αναγνωσμένα
+                                  </span>
+                                  <div className="h-px flex-1 bg-primary/25" />
+                                </div>
+                              ) : null}
+                              <div className={m.sender_role === "super_admin" ? "flex justify-start" : "flex justify-end"}>
+                                <div
+                                  className={
+                                    m.sender_role === "super_admin"
+                                      ? "max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2"
+                                      : "max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2"
+                                  }
+                                >
+                                  <p
+                                    className={
+                                      m.sender_role === "super_admin"
+                                        ? "text-[10px] font-semibold uppercase tracking-wide text-primary"
+                                        : "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                    }
+                                  >
+                                    {m.sender_role === "super_admin" ? "Υποστήριξη" : "Εσυ"}
+                                  </p>
+                                  <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{m.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {/* Legacy fallback: older incidents used internal_notes only */}
+                        {r.internal_notes?.trim() && (messagesByRequestId[r.id] ?? []).length === 0 ? (
+                          <div className="flex justify-start">
+                            <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Απάντηση από την υποστήριξη</p>
+                              <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    </div>
+
+                    {r.status !== "resolved" && (
+                      <div className="mt-3 space-y-2">
+                        <Textarea
+                          value={draftByRequestId[r.id] ?? ""}
+                          onChange={(e) => setDraftByRequestId((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          placeholder="Στείλε ένα μήνυμα..."
+                          className="bg-background/40 border-border/60 focus-visible:ring-primary/30 min-h-[80px] text-xs"
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => sendChatMessage(r.id)}
+                            disabled={chatSendingId === r.id}
+                          >
+                            {chatSendingId === r.id ? "Αποστολή..." : "Αποστολή"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
-              {rows.length > 12 ? (
-                <p className="text-xs text-muted-foreground">Εμφανίζονται τα 12 πιο πρόσφατα.</p>
-              ) : null}
             </div>
           )}
         </CardContent>

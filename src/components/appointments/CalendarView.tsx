@@ -307,14 +307,20 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
             )}
             <div className="rounded-md border border-border/60 bg-background/50 p-3">
               <p className="text-sm font-medium">Θέλετε να κλείσετε νέο ραντεβού;</p>
-              <p className="mt-1 text-xs text-muted-foreground">Μπορείτε να δημιουργήσετε νέο ραντεβού για την επιλεγμένη ημέρα.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedDate && startOfDay(selectedDate) < today
+                  ? "Δεν μπορείτε να δημιουργήσετε νέο ραντεβού για προηγούμενες ημέρες."
+                  : "Μπορείτε να δημιουργήσετε νέο ραντεβού για την επιλεγμένη ημέρα."}
+              </p>
               <div className="mt-3 flex justify-end">
                 <Button
                   onClick={() => {
                     if (!selectedDate) return
+                    if (startOfDay(selectedDate) < today) return
                     setDayDialogOpen(false)
                     onCreateFromDate?.(format(selectedDate, "yyyy-MM-dd"))
                   }}
+                  disabled={!!selectedDate && startOfDay(selectedDate) < today}
                 >
                   Κλείσιμο νέου ραντεβού
                 </Button>

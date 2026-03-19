@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import type { SupportRequest } from "@/types"
+import type { SupportRequest, SupportRequestMessage } from "@/types"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface BusinessLite {
   id: string
@@ -21,6 +22,7 @@ interface BusinessLite {
 }
 
 export default function PlatformTools() {
+  const { user } = useAuth()
   const [businessQuery, setBusinessQuery] = useState("")
   const [userQuery, setUserQuery] = useState("")
   const [businessResult, setBusinessResult] = useState<BusinessLite | null>(null)
@@ -28,6 +30,9 @@ export default function PlatformTools() {
   const [userResults, setUserResults] = useState<any[]>([])
   const [userLoading, setUserLoading] = useState(false)
   const [supportRows, setSupportRows] = useState<SupportRequest[]>([])
+  const [messagesByRequestId, setMessagesByRequestId] = useState<Record<string, SupportRequestMessage[]>>({})
+  const [draftByRequestId, setDraftByRequestId] = useState<Record<string, string>>({})
+  const [chatSendingId, setChatSendingId] = useState<string | null>(null)
   const [supportLoading, setSupportLoading] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const openSupportCount = supportRows.filter((r) => r.status === "open").length
@@ -37,13 +42,37 @@ export default function PlatformTools() {
     ;(async () => {
       try {
         setSupportLoading(true)
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("support_requests")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(30)
         if (!active) return
-        setSupportRows((data ?? []) as SupportRequest[])
+        if (error) throw error
+
+        const nextRows = (data ?? []) as SupportRequest[]
+        setSupportRows(nextRows)
+
+        const ids = nextRows.map((r) => r.id)
+        if (ids.length === 0) {
+          setMessagesByRequestId({})
+          return
+        }
+
+        const { data: msgData, error: msgError } = await supabase
+          .from("support_request_messages")
+          .select("*")
+          .in("support_request_id", ids)
+          .order("created_at", { ascending: true })
+
+        if (msgError) throw msgError
+
+        const grouped: Record<string, SupportRequestMessage[]> = {}
+        ;(msgData ?? []).forEach((m) => {
+          const mm = m as SupportRequestMessage
+          if (!grouped[mm.support_request_id]) grouped[mm.support_request_id] = []
+          grouped[mm.support_request_id].push(mm)
+        })
+        setMessagesByRequestId(grouped)
       } finally {
         if (active) setSupportLoading(false)
       }
@@ -65,20 +94,43 @@ export default function PlatformTools() {
   }
 
   async function setSupportReply(id: string, reply: string) {
-    setUpdatingId(id)
+    if (!user) return
+    const content = reply.trim()
+    if (!content) return
+
+    setChatSendingId(id)
     try {
-      const { error } = await supabase
-        .from("support_requests")
-        .update({ internal_notes: reply || null, has_unread_reply: Boolean(reply) })
-        .eq("id", id)
+      const req = supportRows.find((r) => r.id === id)
+      if (!req) throw new Error("Λείπει το support request στη μνήμη.")
+
+      const payload = {
+        support_request_id: id,
+        business_id: req.business_id,
+        sender_user_id: user.id,
+        sender_role: "super_admin" as const,
+        content,
+      }
+
+      const { error } = await supabase.from("support_request_messages").insert(payload)
       if (error) throw error
-      setSupportRows((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, internal_notes: reply || null, has_unread_reply: Boolean(reply) } : r
-        )
-      )
+
+      // Incident stays open until super_admin resolves it (status update allowed only by super_admin).
+      const nextStatus = req.status === "open" ? "in_progress" : req.status
+      const { error: statusErr } = await supabase.from("support_requests").update({ status: nextStatus, has_unread_reply: true }).eq("id", id)
+      if (statusErr) throw statusErr
+
+      setSupportRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: nextStatus, has_unread_reply: true } : r)))
+
+      const { data: msgData, error: msgError } = await supabase
+        .from("support_request_messages")
+        .select("*")
+        .eq("support_request_id", id)
+        .order("created_at", { ascending: true })
+      if (msgError) throw msgError
+
+      setMessagesByRequestId((prev) => ({ ...prev, [id]: (msgData ?? []) as SupportRequestMessage[] }))
     } finally {
-      setUpdatingId((prev) => (prev === id ? null : prev))
+      setChatSendingId((prev) => (prev === id ? null : prev))
     }
   }
 
@@ -234,24 +286,74 @@ export default function PlatformTools() {
                       <p className="text-xs text-muted-foreground">
                         {r.business_name ?? r.business_id} • {r.created_by_name ?? "—"} ({r.created_by_username ?? "—"})
                       </p>
-                      <p className="text-sm whitespace-pre-wrap">{r.message}</p>
-                      <div className="mt-3 space-y-1">
-                        <Label className="text-xs">Απάντηση προς την επιχείρηση</Label>
-                        <p className="text-[11px] text-muted-foreground">
-                          Εμφανίζεται στο μενού Υποστήριξη του admin της επιχείρησης.
-                        </p>
-                        <Textarea
-                          defaultValue={r.internal_notes ?? ""}
-                          onBlur={(e) => {
-                            const next = e.target.value.trim()
-                            if (next !== (r.internal_notes ?? "").trim()) {
-                              setSupportReply(r.id, next)
-                            }
-                          }}
-                          placeholder="Π.χ. Προστέθηκε / Διορθώθηκε στην έκδοση Χ"
-                          className="bg-background/40 border-border/50 focus-visible:ring-primary/30 text-xs"
-                        />
+                      <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2">
+                        <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                          <div className="flex justify-end">
+                            <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Admin</p>
+                              <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
+                            </div>
+                          </div>
+
+                          {(messagesByRequestId[r.id] ?? []).map((m) => (
+                            <div key={m.id} className={m.sender_role === "super_admin" ? "flex justify-start" : "flex justify-end"}>
+                              <div
+                                className={
+                                  m.sender_role === "super_admin"
+                                    ? "max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2"
+                                    : "max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2"
+                                }
+                              >
+                                <p
+                                  className={
+                                    m.sender_role === "super_admin"
+                                      ? "text-[10px] font-semibold uppercase tracking-wide text-primary"
+                                      : "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                  }
+                                >
+                                  {m.sender_role === "super_admin" ? "Υποστήριξη" : "Admin"}
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{m.content}</p>
+                              </div>
+                            </div>
+                          ))}
+
+                          {r.internal_notes?.trim() && (messagesByRequestId[r.id] ?? []).length === 0 ? (
+                            <div className="flex justify-start">
+                              <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Απάντηση από την υποστήριξη</p>
+                                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
+
+                      {r.status !== "resolved" && (
+                        <div className="mt-3 space-y-2">
+                          <Textarea
+                            value={draftByRequestId[r.id] ?? ""}
+                            onChange={(e) => setDraftByRequestId((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                            placeholder="Γράψε απάντηση..."
+                            className="bg-background/40 border-border/50 focus-visible:ring-primary/30 text-xs min-h-[90px]"
+                          />
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={async () => {
+                                const txt = (draftByRequestId[r.id] ?? "").trim()
+                                if (!txt) return
+                                await setSupportReply(r.id, txt)
+                                setDraftByRequestId((prev) => ({ ...prev, [r.id]: "" }))
+                              }}
+                              disabled={chatSendingId === r.id}
+                            >
+                              {chatSendingId === r.id ? "Αποστολή..." : "Αποστολή"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <Button
