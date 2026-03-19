@@ -53,22 +53,28 @@ export async function sendBusinessTelegramMessage(
   message: string,
 ): Promise<boolean> {
   if (!businessId) return false
-
-  const { data, error } = await supabase
-    .from("businesses")
-    .select("telegram_enabled, telegram_chat_id, telegram_bot_token")
-    .eq("id", businessId)
-    .maybeSingle()
-
-  if (error || !data) return false
-  const enabled = Boolean((data as { telegram_enabled?: boolean | null }).telegram_enabled)
-  const chatId = ((data as { telegram_chat_id?: string | null }).telegram_chat_id ?? "").trim()
-  const businessToken = ((data as { telegram_bot_token?: string | null }).telegram_bot_token ?? "").trim()
-  const token = businessToken || getTelegramBotToken()
-  if (!enabled || !chatId) return false
-
-  await sendTelegramMessageWithToken(token, chatId, message)
-  return true
+  // Prefer server-side send via Edge Function (avoids browser CORS issues and keeps secrets server-side).
+  const { data, error } = await supabase.functions.invoke("send-telegram-notification", {
+    body: { business_id: businessId, message },
+  })
+  if (error) {
+    // Fallback to direct client-side send only if function call fails.
+    console.warn("send-telegram-notification invoke failed, trying direct fallback:", error)
+    const { data: biz, error: bizErr } = await supabase
+      .from("businesses")
+      .select("telegram_enabled, telegram_chat_id, telegram_bot_token")
+      .eq("id", businessId)
+      .maybeSingle()
+    if (bizErr || !biz) return false
+    const enabled = Boolean((biz as { telegram_enabled?: boolean | null }).telegram_enabled)
+    const chatId = ((biz as { telegram_chat_id?: string | null }).telegram_chat_id ?? "").trim()
+    const businessToken = ((biz as { telegram_bot_token?: string | null }).telegram_bot_token ?? "").trim()
+    const token = businessToken || getTelegramBotToken()
+    if (!enabled || !chatId || !token) return false
+    await sendTelegramMessageWithToken(token, chatId, message)
+    return true
+  }
+  return Boolean((data as { success?: boolean } | null)?.success ?? true)
 }
 
 export function formatAppointmentTelegramMessage(input: {
