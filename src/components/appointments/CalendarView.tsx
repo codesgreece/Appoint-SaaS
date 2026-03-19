@@ -124,24 +124,24 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentMonth((d) => subMonths(d, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-[180px] text-center font-medium">
+          <span className="min-w-[180px] text-center font-medium text-sm sm:text-base">
             {format(currentMonth, "LLLL yyyy", { locale: el })}
           </span>
           <Button variant="outline" size="icon" onClick={() => setCurrentMonth((d) => addMonths(d, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(today)}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+          <Button variant="outline" size="sm" onClick={() => setCurrentMonth(today)} className="w-full sm:w-auto">
             Σήμερα
           </Button>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <SelectTrigger className="h-8 w-[220px] bg-card/80 border-border/60">
+            <SelectTrigger className="h-8 w-full sm:w-[220px] bg-card/80 border-border/60">
               <SelectValue placeholder="Φίλτρο κατάστασης" />
             </SelectTrigger>
             <SelectContent>
@@ -160,97 +160,102 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
 
       <Card>
         <CardHeader>
-          <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground">
-            {["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"].map((d) => (
-              <div key={d}>{d}</div>
-            ))}
-          </div>
+          <p className="text-[11px] text-muted-foreground md:hidden">
+            Σύρε οριζόντια για να δεις όλο το ημερολόγιο.
+          </p>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-px">
-            {padDays.map((_, i) => (
-              <div key={`pad-${i}`} className="min-h-[100px] bg-muted/30 rounded p-1" />
-            ))}
-            {days.map((day) => {
-              const dayStart = startOfDay(day)
-              const isPast = dayStart < today
-              const isToday = isSameDay(dayStart, today)
-              const dayAppointments = getAppointmentsForDay(day)
-              const count = dayAppointments.length
-              const loadClass =
-                count === 0
-                  ? "bg-card"
-                  : count <= 3
-                    ? "bg-emerald-500/5 border-emerald-500/20"
-                    : count <= 6
-                      ? "bg-amber-500/5 border-amber-500/25"
-                      : "bg-red-500/5 border-red-500/25"
-              return (
-                <button
-                  key={day.toISOString()}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDate(day)
-                    setDayDialogOpen(true)
-                  }}
-                  className={cn(
-                    "min-h-[100px] rounded border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isSameMonth(day, currentMonth) ? loadClass : "bg-muted/20",
-                    isPast && "opacity-80",
-                    isToday && "ring-2 ring-primary/60 border-primary/25 bg-primary/5",
-                  )}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium">{format(day, "d")}</span>
-                      {isToday && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          Today
+        <CardContent className="overflow-x-auto">
+          <div className="min-w-[720px]">
+            <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground mb-1">
+              {["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"].map((d) => (
+                <div key={d}>{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-px">
+              {padDays.map((_, i) => (
+                <div key={`pad-${i}`} className="min-h-[90px] sm:min-h-[100px] bg-muted/30 rounded p-1" />
+              ))}
+              {days.map((day) => {
+                const dayStart = startOfDay(day)
+                const isPast = dayStart < today
+                const isToday = isSameDay(dayStart, today)
+                const dayAppointments = getAppointmentsForDay(day)
+                const count = dayAppointments.length
+                const loadClass =
+                  count === 0
+                    ? "bg-card"
+                    : count <= 3
+                      ? "bg-emerald-500/5 border-emerald-500/20"
+                      : count <= 6
+                        ? "bg-amber-500/5 border-amber-500/25"
+                        : "bg-red-500/5 border-red-500/25"
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(day)
+                      setDayDialogOpen(true)
+                    }}
+                    className={cn(
+                      "min-h-[90px] sm:min-h-[100px] rounded border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isSameMonth(day, currentMonth) ? loadClass : "bg-muted/20",
+                      isPast && "opacity-80",
+                      isToday && "ring-2 ring-primary/60 border-primary/25 bg-primary/5",
+                    )}
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium">{format(day, "d")}</span>
+                        {isToday && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            Today
+                          </span>
+                        )}
+                      </div>
+                      {count > 0 && (
+                        <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {count} ραντ.
                         </span>
                       )}
                     </div>
-                    {count > 0 && (
-                      <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        {count} ραντ.
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    {dayAppointments.slice(0, 3).map((a) => (
-                      <div
-                        key={a.id}
-                        className="text-[11px] truncate rounded px-1 py-0.5 bg-primary/10 text-primary flex items-center gap-2"
-                        title={a.title}
-                      >
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{
-                            background:
-                              a.status === "completed"
-                                ? "hsl(var(--status-completed))"
-                                : a.status === "pending"
-                                  ? "hsl(var(--status-pending))"
-                                  : a.status === "confirmed"
-                                    ? "hsl(var(--status-confirmed))"
-                                    : a.status === "in_progress"
-                                      ? "hsl(var(--status-in-progress))"
-                                      : a.status === "cancelled" || a.status === "no_show"
-                                        ? "hsl(var(--status-cancelled))"
-                                        : "hsl(var(--status-rescheduled))",
-                          }}
-                        />
-                        <span className="min-w-0 truncate">
-                          {a.start_time} {a.title}
-                        </span>
-                      </div>
-                    ))}
-                    {dayAppointments.length > 3 && (
-                      <div className="text-[11px] text-muted-foreground">+{dayAppointments.length - 3}</div>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+                    <div className="space-y-1">
+                      {dayAppointments.slice(0, 3).map((a) => (
+                        <div
+                          key={a.id}
+                          className="text-[11px] truncate rounded px-1 py-0.5 bg-primary/10 text-primary flex items-center gap-2"
+                          title={a.title}
+                        >
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{
+                              background:
+                                a.status === "completed"
+                                  ? "hsl(var(--status-completed))"
+                                  : a.status === "pending"
+                                    ? "hsl(var(--status-pending))"
+                                    : a.status === "confirmed"
+                                      ? "hsl(var(--status-confirmed))"
+                                      : a.status === "in_progress"
+                                        ? "hsl(var(--status-in-progress))"
+                                        : a.status === "cancelled" || a.status === "no_show"
+                                          ? "hsl(var(--status-cancelled))"
+                                          : "hsl(var(--status-rescheduled))",
+                            }}
+                          />
+                          <span className="min-w-0 truncate">
+                            {a.start_time} {a.title}
+                          </span>
+                        </div>
+                      ))}
+                      {dayAppointments.length > 3 && (
+                        <div className="text-[11px] text-muted-foreground">+{dayAppointments.length - 3}</div>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
