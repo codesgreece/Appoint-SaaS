@@ -180,8 +180,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center justify-between px-3 border-b border-border/60 lg:justify-center">
-          <Link to="/" className="font-semibold text-base tracking-tight">
+        <div className="flex h-16 items-center justify-between px-3 border-b border-border/60 lg:justify-center">
+          <Link to="/" className="font-semibold text-lg tracking-tight">
             <span className="bg-gradient-to-r from-primary via-primary to-purple-500 bg-clip-text text-transparent">
               Appoint SaaS
             </span>
