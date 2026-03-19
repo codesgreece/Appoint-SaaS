@@ -84,6 +84,14 @@ function timeToMinutes(timeHHMM: string): number {
   return hh * 60 + mm
 }
 
+function parseNonNegativeNumber(raw: string): number {
+  const normalized = String(raw ?? "").trim().replace(",", ".")
+  if (!normalized) return 0
+  const n = Number(normalized)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return n
+}
+
 function toDateInputValue(d: string | Date | undefined | null): string {
   if (!d) return ""
   const date = typeof d === "string" ? new Date(d) : d
@@ -213,14 +221,21 @@ export function AppointmentForm({
   const watchedCostEstimate = watch("cost_estimate")
   const watchedStartTime = watch("start_time") ?? "09:00"
   const watchedEndTime = watch("end_time") ?? "10:00"
+  const watchedServiceId = watch("service_id") ?? ""
 
   const serviceById = useMemo(() => {
     const map = new Map<string, Service>()
     for (const s of safeServices) map.set(s.id, s)
     return map
   }, [safeServices])
+  const selectedService = watchedServiceId ? serviceById.get(watchedServiceId) ?? null : null
 
   const lastAutoRef = useRef<{ serviceId: string | null; endTime: string | null }>({ serviceId: null, endTime: null })
+  const initialDurationMinutes = Math.max(0, timeToMinutes(toTimeInputValue(defaultValues.end_time)) - timeToMinutes(toTimeInputValue(defaultValues.start_time)))
+  const [completionDurationInput, setCompletionDurationInput] = useState(() =>
+    initialDurationMinutes > 0 ? String(initialDurationMinutes) : selectedService?.duration_minutes != null ? String(selectedService.duration_minutes) : "",
+  )
+  const [extraChargesInput, setExtraChargesInput] = useState("")
 
   // Smart defaults: when selecting a service, auto-fill cost estimate and end time if user hasn't customized them.
   useEffect(() => {
@@ -233,8 +248,17 @@ export function AppointmentForm({
     if (!svc) return
 
     // Auto-fill cost_estimate only if empty.
-    if ((watchedCostEstimate == null || watchedCostEstimate === undefined || String(watchedCostEstimate) === "") && svc.price != null) {
-      setValue("cost_estimate", Number(svc.price) as any, { shouldDirty: true })
+    if (watchedCostEstimate == null || watchedCostEstimate === undefined || String(watchedCostEstimate) === "") {
+      let estimatedCost: number | null = null
+      if (svc.billing_type === "hourly" && svc.hourly_rate != null && svc.duration_minutes != null) {
+        estimatedCost = Number(((Number(svc.hourly_rate) * Number(svc.duration_minutes)) / 60).toFixed(2))
+      } else if (svc.price != null) {
+        estimatedCost = Number(svc.price)
+      }
+
+      if (estimatedCost != null) {
+        setValue("cost_estimate", estimatedCost as any, { shouldDirty: true })
+      }
     }
 
     // Auto-fill end_time if duration exists and end_time looks auto-generated (or unchanged since last auto-fill).
@@ -251,6 +275,36 @@ export function AppointmentForm({
       }
     }
   }, [serviceIdRaw, serviceById, setValue, watchedCostEstimate, watchedStartTime, watchedEndTime])
+
+  useEffect(() => {
+    if (!selectedService) return
+    if (completionDurationInput.trim()) return
+    if (selectedService.duration_minutes != null) {
+      setCompletionDurationInput(String(selectedService.duration_minutes))
+    }
+  }, [selectedService?.id])
+
+  const completionDurationMinutes = parseNonNegativeNumber(completionDurationInput)
+  const extraCharges = parseNonNegativeNumber(extraChargesInput)
+
+  const completionBaseAmount = useMemo(() => {
+    if (selectedService?.billing_type === "hourly" && selectedService.hourly_rate != null) {
+      if (completionDurationMinutes <= 0) return 0
+      return Number(((Number(selectedService.hourly_rate) * completionDurationMinutes) / 60).toFixed(2))
+    }
+    if (selectedService?.price != null) return Number(selectedService.price)
+    if (watchedCostEstimate != null && watchedCostEstimate !== undefined && String(watchedCostEstimate) !== "") {
+      return Number(watchedCostEstimate || 0)
+    }
+    return 0
+  }, [selectedService, completionDurationMinutes, watchedCostEstimate])
+
+  const completionTotalAmount = Number((completionBaseAmount + extraCharges).toFixed(2))
+
+  useEffect(() => {
+    if (status !== "completed") return
+    setValue("final_cost", completionTotalAmount as any, { shouldDirty: true })
+  }, [status, completionTotalAmount, setValue])
 
   // Payment state (for existing appointments)
   const [payment, setPayment] = useState<Payment | null>(null)
@@ -613,10 +667,6 @@ export function AppointmentForm({
               <Label>Εκτίμηση κόστους (€)</Label>
               <Input type="number" step="0.01" {...register("cost_estimate")} />
             </div>
-            <div className="space-y-2 md:col-span-1">
-              <Label>Τελικό κόστος (€)</Label>
-              <Input type="number" step="0.01" {...register("final_cost")} />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -629,14 +679,49 @@ export function AppointmentForm({
               <Input {...register("creation_notes")} placeholder="Ειδικές οδηγίες, προτιμήσεις κ.λπ." />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Σημειώσεις ολοκλήρωσης</Label>
-            <Input {...register("completion_notes")} placeholder="Τι έγινε στο ραντεβού" />
-          </div>
-          <div className="space-y-2">
-            <Label>Επανάληψη (π.χ. WEEKLY, MONTHLY)</Label>
-            <Input {...register("recurrence_rule")} placeholder="Προαιρετικά, κανόνας επανάληψης" />
-          </div>
+          {status === "completed" && (
+            <Card className="border-border/60 bg-background/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Ολοκλήρωση & Χρέωση</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Διάρκεια ραντεβού (λεπτά)</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={completionDurationInput}
+                      onChange={(e) => setCompletionDurationInput(e.target.value)}
+                      placeholder="π.χ. 90"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Έξτρα χρεώσεις (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={extraChargesInput}
+                      onChange={(e) => setExtraChargesInput(e.target.value)}
+                      placeholder="π.χ. 15.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Τελική τιμή συνόλου (€)</Label>
+                    <Input value={completionTotalAmount.toFixed(2)} readOnly />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Βάση υπηρεσίας: {completionBaseAmount.toFixed(2)} € {selectedService?.billing_type === "hourly" ? "(χρέωση ανά ώρα)" : "(σταθερή τιμή)"} + έξτρα χρεώσεις.
+                </div>
+                <div className="space-y-2">
+                  <Label>Σημειώσεις ολοκλήρωσης</Label>
+                  <Input {...register("completion_notes")} placeholder="Τι έγινε στο ραντεβού" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
 

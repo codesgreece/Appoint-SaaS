@@ -14,6 +14,7 @@ export type AppointmentJobStatus =
   | "rescheduled"
 
 export type PaymentStatus = "unpaid" | "partial" | "paid"
+export type ServiceBillingType = "fixed" | "hourly"
 
 export type SubscriptionStatus = "active" | "trialing" | "past_due" | "cancelled" | "none"
 
@@ -115,6 +116,8 @@ export interface Service {
   description: string | null
   duration_minutes: number | null
   price: number | null
+  billing_type: ServiceBillingType
+  hourly_rate: number | null
   created_at: string
   updated_at: string
 }

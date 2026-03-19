@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Plus, Search, Calendar, MoreHorizontal, Filter } from "lucide-react"
+import { Plus, Search, Calendar, Filter } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/AuthContext"
 import { fetchAppointments, fetchCustomers, fetchTeam, fetchServices, updateAppointment, deleteAppointment } from "@/services/api"
@@ -39,12 +39,6 @@ import { CalendarView } from "@/components/appointments/CalendarView"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 const STATUS_LABELS: Record<AppointmentJobStatus, string> = {
   pending: "Εκκρεμεί",
@@ -356,34 +350,26 @@ export default function Appointments() {
                           <div className="text-sm">
                             {a.final_cost != null ? formatCurrency(Number(a.final_cost)) : a.cost_estimate != null ? formatCurrency(Number(a.cost_estimate)) : "—"}
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">Ενέργειες</Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => { setEditing(a); setDialogOpen(true); }}>
-                                Επεξεργασία
-                              </DropdownMenuItem>
-                              {a.status !== "confirmed" && (
-                                <DropdownMenuItem onClick={() => quickUpdateStatus(a, "confirmed")}>
-                                  Επιβεβαίωση
-                                </DropdownMenuItem>
-                              )}
-                              {a.status !== "completed" && (
-                                <DropdownMenuItem onClick={() => quickUpdateStatus(a, "completed")}>
-                                  Ολοκλήρωση
-                                </DropdownMenuItem>
-                              )}
-                              {canDeleteAppointment && (
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteAppointment(a)}
-                                >
-                                  Διαγραφή ραντεβού
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setEditing(a); setDialogOpen(true); }}>
+                              Επεξεργασία
+                            </Button>
+                            {a.status !== "confirmed" && (
+                              <Button variant="outline" size="sm" onClick={() => quickUpdateStatus(a, "confirmed")}>
+                                Επιβεβαίωση
+                              </Button>
+                            )}
+                            {a.status !== "completed" && (
+                              <Button size="sm" onClick={() => { setEditing({ ...a, status: "completed" }); setDialogOpen(true) }}>
+                                Ολοκλήρωση
+                              </Button>
+                            )}
+                            {canDeleteAppointment && (
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteAppointment(a)}>
+                                Διαγραφή
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -402,7 +388,7 @@ export default function Appointments() {
                           <TableHead>Υπεύθυνος</TableHead>
                           <TableHead>Κατάσταση</TableHead>
                           <TableHead>Κόστος</TableHead>
-                          <TableHead className="w-[60px]" />
+                          <TableHead>Ενέργειες</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -432,36 +418,26 @@ export default function Appointments() {
                             </TableCell>
                             <TableCell>{a.final_cost != null ? formatCurrency(Number(a.final_cost)) : a.cost_estimate != null ? formatCurrency(Number(a.cost_estimate)) : "—"}</TableCell>
                             <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" aria-label="Ενέργειες">
-                                    <MoreHorizontal className="h-4 w-4" />
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => { setEditing(a); setDialogOpen(true); }}>
+                                  Επεξεργασία
+                                </Button>
+                                {a.status !== "confirmed" && (
+                                  <Button variant="outline" size="sm" onClick={() => quickUpdateStatus(a, "confirmed")}>
+                                    Επιβεβαίωση
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => { setEditing(a); setDialogOpen(true); }}>
-                                    Επεξεργασία
-                                  </DropdownMenuItem>
-                                  {a.status !== "confirmed" && (
-                                    <DropdownMenuItem onClick={() => quickUpdateStatus(a, "confirmed")}>
-                                      Επιβεβαίωση
-                                    </DropdownMenuItem>
-                                  )}
-                                  {a.status !== "completed" && (
-                                    <DropdownMenuItem onClick={() => quickUpdateStatus(a, "completed")}>
-                                      Ολοκλήρωση
-                                    </DropdownMenuItem>
-                                  )}
-                                  {canDeleteAppointment && (
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleDeleteAppointment(a)}
-                                    >
-                                      Διαγραφή ραντεβού
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                )}
+                                {a.status !== "completed" && (
+                                  <Button size="sm" onClick={() => { setEditing({ ...a, status: "completed" }); setDialogOpen(true) }}>
+                                    Ολοκλήρωση
+                                  </Button>
+                                )}
+                                {canDeleteAppointment && (
+                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteAppointment(a)}>
+                                    Διαγραφή
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

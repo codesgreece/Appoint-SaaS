@@ -31,15 +31,47 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type FormState = {
   name: string
   description: string
   duration_minutes: string
   price: string
+  billing_type: "fixed" | "hourly"
+  hourly_rate: string
 }
 
-const emptyForm: FormState = { name: "", description: "", duration_minutes: "", price: "" }
+const emptyForm: FormState = {
+  name: "",
+  description: "",
+  duration_minutes: "",
+  price: "",
+  billing_type: "fixed",
+  hourly_rate: "",
+}
+
+function parsePositiveNumber(raw: string): number | null {
+  const normalized = raw.trim().replace(",", ".")
+  if (!normalized) return null
+  const n = Number(normalized)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
+}
+
+function formatServicePrice(service: Service): string {
+  if (service.billing_type === "hourly") {
+    const rate = service.hourly_rate != null ? Number(service.hourly_rate).toFixed(2) : null
+    return rate ? `${rate} €/ώρα` : "—"
+  }
+  return service.price != null ? `${Number(service.price).toFixed(2)} €` : "—"
+}
 
 export default function Services() {
   const { businessId } = useAuth()
@@ -90,6 +122,8 @@ export default function Services() {
       description: s.description ?? "",
       duration_minutes: s.duration_minutes != null ? String(s.duration_minutes) : "",
       price: s.price != null ? String(s.price) : "",
+      billing_type: s.billing_type ?? "fixed",
+      hourly_rate: s.hourly_rate != null ? String(s.hourly_rate) : "",
     })
     setDialogOpen(true)
   }
@@ -107,13 +141,29 @@ export default function Services() {
         toast({ title: "Σφάλμα", description: "Το όνομα υπηρεσίας είναι υποχρεωτικό.", variant: "destructive" })
         return
       }
+      const duration = parsePositiveNumber(form.duration_minutes)
+      const fixedPrice = parsePositiveNumber(form.price)
+      const hourlyRate = parsePositiveNumber(form.hourly_rate)
+
+      if (form.billing_type === "hourly" && hourlyRate == null) {
+        toast({ title: "Σφάλμα", description: "Συμπληρώστε ωριαία χρέωση (€/ώρα).", variant: "destructive" })
+        return
+      }
+
       setSaving(true)
+      const computedPrice =
+        form.billing_type === "hourly" && hourlyRate != null && duration != null
+          ? Number(((hourlyRate * duration) / 60).toFixed(2))
+          : fixedPrice
+
       const payload: Partial<Service> = {
         business_id: businessId,
         name: form.name.trim(),
         description: form.description.trim() ? form.description.trim() : null,
-        duration_minutes: form.duration_minutes.trim() ? Number(form.duration_minutes) : null,
-        price: form.price.trim() ? Number(form.price) : null,
+        duration_minutes: duration,
+        price: computedPrice,
+        billing_type: form.billing_type,
+        hourly_rate: form.billing_type === "hourly" ? hourlyRate : null,
       }
       if (editing) {
         await updateService(editing.id, payload)
@@ -146,7 +196,7 @@ export default function Services() {
 
   const totalServices = rows.length
   const pricedServices = rows.filter((s) => s.price != null).length
-  const withDuration = rows.filter((s) => s.duration_minutes != null).length
+  const hourlyServices = rows.filter((s) => s.billing_type === "hourly").length
 
   return (
     <div className="space-y-6">
@@ -196,11 +246,11 @@ export default function Services() {
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Με διάρκεια</p>
-              <p className="text-xl font-semibold tracking-tight">{withDuration}</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Χρέωση ανά ώρα</p>
+              <p className="text-xl font-semibold tracking-tight">{hourlyServices}</p>
             </div>
             <Badge variant="outline" className="text-xs border-blue-400/40 text-blue-500 bg-blue-500/5">
-              Scheduling
+              Ωριαία
             </Badge>
           </CardContent>
         </Card>
@@ -247,7 +297,7 @@ export default function Services() {
                       <div className="space-y-1">
                         <div className="text-sm font-medium">{s.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {s.duration_minutes != null ? `${s.duration_minutes}’` : "—"} • {s.price != null ? `${Number(s.price).toFixed(2)} €` : "—"}
+                          {s.duration_minutes != null ? `${s.duration_minutes}’` : "—"} • {formatServicePrice(s)}
                         </div>
                         {s.description ? (
                           <div className="text-xs text-muted-foreground">{s.description}</div>
@@ -275,7 +325,7 @@ export default function Services() {
                     <TableRow>
                       <TableHead>Όνομα</TableHead>
                       <TableHead>Διάρκεια</TableHead>
-                      <TableHead>Τιμή</TableHead>
+                      <TableHead>Χρέωση</TableHead>
                       <TableHead>Περιγραφή</TableHead>
                       <TableHead className="w-[60px]" />
                     </TableRow>
@@ -285,7 +335,7 @@ export default function Services() {
                       <TableRow key={s.id} className="odd:bg-muted/25 hover:bg-primary/10 transition-colors">
                         <TableCell className="font-medium">{s.name}</TableCell>
                         <TableCell>{s.duration_minutes != null ? `${s.duration_minutes}’` : "—"}</TableCell>
-                        <TableCell>{s.price != null ? `${Number(s.price).toFixed(2)} €` : "—"}</TableCell>
+                        <TableCell>{formatServicePrice(s)}</TableCell>
                         <TableCell className="max-w-[420px] truncate">{s.description ?? "—"}</TableCell>
                         <TableCell className="whitespace-nowrap">
                           <DropdownMenu>
@@ -323,6 +373,21 @@ export default function Services() {
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
             <div className="space-y-2">
+              <Label>Τύπος χρέωσης</Label>
+              <Select
+                value={form.billing_type}
+                onValueChange={(value: "fixed" | "hourly") => setForm((f) => ({ ...f, billing_type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Επιλογή τύπου χρέωσης" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">Σταθερή τιμή</SelectItem>
+                  <SelectItem value="hourly">Χρέωση ανά ώρα</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Διάρκεια (λεπτά)</Label>
               <Input
                 type="number"
@@ -332,17 +397,34 @@ export default function Services() {
                 placeholder="π.χ. 30"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Τιμή (€)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                placeholder="π.χ. 25.00"
-              />
-            </div>
+            {form.billing_type === "fixed" ? (
+              <div className="space-y-2">
+                <Label>Τιμή (€)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  placeholder="π.χ. 25.00"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Χρέωση ανά ώρα (€/ώρα)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.hourly_rate}
+                  onChange={(e) => setForm((f) => ({ ...f, hourly_rate: e.target.value }))}
+                  placeholder="π.χ. 40.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Η τελική τιμή για το ραντεβού υπολογίζεται από τη διάρκεια της υπηρεσίας.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Περιγραφή</Label>
               <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />

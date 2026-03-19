@@ -6,6 +6,8 @@ import { fetchAppointments } from "@/services/api"
 import type { AppointmentJob, Customer } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 type AppointmentWithCustomer = AppointmentJob & { customer?: Customer }
@@ -19,6 +21,8 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [appointments, setAppointments] = useState<AppointmentWithCustomer[]>([])
   const [statusFilter, setStatusFilter] = useState<AppointmentJob["status"] | "all">("all")
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [dayDialogOpen, setDayDialogOpen] = useState(false)
 
   useEffect(() => {
     if (!businessId) return
@@ -45,6 +49,10 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
     filteredAppointments.filter((a) => isSameDay(new Date(a.scheduled_date + "T12:00:00"), date))
 
   const today = startOfDay(new Date())
+  const selectedDayAppointments = useMemo(() => {
+    if (!selectedDate) return []
+    return getAppointmentsForDay(selectedDate).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }, [selectedDate, filteredAppointments])
 
   return (
     <div className="space-y-4">
@@ -111,11 +119,14 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                 <button
                   key={day.toISOString()}
                   type="button"
-                  disabled={isPast}
-                  onClick={isPast ? undefined : () => onCreateFromDate?.(format(day, "yyyy-MM-dd"))}
+                  onClick={() => {
+                    setSelectedDate(day)
+                    setDayDialogOpen(true)
+                  }}
                   className={cn(
-                    "min-h-[100px] rounded border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-60",
+                    "min-h-[100px] rounded border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isSameMonth(day, currentMonth) ? loadClass : "bg-muted/20",
+                    isPast && "opacity-80",
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-1">
@@ -146,6 +157,47 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
           </div>
         </CardContent>
       </Card>
+      <Dialog open={dayDialogOpen} onOpenChange={setDayDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Ραντεβού ημέρας - {selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDayAppointments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Δεν υπάρχουν κλεισμένα ραντεβού για αυτή την ημέρα.</p>
+            ) : (
+              <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+                {selectedDayAppointments.map((a) => (
+                  <div key={a.id} className="rounded-md border border-border/60 bg-card/50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="truncate text-sm font-medium">{a.title}</div>
+                      <Badge variant="outline">{a.start_time} - {a.end_time}</Badge>
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "Χωρίς πελάτη"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="rounded-md border border-border/60 bg-background/50 p-3">
+              <p className="text-sm font-medium">Θέλετε να κλείσετε νέο ραντεβού;</p>
+              <p className="mt-1 text-xs text-muted-foreground">Μπορείτε να δημιουργήσετε νέο ραντεβού για την επιλεγμένη ημέρα.</p>
+              <div className="mt-3 flex justify-end">
+                <Button
+                  onClick={() => {
+                    if (!selectedDate) return
+                    setDayDialogOpen(false)
+                    onCreateFromDate?.(format(selectedDate, "yyyy-MM-dd"))
+                  }}
+                >
+                  Κλείσιμο νέου ραντεβού
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
