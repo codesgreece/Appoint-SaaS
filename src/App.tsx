@@ -21,6 +21,7 @@ import Team from "@/pages/Team"
 import Payments from "@/pages/Payments"
 import Reports from "@/pages/Reports"
 import Settings from "@/pages/Settings"
+import Details from "@/pages/Details"
 import Support from "@/pages/Support"
 import FAQ from "@/pages/FAQ"
 import Terms from "@/pages/Terms"
@@ -144,6 +145,14 @@ export default function App() {
                   element={
                     <TenantApp>
                       <Reports />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/details"
+                  element={
+                    <TenantApp>
+                      <Details />
                     </TenantApp>
                   }
                 />

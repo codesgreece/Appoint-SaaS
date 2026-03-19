@@ -60,6 +60,50 @@
     --status-cancelled: 0 84% 60%;
     --status-rescheduled: 38 92% 50%;
   }
+
+  :root[data-theme="beauty"] {
+    --background: 330 100% 98%;
+    --foreground: 328 36% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 328 36% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 328 36% 16%;
+    --primary: 329 68% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 304 43% 95%;
+    --secondary-foreground: 328 30% 22%;
+    --muted: 322 40% 96%;
+    --muted-foreground: 328 18% 44%;
+    --accent: 283 54% 90%;
+    --accent-foreground: 296 35% 24%;
+    --destructive: 0 76% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 323 36% 88%;
+    --input: 323 36% 88%;
+    --ring: 329 68% 63%;
+  }
+
+  .dark[data-theme="beauty"] {
+    --background: 318 42% 9%;
+    --foreground: 0 0% 98%;
+    --card: 318 39% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 318 39% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 329 72% 67%;
+    --primary-foreground: 324 44% 12%;
+    --secondary: 300 29% 20%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 302 22% 20%;
+    --muted-foreground: 322 15% 72%;
+    --accent: 288 40% 30%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 70% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 302 24% 24%;
+    --input: 302 24% 24%;
+    --ring: 329 72% 67%;
+  }
 }
 
 @layer base {

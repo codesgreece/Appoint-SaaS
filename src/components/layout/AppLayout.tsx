@@ -17,9 +17,8 @@ import {
   ShieldCheck,
   Menu,
   LogOut,
-  Moon,
-  Sun,
   Search,
+  Palette,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
@@ -33,9 +32,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { CommandPalette } from "@/components/CommandPalette"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const businessNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -46,6 +45,7 @@ const businessNavItems = [
   { to: "/team", icon: UserCircle, label: "Ομάδα" },
   { to: "/payments", icon: CreditCard, label: "Πληρωμές" },
   { to: "/reports", icon: BarChart3, label: "Αναφορές" },
+  { to: "/details", icon: FileText, label: "Στοιχεία" },
   { to: "/support", icon: LifeBuoy, label: "Υποστήριξη" },
   { to: "/settings", icon: Settings, label: "Ρυθμίσεις" },
   { to: "/faq", icon: HelpCircle, label: "FAQ" },
@@ -87,7 +87,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut, businessName, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
-  const { setTheme, resolvedTheme } = useTheme()
+  const { theme, setTheme, palette, setPalette } = useTheme()
+  const selectedThemePreset = `${theme}:${palette}`
+
+  function handleThemePresetChange(value: string) {
+    const [nextTheme, nextPalette] = value.split(":")
+    if (nextTheme === "light" || nextTheme === "dark" || nextTheme === "system") {
+      setTheme(nextTheme)
+    }
+    if (nextPalette === "default" || nextPalette === "beauty") {
+      setPalette(nextPalette)
+    }
+  }
+
   const { mode, setMode } = useWorkspace()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
@@ -176,7 +188,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-60 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
+          "fixed top-0 left-0 z-50 h-full w-52 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -235,7 +247,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 lg:pl-60">
+      <div className="flex-1 lg:pl-52">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/50 bg-background/70 px-3 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
@@ -284,6 +296,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-1.5">
+            <div className="hidden md:flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 backdrop-blur">
+              <Palette className="h-3.5 w-3.5 text-muted-foreground" />
+              <Select value={selectedThemePreset} onValueChange={handleThemePresetChange}>
+                <SelectTrigger className="h-7 w-[230px] border-0 bg-transparent px-1 text-xs focus:ring-0">
+                  <SelectValue placeholder="Theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light:default">Κλασικό - Φωτεινό</SelectItem>
+                  <SelectItem value="dark:default">Κλασικό - Σκούρο</SelectItem>
+                  <SelectItem value="system:default">Κλασικό - Σύστημα</SelectItem>
+                  <SelectItem value="light:beauty">Beauty Pink - Φωτεινό</SelectItem>
+                  <SelectItem value="dark:beauty">Beauty Pink - Σκούρο</SelectItem>
+                  <SelectItem value="system:beauty">Beauty Pink - Σύστημα</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <button
               type="button"
               onClick={() => setCommandOpen(true)}
@@ -295,11 +323,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 Ctrl+K
               </span>
             </button>
-            <Switch
-              checked={resolvedTheme === "dark"}
-              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-            />
-            {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">

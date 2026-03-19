@@ -1,16 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 
 type Theme = "dark" | "light" | "system"
+type ThemePalette = "default" | "beauty"
 
 type ThemeProviderProps = {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
+  paletteStorageKey?: string
+  defaultPalette?: ThemePalette
 }
 
 const ThemeContext = createContext<{
   theme: Theme
   setTheme: (theme: Theme) => void
+  palette: ThemePalette
+  setPalette: (palette: ThemePalette) => void
   resolvedTheme: "dark" | "light"
 } | null>(null)
 
@@ -18,8 +23,11 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "appoint-saas-theme",
+  paletteStorageKey = "appoint-saas-palette",
+  defaultPalette = "default",
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme)
+  const [palette, setPaletteState] = useState<ThemePalette>(() => (localStorage.getItem(paletteStorageKey) as ThemePalette) || defaultPalette)
   const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("light")
 
   useEffect(() => {
@@ -35,6 +43,11 @@ export function ThemeProvider({
     setResolvedTheme(resolved)
     root.classList.add(resolved)
   }, [theme])
+
+  useEffect(() => {
+    const root = window.document.documentElement
+    root.setAttribute("data-theme", palette)
+  }, [palette])
 
   useEffect(() => {
     const m = window.matchMedia("(prefers-color-scheme: dark)")
@@ -55,8 +68,13 @@ export function ThemeProvider({
     setThemeState(value)
   }
 
+  const setPalette = (value: ThemePalette) => {
+    localStorage.setItem(paletteStorageKey, value)
+    setPaletteState(value)
+  }
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, palette, setPalette, resolvedTheme }}>
       {children}
     </ThemeContext.Provider>
   )
