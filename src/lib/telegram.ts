@@ -5,16 +5,19 @@ function getTelegramBotToken(): string {
   return (env.TELEGRAM_BOT_TOKEN ?? env.VITE_TELEGRAM_BOT_TOKEN ?? "").trim()
 }
 
-export async function sendTelegramMessage(chatId: string, message: string): Promise<void> {
-  const token = getTelegramBotToken()
-  if (!token) {
-    throw new Error("Missing TELEGRAM_BOT_TOKEN environment variable.")
+async function sendTelegramMessageWithToken(
+  token: string,
+  chatId: string,
+  message: string,
+): Promise<void> {
+  if (!token?.trim()) {
+    throw new Error("Missing Telegram bot token.")
   }
   if (!chatId?.trim()) {
     throw new Error("Missing Telegram chat id.")
   }
 
-  const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
+  const endpoint = `https://api.telegram.org/bot${token.trim()}/sendMessage`
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37,6 +40,14 @@ export async function sendTelegramMessage(chatId: string, message: string): Prom
   }
 }
 
+export async function sendTelegramMessage(chatId: string, message: string): Promise<void> {
+  const token = getTelegramBotToken()
+  if (!token) {
+    throw new Error("Missing TELEGRAM_BOT_TOKEN environment variable.")
+  }
+  await sendTelegramMessageWithToken(token, chatId, message)
+}
+
 export async function sendBusinessTelegramMessage(
   businessId: string,
   message: string,
@@ -45,16 +56,18 @@ export async function sendBusinessTelegramMessage(
 
   const { data, error } = await supabase
     .from("businesses")
-    .select("telegram_enabled, telegram_chat_id")
+    .select("telegram_enabled, telegram_chat_id, telegram_bot_token")
     .eq("id", businessId)
     .maybeSingle()
 
   if (error || !data) return false
   const enabled = Boolean((data as { telegram_enabled?: boolean | null }).telegram_enabled)
   const chatId = ((data as { telegram_chat_id?: string | null }).telegram_chat_id ?? "").trim()
+  const businessToken = ((data as { telegram_bot_token?: string | null }).telegram_bot_token ?? "").trim()
+  const token = businessToken || getTelegramBotToken()
   if (!enabled || !chatId) return false
 
-  await sendTelegramMessage(chatId, message)
+  await sendTelegramMessageWithToken(token, chatId, message)
   return true
 }
 

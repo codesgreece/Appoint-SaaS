@@ -18,6 +18,7 @@ export default function Settings() {
   const { toast } = useToast()
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState("")
+  const [telegramBotToken, setTelegramBotToken] = useState("")
   const [savingNotifications, setSavingNotifications] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
@@ -38,6 +39,7 @@ export default function Settings() {
       if (!b) return
       setTelegramEnabled(Boolean(b.telegram_enabled))
       setTelegramChatId(b.telegram_chat_id ?? "")
+      setTelegramBotToken(b.telegram_bot_token ?? "")
     })
   }, [businessId])
 
@@ -50,6 +52,7 @@ export default function Settings() {
         .update({
           telegram_enabled: telegramEnabled,
           telegram_chat_id: telegramChatId.trim() || null,
+          telegram_bot_token: telegramBotToken.trim() || null,
         })
         .eq("id", businessId)
       if (error) throw error
@@ -129,6 +132,17 @@ export default function Settings() {
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
               placeholder="π.χ. -1001234567890"
+              className="max-w-md bg-background/40 border-border/60"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Telegram Bot Token</Label>
+            <Input
+              type="password"
+              value={telegramBotToken}
+              onChange={(e) => setTelegramBotToken(e.target.value)}
+              placeholder="π.χ. 123456789:AA..."
               className="max-w-md bg-background/40 border-border/60"
             />
           </div>

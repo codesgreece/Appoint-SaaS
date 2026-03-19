@@ -28,6 +28,7 @@ export interface Business {
   logo_url: string | null
   telegram_enabled: boolean
   telegram_chat_id: string | null
+  telegram_bot_token: string | null
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null

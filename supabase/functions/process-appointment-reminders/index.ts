@@ -20,7 +20,7 @@ type AppointmentRow = {
   status: string
   customer: { first_name: string; last_name: string } | null
   service: { name: string } | null
-  business: { telegram_enabled: boolean; telegram_chat_id: string | null } | null
+  business: { telegram_enabled: boolean; telegram_chat_id: string | null; telegram_bot_token: string | null } | null
 }
 
 function toDateTime(date: string, time: string): Date | null {
@@ -60,16 +60,15 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
+    const fallbackBotToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
     if (!supabaseUrl || !serviceRoleKey) return json({ error: "Missing supabase env" }, 500)
-    if (!botToken) return json({ error: "Missing TELEGRAM_BOT_TOKEN env" }, 500)
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     const { data, error } = await supabase
       .from("appointments_jobs")
       .select(
-        "id, business_id, scheduled_date, start_time, end_time, status, customer:customers(first_name,last_name), service:services(name), business:businesses(telegram_enabled,telegram_chat_id)",
+        "id, business_id, scheduled_date, start_time, end_time, status, customer:customers(first_name,last_name), service:services(name), business:businesses(telegram_enabled,telegram_chat_id,telegram_bot_token)",
       )
       .in("status", ["pending", "confirmed", "in_progress"])
     if (error) throw error
@@ -83,6 +82,11 @@ Deno.serve(async (req) => {
     for (const row of (data ?? []) as AppointmentRow[]) {
       const b = row.business
       if (!b?.telegram_enabled || !b.telegram_chat_id) {
+        skipped += 1
+        continue
+      }
+      const token = (b.telegram_bot_token ?? "").trim() || fallbackBotToken
+      if (!token) {
         skipped += 1
         continue
       }
@@ -112,7 +116,7 @@ Deno.serve(async (req) => {
         `Υπηρεσία: ${serviceName}`,
       ].join("\n")
 
-      await sendTelegram(botToken, b.telegram_chat_id, text)
+      await sendTelegram(token, b.telegram_chat_id, text)
 
       const { error: insErr } = await supabase.from("appointment_telegram_reminders").insert({
         appointment_id: row.id,
