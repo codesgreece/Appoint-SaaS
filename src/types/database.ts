@@ -26,6 +26,8 @@ export interface Business {
   email: string | null
   address: string | null
   logo_url: string | null
+  telegram_enabled: boolean
+  telegram_chat_id: string | null
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null

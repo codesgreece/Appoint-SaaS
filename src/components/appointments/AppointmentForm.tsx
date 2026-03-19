@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { AlertCircle } from "lucide-react"
 import { formatDate } from "@/lib/utils"
+import { formatAppointmentTelegramMessage, sendBusinessTelegramMessage } from "@/lib/telegram"
 
 const statusOptions: AppointmentJobStatus[] = [
   "pending",
@@ -474,8 +475,45 @@ export function AppointmentForm({
       const { createAppointment, updateAppointment } = await import("@/services/api")
       if (initial?.id) {
         await updateAppointment(initial.id, payload)
+        // Notify completion when status changes to completed.
+        if (initial.status !== "completed" && (data.status as AppointmentJobStatus) === "completed") {
+          try {
+            const customerName =
+              safeCustomers.find((c) => c.id === data.customer_id)
+                ? `${safeCustomers.find((c) => c.id === data.customer_id)!.first_name} ${safeCustomers.find((c) => c.id === data.customer_id)!.last_name}`
+                : "—"
+            const serviceName = safeServices.find((s) => s.id === data.service_id)?.name ?? "—"
+            const message = formatAppointmentTelegramMessage({
+              event: "completed",
+              customerName,
+              date: data.scheduled_date,
+              time: `${data.start_time} - ${data.end_time}`,
+              serviceName,
+            })
+            await sendBusinessTelegramMessage(businessId, message)
+          } catch (notifyErr) {
+            console.warn("Telegram completion notification failed:", notifyErr)
+          }
+        }
       } else {
-        await createAppointment(payload)
+        const created = await createAppointment(payload)
+        try {
+          const customerName =
+            safeCustomers.find((c) => c.id === created.customer_id)
+              ? `${safeCustomers.find((c) => c.id === created.customer_id)!.first_name} ${safeCustomers.find((c) => c.id === created.customer_id)!.last_name}`
+              : "—"
+          const serviceName = safeServices.find((s) => s.id === created.service_id)?.name ?? "—"
+          const message = formatAppointmentTelegramMessage({
+            event: "created",
+            customerName,
+            date: created.scheduled_date,
+            time: `${created.start_time} - ${created.end_time}`,
+            serviceName,
+          })
+          await sendBusinessTelegramMessage(businessId, message)
+        } catch (notifyErr) {
+          console.warn("Telegram new appointment notification failed:", notifyErr)
+        }
       }
       onSaved()
     } catch (err) {

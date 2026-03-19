@@ -39,6 +39,7 @@ import { CalendarView } from "@/components/appointments/CalendarView"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
+import { formatAppointmentTelegramMessage, sendBusinessTelegramMessage } from "@/lib/telegram"
 
 const STATUS_LABELS: Record<AppointmentJobStatus, string> = {
   pending: "Εκκρεμεί",
@@ -163,6 +164,26 @@ export default function Appointments() {
       if (!businessId) return
       await updateAppointment(a.id, { status: next })
       setAppointments((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next } : x)))
+
+      if (a.status !== "completed" && next === "completed") {
+        try {
+          const customerName = a.customer
+            ? `${(a.customer as Customer).first_name} ${(a.customer as Customer).last_name}`
+            : "—"
+          const serviceName = a.service?.name ?? "—"
+          const message = formatAppointmentTelegramMessage({
+            event: "completed",
+            customerName,
+            date: a.scheduled_date,
+            time: `${a.start_time} - ${a.end_time}`,
+            serviceName,
+          })
+          await sendBusinessTelegramMessage(businessId, message)
+        } catch (notifyErr) {
+          console.warn("Telegram completion notification failed:", notifyErr)
+        }
+      }
+
       toast({ title: "Ενημερώθηκε", description: "Η κατάσταση ενημερώθηκε." })
     } catch (e) {
       toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία ενημέρωσης", variant: "destructive" })

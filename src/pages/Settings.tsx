@@ -1,12 +1,24 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
+import { fetchBusiness } from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "@/components/theme-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sparkles, Palette } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Settings() {
+  const { businessId } = useAuth()
   const { theme, setTheme, palette, setPalette } = useTheme()
+  const { toast } = useToast()
+  const [telegramEnabled, setTelegramEnabled] = useState(false)
+  const [telegramChatId, setTelegramChatId] = useState("")
+  const [savingNotifications, setSavingNotifications] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
@@ -17,6 +29,39 @@ export default function Settings() {
     }
     if (nextPalette === "default" || nextPalette === "beauty") {
       setPalette(nextPalette)
+    }
+  }
+
+  useEffect(() => {
+    if (!businessId) return
+    fetchBusiness(businessId).then((b) => {
+      if (!b) return
+      setTelegramEnabled(Boolean(b.telegram_enabled))
+      setTelegramChatId(b.telegram_chat_id ?? "")
+    })
+  }, [businessId])
+
+  async function handleSaveNotifications() {
+    if (!businessId) return
+    try {
+      setSavingNotifications(true)
+      const { error } = await supabase
+        .from("businesses")
+        .update({
+          telegram_enabled: telegramEnabled,
+          telegram_chat_id: telegramChatId.trim() || null,
+        })
+        .eq("id", businessId)
+      if (error) throw error
+      toast({ title: "Αποθηκεύτηκε", description: "Οι ρυθμίσεις Telegram ενημερώθηκαν." })
+    } catch (e) {
+      toast({
+        title: "Σφάλμα",
+        description: e instanceof Error ? e.message : "Αποτυχία αποθήκευσης ρυθμίσεων Telegram",
+        variant: "destructive",
+      })
+    } finally {
+      setSavingNotifications(false)
     }
   }
 
@@ -60,6 +105,39 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground">
             Το “Beauty Pink” είναι πιο γυναικείο/premium theme, κατάλληλο για nail, beauty και wellness studios.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Notifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Enable Telegram Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                Στέλνει ειδοποιήσεις για νέο ραντεβού, ολοκλήρωση και υπενθύμιση 30 λεπτά πριν.
+              </p>
+            </div>
+            <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
+          </div>
+
+          <div className="space-y-1">
+            <Label>Telegram Chat ID</Label>
+            <Input
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              placeholder="π.χ. -1001234567890"
+              className="max-w-md bg-background/40 border-border/60"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button type="button" onClick={handleSaveNotifications} disabled={savingNotifications}>
+              {savingNotifications ? "Αποθήκευση..." : "Αποθήκευση ειδοποιήσεων"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
