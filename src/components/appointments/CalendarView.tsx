@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn, formatCurrency } from "@/lib/utils"
 
 type AppointmentWithCustomer = AppointmentJob & { customer?: Customer }
 
@@ -51,8 +52,75 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
   const today = startOfDay(new Date())
   const selectedDayAppointments = useMemo(() => {
     if (!selectedDate) return []
-    return getAppointmentsForDay(selectedDate).sort((a, b) => a.start_time.localeCompare(b.start_time))
+    const priority: Record<AppointmentJob["status"], number> = {
+      completed: 0,
+      confirmed: 1,
+      in_progress: 2,
+      pending: 3,
+      cancelled: 4,
+      no_show: 4,
+      rescheduled: 5,
+    }
+
+    // Premium ordering: completed first, then by start_time.
+    return getAppointmentsForDay(selectedDate).sort((a, b) => {
+      const pa = priority[a.status] ?? 99
+      const pb = priority[b.status] ?? 99
+      if (pa !== pb) return pa - pb
+      return a.start_time.localeCompare(b.start_time)
+    })
   }, [selectedDate, filteredAppointments])
+
+  const selectedDayTotals = useMemo(() => {
+    if (!selectedDate) return { total: 0, count: 0 }
+    const rows = getAppointmentsForDay(selectedDate)
+    const total = rows.reduce((sum, a) => {
+      const v = a.final_cost != null ? Number(a.final_cost) : a.cost_estimate != null ? Number(a.cost_estimate) : 0
+      return sum + (Number.isFinite(v) ? v : 0)
+    }, 0)
+    return { total, count: rows.length }
+  }, [selectedDate, filteredAppointments])
+
+  function statusBadgeVariantForDay(status: AppointmentJob["status"]): string {
+    switch (status) {
+      case "pending":
+        return "pending"
+      case "confirmed":
+        return "confirmed"
+      case "in_progress":
+        return "inProgress"
+      case "completed":
+        return "completed"
+      case "cancelled":
+      case "no_show":
+        return "cancelled"
+      case "rescheduled":
+        return "rescheduled"
+      default:
+        return "outline"
+    }
+  }
+
+  function statusShort(status: AppointmentJob["status"]): string {
+    switch (status) {
+      case "pending":
+        return "Εκκρ."
+      case "confirmed":
+        return "Επιβεβ."
+      case "in_progress":
+        return "Σε εξέλ."
+      case "completed":
+        return "Ολοκλ."
+      case "cancelled":
+        return "Ακυρ."
+      case "no_show":
+        return "No show"
+      case "rescheduled":
+        return "Re-sched"
+      default:
+        return status
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -72,20 +140,21 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
           <Button variant="outline" size="sm" onClick={() => setCurrentMonth(today)}>
             Σήμερα
           </Button>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="h-8 rounded-md border border-border bg-card/80 px-2 text-xs text-muted-foreground"
-          >
-            <option value="all">Όλες οι καταστάσεις</option>
-            <option value="pending">Εκκρεμεί</option>
-            <option value="confirmed">Επιβεβαιωμένο</option>
-            <option value="in_progress">Σε εξέλιξη</option>
-            <option value="completed">Ολοκληρώθηκε</option>
-            <option value="cancelled">Ακυρώθηκε</option>
-            <option value="no_show">Δεν εμφανίστηκε</option>
-            <option value="rescheduled">Επανεπιλογή</option>
-          </select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <SelectTrigger className="h-8 w-[220px] bg-card/80 border-border/60">
+              <SelectValue placeholder="Φίλτρο κατάστασης" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Όλες οι καταστάσεις</SelectItem>
+              <SelectItem value="pending">Εκκρεμεί</SelectItem>
+              <SelectItem value="confirmed">Επιβεβαιωμένο</SelectItem>
+              <SelectItem value="in_progress">Σε εξέλιξη</SelectItem>
+              <SelectItem value="completed">Ολοκληρώθηκε</SelectItem>
+              <SelectItem value="cancelled">Ακυρώθηκε</SelectItem>
+              <SelectItem value="no_show">Δεν εμφανίστηκε</SelectItem>
+              <SelectItem value="rescheduled">Επανεπιλογή</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -105,6 +174,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
             {days.map((day) => {
               const dayStart = startOfDay(day)
               const isPast = dayStart < today
+              const isToday = isSameDay(dayStart, today)
               const dayAppointments = getAppointmentsForDay(day)
               const count = dayAppointments.length
               const loadClass =
@@ -127,10 +197,18 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                     "min-h-[100px] rounded border p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isSameMonth(day, currentMonth) ? loadClass : "bg-muted/20",
                     isPast && "opacity-80",
+                    isToday && "ring-2 ring-primary/60 border-primary/25 bg-primary/5",
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-1">
-                    <span className="text-sm font-medium">{format(day, "d")}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium">{format(day, "d")}</span>
+                      {isToday && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          Today
+                        </span>
+                      )}
+                    </div>
                     {count > 0 && (
                       <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                         {count} ραντ.
@@ -141,10 +219,29 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                     {dayAppointments.slice(0, 3).map((a) => (
                       <div
                         key={a.id}
-                        className="text-[11px] truncate rounded px-1 py-0.5 bg-primary/10 text-primary"
+                        className="text-[11px] truncate rounded px-1 py-0.5 bg-primary/10 text-primary flex items-center gap-2"
                         title={a.title}
                       >
-                        {a.start_time} {a.title}
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{
+                            background:
+                              a.status === "completed"
+                                ? "hsl(var(--status-completed))"
+                                : a.status === "pending"
+                                  ? "hsl(var(--status-pending))"
+                                  : a.status === "confirmed"
+                                    ? "hsl(var(--status-confirmed))"
+                                    : a.status === "in_progress"
+                                      ? "hsl(var(--status-in-progress))"
+                                      : a.status === "cancelled" || a.status === "no_show"
+                                        ? "hsl(var(--status-cancelled))"
+                                        : "hsl(var(--status-rescheduled))",
+                          }}
+                        />
+                        <span className="min-w-0 truncate">
+                          {a.start_time} {a.title}
+                        </span>
                       </div>
                     ))}
                     {dayAppointments.length > 3 && (
@@ -166,19 +263,47 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
             {selectedDayAppointments.length === 0 ? (
               <p className="text-sm text-muted-foreground">Δεν υπάρχουν κλεισμένα ραντεβού για αυτή την ημέρα.</p>
             ) : (
-              <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
-                {selectedDayAppointments.map((a) => (
-                  <div key={a.id} className="rounded-md border border-border/60 bg-card/50 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="truncate text-sm font-medium">{a.title}</div>
-                      <Badge variant="outline">{a.start_time} - {a.end_time}</Badge>
+              <>
+                <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Σύνοψη</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedDayTotals.count} ραντεβού • υπολογισμός από `final_cost` (ή `cost_estimate` αν δεν υπάρχει).
+                      </p>
                     </div>
-                    <div className="mt-1 truncate text-xs text-muted-foreground">
-                      {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "Χωρίς πελάτη"}
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Σύνολο</p>
+                      <p className="text-lg font-semibold tabular-nums">{formatCurrency(selectedDayTotals.total)}</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+
+                <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+                  {selectedDayAppointments.map((a) => (
+                    <div key={a.id} className="rounded-md border border-border/60 bg-card/50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="truncate text-sm font-medium">{a.title}</div>
+                        <Badge variant="outline">
+                          {a.start_time} - {a.end_time}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 truncate text-xs text-muted-foreground">
+                        {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "Χωρίς πελάτη"}
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <Badge variant={statusBadgeVariantForDay(a.status) as any} className="px-2 py-1">
+                          {statusShort(a.status)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatCurrency(Number(a.final_cost ?? a.cost_estimate ?? 0))}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
             <div className="rounded-md border border-border/60 bg-background/50 p-3">
               <p className="text-sm font-medium">Θέλετε να κλείσετε νέο ραντεβού;</p>
