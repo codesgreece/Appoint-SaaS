@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Menu,
   LogOut,
-  ShoppingBag,
   Moon,
   Sun,
   Search,
@@ -63,11 +62,6 @@ const platformNavItems = [
   { to: "/faq", icon: HelpCircle, label: "FAQ" },
   { to: "/terms", icon: FileText, label: "Όροι χρήσης" },
   { to: "/privacy", icon: ShieldCheck, label: "Πολιτική απορρήτου" },
-]
-
-const lockedNavItems = [
-  { to: "/subscribe", icon: ShoppingBag, label: "Αγορά προγράμματος" },
-  { to: "/settings", icon: Settings, label: "Ρυθμίσεις" },
 ]
 
 function planLabelGr(plan: string | null): string {
@@ -198,10 +192,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex flex-col gap-1.5 p-2.5">
           {(() => {
-            const subscriptionLocked =
-              user?.role !== "super_admin" && tenantSubscriptionPlan === "unsubscribed"
             if (user?.role === "super_admin" && mode === "platform") return platformNavItems
-            if (subscriptionLocked) return lockedNavItems
             return businessNavItems
           })().map((item) => {
             const isActive = location.pathname === item.to || (item.to !== "/" && location.pathname.startsWith(item.to))
