@@ -20,7 +20,12 @@ type AppointmentRow = {
   status: string
   customer: { first_name: string; last_name: string } | null
   service: { name: string } | null
-  business: { telegram_enabled: boolean; telegram_chat_id: string | null; telegram_bot_token: string | null } | null
+  business: {
+    telegram_enabled: boolean
+    telegram_chat_id: string | null
+    telegram_bot_token: string | null
+    telegram_notification_preferences: Record<string, boolean> | null
+  } | null
 }
 
 function toDateTime(date: string, time: string): Date | null {
@@ -68,7 +73,7 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase
       .from("appointments_jobs")
       .select(
-        "id, business_id, scheduled_date, start_time, end_time, status, customer:customers(first_name,last_name), service:services(name), business:businesses(telegram_enabled,telegram_chat_id,telegram_bot_token)",
+        "id, business_id, scheduled_date, start_time, end_time, status, customer:customers(first_name,last_name), service:services(name), business:businesses(telegram_enabled,telegram_chat_id,telegram_bot_token,telegram_notification_preferences)",
       )
       .in("status", ["pending", "confirmed", "in_progress"])
     if (error) throw error
@@ -82,6 +87,10 @@ Deno.serve(async (req) => {
     for (const row of (data ?? []) as AppointmentRow[]) {
       const b = row.business
       if (!b?.telegram_enabled || !b.telegram_chat_id) {
+        skipped += 1
+        continue
+      }
+      if ((b.telegram_notification_preferences ?? {}).reminder_30m === false) {
         skipped += 1
         continue
       }

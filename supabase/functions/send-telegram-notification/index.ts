@@ -11,7 +11,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders })
 }
 
-async function sendTelegram(token: string, chatId: string, text: string) {
+async function sendTelegram(token: string, chatId: string, text: string, replyMarkup?: unknown) {
   const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
   const res = await fetch(endpoint, {
     method: "POST",
@@ -21,6 +21,7 @@ async function sendTelegram(token: string, chatId: string, text: string) {
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
     }),
   })
   if (!res.ok) {
@@ -56,6 +57,7 @@ Deno.serve(async (req) => {
 
     const businessId = typeof body.business_id === "string" ? body.business_id.trim() : ""
     const message = typeof body.message === "string" ? body.message.trim() : ""
+    const replyMarkup = body.reply_markup
     if (!businessId || !message) {
       return json({ success: false, error: "Missing business_id or message" }, 400)
     }
@@ -88,7 +90,7 @@ Deno.serve(async (req) => {
     if (!chatId) return json({ success: true, skipped: true, reason: "missing_chat_id" }, 200)
     if (!token) return json({ success: false, error: "Missing Telegram token" }, 400)
 
-    await sendTelegram(token, chatId, message)
+    await sendTelegram(token, chatId, message, replyMarkup)
     return json({ success: true }, 200)
   } catch (err) {
     return json({ success: false, error: err instanceof Error ? err.message : "Error" }, 500)

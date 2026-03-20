@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchBusiness } from "@/services/api"
+import { fetchBusiness, resetDemoBusiness } from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "@/components/theme-provider"
@@ -12,6 +12,34 @@ import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
+type TelegramNotificationPreferences = {
+  appointment_created: boolean
+  appointment_cancelled_or_no_show: boolean
+  appointment_rescheduled: boolean
+  payment_recorded: boolean
+  support_incident_new: boolean
+  support_reply: boolean
+  daily_summary: boolean
+  morning_briefing: boolean
+  plan_limits: boolean
+  subscription_alerts: boolean
+  reminder_30m: boolean
+}
+
+const defaultTelegramPreferences: TelegramNotificationPreferences = {
+  appointment_created: true,
+  appointment_cancelled_or_no_show: true,
+  appointment_rescheduled: true,
+  payment_recorded: true,
+  support_incident_new: true,
+  support_reply: true,
+  daily_summary: true,
+  morning_briefing: true,
+  plan_limits: true,
+  subscription_alerts: true,
+  reminder_30m: true,
+}
+
 export default function Settings() {
   const { businessId } = useAuth()
   const { theme, setTheme, palette, setPalette } = useTheme()
@@ -19,7 +47,12 @@ export default function Settings() {
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState("")
   const [telegramBotToken, setTelegramBotToken] = useState("")
+  const [telegramPreferences, setTelegramPreferences] = useState<TelegramNotificationPreferences>(
+    defaultTelegramPreferences,
+  )
   const [savingNotifications, setSavingNotifications] = useState(false)
+  const [isDemoPlan, setIsDemoPlan] = useState(false)
+  const [resettingDemo, setResettingDemo] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
@@ -40,6 +73,9 @@ export default function Settings() {
       setTelegramEnabled(Boolean(b.telegram_enabled))
       setTelegramChatId(b.telegram_chat_id ?? "")
       setTelegramBotToken(b.telegram_bot_token ?? "")
+      const loaded = (b.telegram_notification_preferences ?? {}) as Partial<TelegramNotificationPreferences>
+      setTelegramPreferences({ ...defaultTelegramPreferences, ...loaded })
+      setIsDemoPlan((b.subscription_plan ?? "").toLowerCase() === "demo")
     })
   }, [businessId])
 
@@ -53,6 +89,7 @@ export default function Settings() {
           telegram_enabled: telegramEnabled,
           telegram_chat_id: telegramChatId.trim() || null,
           telegram_bot_token: telegramBotToken.trim() || null,
+          telegram_notification_preferences: telegramPreferences,
         })
         .eq("id", businessId)
       if (error) throw error
@@ -65,6 +102,30 @@ export default function Settings() {
       })
     } finally {
       setSavingNotifications(false)
+    }
+  }
+
+  async function handleResetDemoData() {
+    if (!businessId) return
+    const ok = window.confirm(
+      "Θέλεις σίγουρα να γίνει επαναφορά demo; Θα διαγραφούν ραντεβού, πληρωμές, πελάτες, υπηρεσίες και αιτήματα support.",
+    )
+    if (!ok) return
+    try {
+      setResettingDemo(true)
+      await resetDemoBusiness(businessId)
+      toast({
+        title: "Έγινε επαναφορά",
+        description: "Τα δεδομένα demo διαγράφηκαν και ο λογαριασμός είναι έτοιμος για νέα δοκιμή.",
+      })
+    } catch (e) {
+      toast({
+        title: "Σφάλμα",
+        description: e instanceof Error ? e.message : "Αποτυχία επαναφοράς demo δεδομένων",
+        variant: "destructive",
+      })
+    } finally {
+      setResettingDemo(false)
     }
   }
 
@@ -147,6 +208,36 @@ export default function Settings() {
             />
           </div>
 
+          <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
+            <p className="text-sm font-medium">Επιλογή ειδοποιήσεων Telegram</p>
+            {[
+              { key: "appointment_created", label: "Νέο ραντεβού" },
+              { key: "appointment_cancelled_or_no_show", label: "Ακύρωση / no-show" },
+              { key: "appointment_rescheduled", label: "Επαναπρογραμματισμός" },
+              { key: "payment_recorded", label: "Πληρωμές (νέα/μερική)" },
+              { key: "support_incident_new", label: "Νέο support incident" },
+              { key: "support_reply", label: "Απάντηση support" },
+              { key: "daily_summary", label: "Καθημερινό summary" },
+              { key: "morning_briefing", label: "Πρωινό briefing" },
+              { key: "plan_limits", label: "Όρια πλάνου" },
+              { key: "subscription_alerts", label: "Λήξη συνδρομής" },
+              { key: "reminder_30m", label: "Υπενθύμιση 30 λεπτά πριν" },
+            ].map((item) => (
+              <div key={item.key} className="flex items-center justify-between">
+                <p className="text-sm">{item.label}</p>
+                <Switch
+                  checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
+                  onCheckedChange={(checked) =>
+                    setTelegramPreferences((prev) => ({
+                      ...prev,
+                      [item.key]: checked,
+                    }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+
           <div className="flex justify-end">
             <Button type="button" onClick={handleSaveNotifications} disabled={savingNotifications}>
               {savingNotifications ? "Αποθήκευση..." : "Αποθήκευση ειδοποιήσεων"}
@@ -154,6 +245,29 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {isDemoPlan && (
+        <Card className="border-destructive/40 bg-card/60 backdrop-blur-xl shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">Demo Panel</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Επαναφορά όλων των δεδομένων δοκιμής για να είναι ο λογαριασμός έτοιμος για την επόμενη χρήση.
+            </p>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleResetDemoData}
+                disabled={resettingDemo}
+              >
+                {resettingDemo ? "Επαναφορά..." : "Επαναφορά όλων (Demo)"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
