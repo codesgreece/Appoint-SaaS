@@ -15,8 +15,10 @@ import {
   FileText,
   Menu,
   LogOut,
-  Search,
-  Palette,
+  Building2,
+  Bot,
+  Apple,
+  Monitor,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
@@ -32,7 +34,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { CommandPalette } from "@/components/CommandPalette"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const businessNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -79,18 +80,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut, businessName, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
-  const { theme, setTheme, palette, setPalette } = useTheme()
-  const selectedThemePreset = `${theme}:${palette}`
-
-  function handleThemePresetChange(value: string) {
-    const [nextTheme, nextPalette] = value.split(":")
-    if (nextTheme === "light" || nextTheme === "dark" || nextTheme === "system") {
-      setTheme(nextTheme)
-    }
-    if (nextPalette === "default" || nextPalette === "beauty") {
-      setPalette(nextPalette)
-    }
-  }
+  useTheme()
 
   const { mode, setMode } = useWorkspace()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -235,6 +225,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
+          {(user?.role !== "super_admin" || mode === "business") && (
+            <div className="mt-1 rounded-xl border border-border/60 bg-card/60 px-2.5 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Διαθέσιμο σε</p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+                  <Bot className="h-3 w-3" />
+                  Android
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+                  <Apple className="h-3 w-3" />
+                  iOS
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+                  <Monitor className="h-3 w-3" />
+                  Windows
+                </span>
+              </div>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -246,10 +255,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
           <div className="flex-1 flex items-center gap-2.5">
             {(mode === "business" || user?.role !== "super_admin") && (
-              <div className="hidden sm:flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur">
-                <span className="font-medium text-foreground truncate max-w-[160px]">
-                  {businessName ?? "—"}
+              <div className="hidden sm:flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-card/70 to-purple-500/10 px-3.5 py-1.5 text-[11px] backdrop-blur">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary">
+                  <Building2 className="h-3.5 w-3.5" />
                 </span>
+                <div className="leading-tight">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Επιχείρηση</p>
+                  <p className="max-w-[180px] truncate font-semibold text-foreground">{businessName ?? "—"}</p>
+                </div>
               </div>
             )}
             {user?.role === "super_admin" && (
@@ -288,33 +301,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="hidden md:flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 backdrop-blur">
-              <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-              <Select value={selectedThemePreset} onValueChange={handleThemePresetChange}>
-                <SelectTrigger className="h-7 w-[230px] border-0 bg-transparent px-1 text-xs focus:ring-0">
-                  <SelectValue placeholder="Theme" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light:default">Κλασικό - Φωτεινό</SelectItem>
-                  <SelectItem value="dark:default">Κλασικό - Σκούρο</SelectItem>
-                  <SelectItem value="system:default">Κλασικό - Σύστημα</SelectItem>
-                  <SelectItem value="light:beauty">Beauty Pink - Φωτεινό</SelectItem>
-                  <SelectItem value="dark:beauty">Beauty Pink - Σκούρο</SelectItem>
-                  <SelectItem value="system:beauty">Beauty Pink - Σύστημα</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCommandOpen(true)}
-              className="hidden md:flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur hover:bg-card hover:text-foreground transition-colors"
-            >
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[11px]">Αναζήτηση ή εντολή…</span>
-              <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Ctrl+K
-              </span>
-            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
