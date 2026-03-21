@@ -18,6 +18,10 @@ import {
 
 const DURATIONS: PurchaseDurationMonths[] = [1, 3, 6, 12]
 
+function formatEur(n: number) {
+  return n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export default function Subscribe() {
   const { user, businessId, businessName, tenantSubscriptionPlan, tenantSubscriptionLoaded, signOut, refreshTenantBusiness } =
     useAuth()
@@ -93,7 +97,14 @@ export default function Subscribe() {
         <div className="mx-auto max-w-2xl text-center mb-10">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Αγορά προγράμματος</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Επίλεξε πακέτο και διάρκεια. Με την ολοκλήρωση η συνδρομή ενεργοποιείται αμέσως και ξεκλειδώνει όλο το panel.
+            Επίλεξε πακέτο και διάρκεια. Οι τιμές είναι το συνολικό ποσό για την περίοδο. Με την ολοκλήρωση η συνδρομή
+            ενεργοποιείται αμέσως και ξεκλειδώνει όλο το panel.
+          </p>
+          <p className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            <strong className="text-foreground">14 ημέρες δωρεάν δοκιμή</strong> σε όλα τα πακέτα, χωρίς υποχρέωση αγοράς ή
+            πληρωμής. Με αγορά <strong className="text-foreground">6 ή 12 μηνών</strong>: επιπλέον{" "}
+            <strong className="text-foreground">2 μήνες δώρο</strong>. Δωρεάν εγκατάσταση (αξίας 90 €) και δημιουργία Telegram
+            bot (αξίας 19,90 €).
           </p>
         </div>
 
@@ -163,8 +174,8 @@ export default function Subscribe() {
           <CardHeader>
             <CardTitle className="text-base">Διάρκεια συνδρομής</CardTitle>
             <p className="text-xs text-muted-foreground font-normal">
-              Στο ετήσιο πακέτο (12 μήνες): <strong>2 μήνες δώρο</strong> (14 μήνες συνολικά) ·{" "}
-              <strong>Εξοικονόμησε έως 20%</strong> σε σχέση με μηνιαία χρέωση.
+              Με <strong>6 μήνες</strong> ή <strong>12 μήνες</strong>: <strong>2 μήνες δώρο</strong> (ενεργοποίηση 8 ή 14 μηνών
+              αντίστοιχα, σύμφωνα με την προσφορά).
             </p>
           </CardHeader>
           <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -178,14 +189,13 @@ export default function Subscribe() {
                   months === m ? "border-primary bg-primary/10 ring-2 ring-primary/20" : "border-border/60 hover:bg-muted/50"
                 )}
               >
-                {m === 12 && (
+                {(m === 6 || m === 12) && (
                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-400">
-                    2 μήνες δώρο
+                    +2 μήνες δώρο
                   </span>
                 )}
                 <div className="text-xs font-medium text-muted-foreground mt-1">{DURATION_LABELS[m]}</div>
-                <div className="mt-2 text-xl font-bold">{PLAN_PRICES[plan][m]}€</div>
-                {m === 12 && <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">Έως 20% εξοικονόμηση</div>}
+                <div className="mt-2 text-xl font-bold">{formatEur(PLAN_PRICES[plan][m])} €</div>
               </button>
             ))}
           </CardContent>
@@ -198,9 +208,12 @@ export default function Subscribe() {
             <span className="text-muted-foreground"> · </span>
             <strong>{DURATION_LABELS[months]}</strong>
             <span className="text-muted-foreground"> · </span>
-            <strong className="text-primary text-lg">{price}€</strong>
+            <strong className="text-primary text-lg">{formatEur(price)} €</strong>
             {months === 12 && (
-              <p className="text-xs text-muted-foreground mt-1">Ισχύς 14 μήνες (συμπεριλαμβάνονται 2 δώρο)</p>
+              <p className="text-xs text-muted-foreground mt-1">Ισχύς 14 μήνες συνολικά (12 + 2 μήνες δώρο)</p>
+            )}
+            {months === 6 && (
+              <p className="text-xs text-muted-foreground mt-1">Ισχύς 8 μήνες συνολικά (6 + 2 μήνες δώρο)</p>
             )}
           </div>
           <Button size="lg" className="w-full sm:w-auto min-w-[240px]" onClick={handlePurchase} disabled={submitting}>

@@ -1,19 +1,22 @@
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Check, Menu, Sparkles, Target, TrendingUp, X, Zap } from "lucide-react"
+import { Check, Gift, Menu, Sparkles, Target, TrendingUp, X, Zap } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
+  BILLING_PERIODS,
   CLOSING_CTA,
   COMPARISON_ROWS,
   FEATURE_SECTIONS,
   getWhatsAppChatUrl,
   HERO,
   PERSONAS,
+  PLAN_PRICES_EUR,
   PLANS,
   PRICE_DISCLAIMER,
+  PRICING_PROMOS,
   VALUE_PILLS,
   WHATSAPP,
   type PlanId,
@@ -358,13 +361,87 @@ export default function PublicSite() {
       {/* Pricing */}
       <section id="pricing" className="scroll-mt-24 py-16 md:py-20">
         <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">Ενδεικτικές τιμές — ποιο πλάνο σας «ταιριάζει»;</h2>
+          <h2 className="text-center text-3xl font-bold tracking-tight md:text-4xl">Τιμές πακέτων — ανά περίοδο</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
-            Αυτές οι τιμές είναι οδηγός για την αξία της λύσης. Η τελική συμφωνία γίνεται με τον διαχειριστή της
-            πλατφόρμας — δεν πληρώνεται από αυτή τη σελίδα.
+            Κάθε κελί είναι το <strong>συνολικό ποσό</strong> για την επιλεγμένη περίοδο (όχι μηνιαία χρέωση). Η ενεργοποίηση
+            γίνεται με τον διαχειριστή της πλατφόρμας ή μέσω της ροής εγγραφής όπου υπάρχει.
           </p>
           <p className="mx-auto mt-2 max-w-2xl text-center text-xs text-muted-foreground">{PRICE_DISCLAIMER}</p>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
+
+          {/* Προσφορές */}
+          <div className="mt-10 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.07] p-5 md:p-6">
+              <div className="flex items-start gap-3">
+                <Gift className="mt-0.5 h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <p className="font-semibold text-foreground">{PRICING_PROMOS.trialTitle}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{PRICING_PROMOS.trialBody}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-primary/35 bg-primary/[0.06] p-5 md:p-6">
+              <div className="flex items-start gap-3">
+                <Gift className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+                <div>
+                  <p className="font-semibold text-foreground">{PRICING_PROMOS.longTermTitle}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{PRICING_PROMOS.longTermBody}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card/60 p-5 md:p-6">
+              <p className="font-semibold text-foreground">{PRICING_PROMOS.freeInstallTitle}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{PRICING_PROMOS.freeInstallBody}</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card/60 p-5 md:p-6">
+              <p className="font-semibold text-foreground">{PRICING_PROMOS.freeBotTitle}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{PRICING_PROMOS.freeBotBody}</p>
+            </div>
+          </div>
+
+          {/* Πίνακας τιμών */}
+          <div className="mt-12 overflow-x-auto rounded-xl border border-border/60 bg-card/30 shadow-inner">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="min-w-[120px] font-semibold">Πακέτο</TableHead>
+                  {BILLING_PERIODS.map((bp) => (
+                    <TableHead key={bp.id} className="min-w-[100px] text-center font-semibold">
+                      {bp.label}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {planOrder.map((pid) => {
+                  const p = PLANS.find((x) => x.id === pid)!
+                  return (
+                    <TableRow key={pid}>
+                      <TableCell className={cn("font-medium", p.highlight && "bg-primary/5")}>
+                        {p.name}
+                        {p.highlight ? (
+                          <Badge className="ml-2 align-middle text-[10px]">Συχνή επιλογή</Badge>
+                        ) : null}
+                      </TableCell>
+                      {BILLING_PERIODS.map((bp) => (
+                        <TableCell
+                          key={bp.id}
+                          className={cn("text-center tabular-nums", p.highlight && "bg-primary/5")}
+                        >
+                          {PLAN_PRICES_EUR[pid][bp.id]} €
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Παράδειγμα: με πακέτο 6 μηνών ενεργοποιείτε την πληρωμή της περιόδου — ενδέχεται να ισχύουν +2 μήνες δώρο·
+            ρωτήστε τον διαχειριστή για την ακριβή εφαρμογή στον λογαριασμό σας.
+          </p>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
             {PLANS.map((plan) => (
               <Card
                 key={plan.id}
@@ -379,7 +456,8 @@ export default function PublicSite() {
                 <CardHeader>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription className="text-base">{plan.tagline}</CardDescription>
-                  <p className="pt-2 text-3xl font-bold tracking-tight text-foreground">{plan.priceLabel}</p>
+                  <p className="pt-2 text-lg font-bold tracking-tight text-foreground">{plan.priceLabel}</p>
+                  <p className="text-xs text-muted-foreground">Δείτε τον πίνακα πάνω για 3, 6 και 12 μήνες.</p>
                   <p className="pt-2 text-sm leading-relaxed text-muted-foreground">{plan.valuePitch}</p>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col gap-3 text-sm text-muted-foreground">
@@ -398,7 +476,8 @@ export default function PublicSite() {
                     </li>
                   </ul>
                   <p className="mt-auto rounded-lg border border-dashed border-border/80 bg-muted/30 p-3 text-xs leading-relaxed">
-                    Η ενεργοποίηση γίνεται από τον διαχειριστή της πλατφόρμας — δεν υπάρχει κουμπί αγοράς εδώ.
+                    Για δοκιμή ή αγορά επικοινωνήστε μέσω WhatsApp ή με τον διαχειριστή — δεν υπάρχει κουμπί πληρωμής σε αυτή τη
+                    σελίδα.
                   </p>
                 </CardContent>
               </Card>

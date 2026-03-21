@@ -4,7 +4,7 @@
  */
 
 export const PRICE_DISCLAIMER =
-  "Οι τιμές είναι ενδεικτικές (προ ΦΠΑ) και ενδέχεται να διαφέρουν ανά συνεργάτη. Η ενεργοποίηση γίνεται μέσω του διαχειριστή της πλατφόρμας — δεν πληρώνεται από αυτή τη σελίδα."
+  "Οι τιμές αναφέρονται σε € για ολόκληρη την επιλεγμένη περίοδο συνδρομής (όχι ανά μήνα), προ ΦΠΑ εκτός αν ορίζεται διαφορετικά. Η ενεργοποίηση γίνεται μέσω του διαχειριστή της πλατφόρμας."
 
 /** Hero — πειστικό, value-first */
 /** WhatsApp — επικοινωνία για δοκιμή / αγορά (ανοίγει wa.me) */
@@ -77,11 +77,58 @@ export const PERSONAS = [
 
 export type PlanId = "starter" | "pro" | "premium"
 
+/** Περίοδοι χρέωσης (συνολικό ποσό περιόδου) */
+export type BillingPeriodId = "m1" | "m3" | "m6" | "m12"
+
+export const BILLING_PERIODS: { id: BillingPeriodId; label: string }[] = [
+  { id: "m1", label: "1 μήνας" },
+  { id: "m3", label: "3 μήνες" },
+  { id: "m6", label: "6 μήνες" },
+  { id: "m12", label: "12 μήνες" },
+]
+
+/** Συνολική τιμή περιόδου σε € (εμφάνιση με ελληνικό δεκαδικό) */
+export const PLAN_PRICES_EUR: Record<PlanId, Record<BillingPeriodId, string>> = {
+  starter: {
+    m1: "19,90",
+    m3: "53,90",
+    m6: "101,90",
+    m12: "179,90",
+  },
+  pro: {
+    m1: "28,90",
+    m3: "78,90",
+    m6: "148,90",
+    m12: "289,90",
+  },
+  premium: {
+    m1: "58,90",
+    m3: "157,90",
+    m6: "298,90",
+    m12: "589,90",
+  },
+}
+
+/** Προσφορές & δώρα (marketing) */
+export const PRICING_PROMOS = {
+  trialDays: 14,
+  trialTitle: "14 ημέρες δωρεάν σε όλα τα πακέτα",
+  trialBody:
+    "Δοκιμή πλήρους χρήσης χωρίς υποχρέωση αγοράς ή πληρωμής — αποφασίζετε εσείς μετά.",
+  longTermTitle: "2 μήνες δώρο με 6 ή 12 μήνες",
+  longTermBody:
+    "Σε κάθε πακέτο, με αγορά συνδρομής 6 μηνών ή 12 μηνών προσφέρονται επιπλέον 2 μήνες δωρεάν.",
+  freeInstallTitle: "Δωρεάν εγκατάσταση",
+  freeInstallBody: "Έξοδα εγκατάστασης αξίας 90 € — χωρίς χρέωση.",
+  freeBotTitle: "Δωρεάν Telegram bot",
+  freeBotBody: "Δημιουργία bot αξίας 19,90 € — χωρίς χρέωση.",
+} as const
+
 export interface PlanCard {
   id: PlanId
   name: string
   tagline: string
-  /** Ενδεικτική τιμή / μήνας (κείμενο για εμφάνιση) */
+  /** Σύντομη γραμμή τιμής (βάση 1 μήνα) */
   priceLabel: string
   /** Μικρό marketing κείμενο για «τι κερδίζω» */
   valuePitch: string
@@ -96,7 +143,7 @@ export const PLANS: PlanCard[] = [
     id: "starter",
     name: "Starter",
     tagline: "Ξεκινήστε οργανωμένα — χωρίς πλοκάρισμα",
-    priceLabel: "από 29 € / μήνα",
+    priceLabel: "από 19,90 € / περίοδο 1 μήνα",
     valuePitch: "Ιδανικό για 1–2 άτομα που θέλουν τάξη στα ραντεβού χωρίς πολυπλοκότητα.",
     maxUsers: 3,
     maxCustomers: 300,
@@ -106,7 +153,7 @@ export const PLANS: PlanCard[] = [
     id: "pro",
     name: "Pro",
     tagline: "Η «γλυκιά» θέση για μεγαλύτερη ομάδα",
-    priceLabel: "από 79 € / μήνα",
+    priceLabel: "από 28,90 € / περίοδο 1 μήνα",
     valuePitch: "Όταν μεγαλώνεις: περισσότεροι πελάτες, περισσότερα ραντεβού, ίδια ποιότητα εξυπηρέτησης.",
     maxUsers: 10,
     maxCustomers: 2000,
@@ -117,7 +164,7 @@ export const PLANS: PlanCard[] = [
     id: "premium",
     name: "Premium",
     tagline: "Όγκος & πολλαπλά σημεία χωρίς να «σπάει» το σύστημα",
-    priceLabel: "από 199 € / μήνα",
+    priceLabel: "από 58,90 € / περίοδο 1 μήνα",
     valuePitch: "Για όσους έχουν υψηλό throughput και χρειάζονται μεγάλα όρια χωρίς συμβιβασμούς.",
     maxUsers: 30,
     maxCustomers: 10000,

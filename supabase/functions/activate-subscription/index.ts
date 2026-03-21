@@ -1,6 +1,6 @@
 // Activate Starter/Pro/Premium for a business that is currently "unsubscribed".
 // Body: { business_id, plan: "starter"|"pro"|"premium", duration_months: 1|3|6|12 }
-// 12-month purchases get +2 months (14 months total).
+// 6-month purchases get +2 months (8 months total); 12-month get +2 (14 months total).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
 
     const lim = LIMITS[plan]!
     let months = duration_months
+    if (months === 6) months = 8
     if (months === 12) months = 14
 
     const started = new Date()
