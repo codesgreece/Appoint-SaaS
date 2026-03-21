@@ -11,10 +11,8 @@ import {
   BarChart3,
   Settings,
   Briefcase,
-  HelpCircle,
   LifeBuoy,
   FileText,
-  ShieldCheck,
   Menu,
   LogOut,
   Search,
@@ -48,9 +46,6 @@ const businessNavItems = [
   { to: "/details", icon: FileText, label: "Στοιχεία" },
   { to: "/support", icon: LifeBuoy, label: "Υποστήριξη" },
   { to: "/settings", icon: Settings, label: "Ρυθμίσεις" },
-  { to: "/faq", icon: HelpCircle, label: "FAQ" },
-  { to: "/terms", icon: FileText, label: "Όροι χρήσης" },
-  { to: "/privacy", icon: ShieldCheck, label: "Πολιτική απορρήτου" },
 ]
 
 const platformNavItems = [
@@ -59,9 +54,6 @@ const platformNavItems = [
   { to: "/platform/plans", icon: BarChart3, label: "Πλάνα & Όρια" },
   { to: "/platform/users", icon: UserCircle, label: "Χρήστες πλατφόρμας" },
   { to: "/platform/tools", icon: Settings, label: "Εργαλεία υποστήριξης" },
-  { to: "/faq", icon: HelpCircle, label: "FAQ" },
-  { to: "/terms", icon: FileText, label: "Όροι χρήσης" },
-  { to: "/privacy", icon: ShieldCheck, label: "Πολιτική απορρήτου" },
 ]
 
 function planLabelGr(plan: string | null): string {
