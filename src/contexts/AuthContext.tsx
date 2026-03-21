@@ -147,12 +147,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSupabaseUser(session?.user ?? null)
+
+      // Ανανέωση token όταν επιστρέφεις σε καρτέλα/παράθυρο — χωρίς spinner & χωρίς ξαναφόρτωση προφίλ (αλλιώς χάνονται tabs/scroll).
+      if (event === "TOKEN_REFRESHED") {
+        return
+      }
+
+      // Το αρχικό session ήδη χειρίζεται το getSession() παραπάνω — αποφυγή διπλού fetch & flash loading.
+      if (event === "INITIAL_SESSION") {
+        return
+      }
+
       if (session?.user) {
-        setLoading(true)
+        // USER_UPDATED: αθόρυβη ανανέωση προφίλ (χωρίς να ξεφορτώσει όλη τη σελίδα)
+        const silentProfileRefresh = event === "USER_UPDATED"
+        if (!silentProfileRefresh) {
+          setLoading(true)
+        }
         setBootstrapError(null)
-        console.log("[Auth] session changed; loading profile")
+        console.log("[Auth] session changed; loading profile", { event, silent: silentProfileRefresh })
         fetchUserProfileWithTimeout(session.user.id)
           .then((profile) => {
             if (!profile) console.log("[Auth] profile missing")
@@ -169,7 +184,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
           .finally(() => {
             console.log("[Auth] bootstrap finished")
-            setLoading(false)
+            if (!silentProfileRefresh) {
+              setLoading(false)
+            }
           })
       } else {
         setUser(null)
