@@ -21,6 +21,7 @@ import {
   WHATSAPP,
   type PlanId,
 } from "@/data/publicSiteContent"
+import { LiveViewersStrip } from "@/components/marketing/LiveViewersStrip"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -130,6 +131,8 @@ export default function PublicSite() {
           </div>
         )}
       </header>
+
+      <LiveViewersStrip />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border/40">
