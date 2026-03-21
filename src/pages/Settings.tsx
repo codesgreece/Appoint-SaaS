@@ -424,8 +424,11 @@ export default function Settings() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">Default</SelectItem>
-                      <SelectItem value="beauty">Beauty</SelectItem>
+                      <SelectItem value="default">Default (ουδέτερο)</SelectItem>
+                      <SelectItem value="beauty">Beauty Pink (νύχια/αισθητική)</SelectItem>
+                      <SelectItem value="salon_luxe">Salon Luxe (κομμωτήριο/spa)</SelectItem>
+                      <SelectItem value="craftsman">Craftsman Pro (μάστορες/τεχνίτες)</SelectItem>
+                      <SelectItem value="medical">Medical Clean (ιατροί/κλινικές)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -31,6 +31,7 @@ export default function PublicBooking() {
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
   const [notes, setNotes] = useState("")
+  const [theme, setTheme] = useState("default")
 
   const selectedServices = useMemo(
     () => services.filter((s) => selectedServiceIds.includes(s.id)),
@@ -70,6 +71,7 @@ export default function PublicBooking() {
         if (!active) return
         setBusinessName(data.business?.name ?? "")
         setServices(data.services ?? [])
+        setTheme(String(data.business?.booking_theme ?? "default"))
       })
       .catch((e) => {
         if (!active) return
@@ -124,14 +126,54 @@ export default function PublicBooking() {
     }
   }
 
+  const themeClasses = useMemo(() => {
+    switch (theme) {
+      case "beauty":
+        return {
+          page: "from-pink-50 via-rose-50 to-fuchsia-100",
+          card: "border-pink-200 bg-white/90",
+          title: "text-pink-700",
+          button: "bg-pink-600 hover:bg-pink-700 text-white",
+        }
+      case "salon_luxe":
+        return {
+          page: "from-violet-50 via-purple-50 to-indigo-100",
+          card: "border-violet-200 bg-white/90",
+          title: "text-violet-700",
+          button: "bg-violet-600 hover:bg-violet-700 text-white",
+        }
+      case "craftsman":
+        return {
+          page: "from-amber-50 via-orange-50 to-yellow-100",
+          card: "border-amber-300 bg-white/95",
+          title: "text-amber-800",
+          button: "bg-amber-600 hover:bg-amber-700 text-white",
+        }
+      case "medical":
+        return {
+          page: "from-cyan-50 via-sky-50 to-blue-100",
+          card: "border-sky-200 bg-white/95",
+          title: "text-sky-700",
+          button: "bg-sky-600 hover:bg-sky-700 text-white",
+        }
+      default:
+        return {
+          page: "from-background to-muted/40",
+          card: "border-border bg-card",
+          title: "text-foreground",
+          button: "",
+        }
+    }
+  }, [theme])
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/40 p-4">
+    <div className={`min-h-screen bg-gradient-to-b ${themeClasses.page} p-4`}>
       <div className="mx-auto max-w-2xl space-y-4">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">{businessName || "Online Booking"}</h1>
+          <h1 className={`text-2xl font-semibold ${themeClasses.title}`}>{businessName || "Online Booking"}</h1>
           <p className="text-sm text-muted-foreground">Κλείσε το ραντεβού σου online</p>
         </div>
-        <Card>
+        <Card className={themeClasses.card}>
           <CardHeader>
             <CardTitle>Νέα κράτηση</CardTitle>
           </CardHeader>
@@ -208,7 +250,11 @@ export default function PublicBooking() {
                 {error ? <p className="text-sm text-destructive">{error}</p> : null}
                 {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={submitting || !startTime || selectedServiceIds.length === 0}>
+                  <Button
+                    type="submit"
+                    className={themeClasses.button}
+                    disabled={submitting || !startTime || selectedServiceIds.length === 0}
+                  >
                     {submitting ? "Καταχώρηση..." : "Κλείσιμο ραντεβού"}
                   </Button>
                 </div>
