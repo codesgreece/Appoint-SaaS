@@ -130,138 +130,199 @@ export default function PublicBooking() {
     switch (theme) {
       case "beauty":
         return {
-          page: "from-pink-50 via-rose-50 to-fuchsia-100",
-          card: "border-pink-200 bg-white/90",
-          title: "text-pink-700",
-          button: "bg-pink-600 hover:bg-pink-700 text-white",
+          page: "from-rose-50 via-pink-50 to-fuchsia-100",
+          card: "border-pink-200/70 bg-white/85 backdrop-blur",
+          title: "text-fuchsia-700",
+          button: "bg-fuchsia-600 hover:bg-fuchsia-700 text-white",
+          accent: "text-fuchsia-700",
+          selected: "border-fuchsia-300 bg-fuchsia-50",
         }
       case "salon_luxe":
         return {
           page: "from-violet-50 via-purple-50 to-indigo-100",
-          card: "border-violet-200 bg-white/90",
+          card: "border-violet-200/70 bg-white/85 backdrop-blur",
           title: "text-violet-700",
           button: "bg-violet-600 hover:bg-violet-700 text-white",
+          accent: "text-violet-700",
+          selected: "border-violet-300 bg-violet-50",
         }
       case "craftsman":
         return {
           page: "from-amber-50 via-orange-50 to-yellow-100",
-          card: "border-amber-300 bg-white/95",
+          card: "border-amber-300/70 bg-white/90 backdrop-blur",
           title: "text-amber-800",
           button: "bg-amber-600 hover:bg-amber-700 text-white",
+          accent: "text-amber-800",
+          selected: "border-amber-300 bg-amber-50",
         }
       case "medical":
         return {
           page: "from-cyan-50 via-sky-50 to-blue-100",
-          card: "border-sky-200 bg-white/95",
+          card: "border-sky-200/70 bg-white/90 backdrop-blur",
           title: "text-sky-700",
           button: "bg-sky-600 hover:bg-sky-700 text-white",
+          accent: "text-sky-700",
+          selected: "border-sky-300 bg-sky-50",
         }
       default:
         return {
-          page: "from-background to-muted/40",
-          card: "border-border bg-card",
+          page: "from-slate-50 via-white to-slate-100",
+          card: "border-slate-200/70 bg-white/90 backdrop-blur",
           title: "text-foreground",
-          button: "",
+          button: "bg-slate-900 hover:bg-slate-800 text-white",
+          accent: "text-slate-700",
+          selected: "border-slate-300 bg-slate-50",
         }
     }
   }, [theme])
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${themeClasses.page} p-4`}>
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div className="text-center">
-          <h1 className={`text-2xl font-semibold ${themeClasses.title}`}>{businessName || "Online Booking"}</h1>
-          <p className="text-sm text-muted-foreground">Κλείσε το ραντεβού σου online</p>
-        </div>
-        <Card className={themeClasses.card}>
-          <CardHeader>
-            <CardTitle>Νέα κράτηση</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Φόρτωση...</p>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Υπηρεσίες</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {services.map((s) => {
-                      const selected = selectedServiceIds.includes(s.id)
-                      return (
-                        <Button
-                          key={s.id}
-                          type="button"
-                          size="sm"
-                          variant={selected ? "default" : "outline"}
-                          onClick={() =>
-                            setSelectedServiceIds((prev) =>
-                              prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
-                            )
-                          }
-                        >
-                          {s.name}
-                        </Button>
-                      )
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Εκτίμηση συνόλου: €{totalEstimate.toFixed(2)}</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Ημερομηνία</Label>
-                    <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Διαθέσιμες ώρες</Label>
-                    <select
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                    >
-                      <option value="">Επιλογή ώρας</option>
-                      {slots.map((s) => (
-                        <option key={s} value={s}>
-                          {s.slice(0, 5)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Όνομα</Label>
-                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Επώνυμο</Label>
-                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Τηλέφωνο</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Σημειώσεις</Label>
-                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-                </div>
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-                {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    className={themeClasses.button}
-                    disabled={submitting || !startTime || selectedServiceIds.length === 0}
-                  >
-                    {submitting ? "Καταχώρηση..." : "Κλείσιμο ραντεβού"}
-                  </Button>
-                </div>
-              </form>
-            )}
+    <div className={`min-h-screen bg-gradient-to-b ${themeClasses.page} px-4 py-8`}>
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Card className={`${themeClasses.card} shadow-[0_20px_60px_rgba(15,23,42,0.12)]`}>
+          <CardContent className="py-6">
+            <div className="text-center">
+              <h1 className={`text-3xl md:text-4xl font-semibold tracking-tight ${themeClasses.title}`}>
+                {businessName || "Online Booking"}
+              </h1>
+              <p className="mt-2 text-sm md:text-base text-muted-foreground">
+                Κλείσε το ραντεβού σου εύκολα online, σε λιγότερο από 1 λεπτό.
+              </p>
+            </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+          <Card className={`${themeClasses.card} shadow-[0_16px_40px_rgba(15,23,42,0.10)]`}>
+            <CardHeader>
+              <CardTitle>Νέα κράτηση</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Φόρτωση...</p>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label>1) Επιλογή υπηρεσιών</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {services.map((s) => {
+                        const selected = selectedServiceIds.includes(s.id)
+                        const servicePrice =
+                          s.billing_type === "hourly" && s.hourly_rate != null && s.duration_minutes != null
+                            ? ((Number(s.hourly_rate) * Number(s.duration_minutes)) / 60).toFixed(2)
+                            : Number(s.price ?? 0).toFixed(2)
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() =>
+                              setSelectedServiceIds((prev) =>
+                                prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
+                              )
+                            }
+                            className={`rounded-xl border p-3 text-left transition-colors ${
+                              selected ? themeClasses.selected : "border-border/60 bg-background/70 hover:bg-background"
+                            }`}
+                          >
+                            <p className="text-sm font-medium">{s.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {s.duration_minutes ?? 0} λεπτά • €{servicePrice}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>2) Ημερομηνία</Label>
+                      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>3) Διαθέσιμη ώρα</Label>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-32 overflow-y-auto pr-1">
+                        {slots.length === 0 ? (
+                          <p className="col-span-full text-xs text-muted-foreground">Δεν υπάρχουν διαθέσιμες ώρες.</p>
+                        ) : (
+                          slots.map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setStartTime(s)}
+                              className={`h-9 rounded-md border text-xs transition-colors ${
+                                startTime === s
+                                  ? `${themeClasses.selected} ${themeClasses.accent}`
+                                  : "border-border/60 bg-background/70 hover:bg-background"
+                              }`}
+                            >
+                              {s.slice(0, 5)}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>4) Όνομα</Label>
+                      <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Επώνυμο</Label>
+                      <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Τηλέφωνο</Label>
+                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Σημειώσεις (προαιρετικά)</Label>
+                    <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+                  </div>
+                  {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                  {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      className={themeClasses.button}
+                      disabled={submitting || !startTime || selectedServiceIds.length === 0}
+                    >
+                      {submitting ? "Καταχώρηση..." : "Κλείσιμο ραντεβού"}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className={`${themeClasses.card} h-fit shadow-[0_16px_40px_rgba(15,23,42,0.10)]`}>
+            <CardHeader>
+              <CardTitle>Σύνοψη κράτησης</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Υπηρεσίες</p>
+                <p className="font-medium">
+                  {selectedServices.length > 0 ? selectedServices.map((s) => s.name).join(", ") : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Ημερομηνία / Ώρα</p>
+                <p className="font-medium">{date || "—"} {startTime ? `• ${startTime.slice(0, 5)}` : ""}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                <p className="text-xs text-muted-foreground">Εκτίμηση κόστους</p>
+                <p className={`text-xl font-semibold ${themeClasses.title}`}>€{totalEstimate.toFixed(2)}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Η τελική επιβεβαίωση και το ποσό μπορεί να διαμορφωθούν από την επιχείρηση.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
