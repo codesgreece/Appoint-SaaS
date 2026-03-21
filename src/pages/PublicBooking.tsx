@@ -15,6 +15,14 @@ type BookingService = {
   hourly_rate: number | null
 }
 
+type BusinessInfo = {
+  name?: string
+  business_type?: string | null
+  phone?: string | null
+  logo_url?: string | null
+  booking_theme?: string | null
+}
+
 export default function PublicBooking() {
   const { slug = "" } = useParams()
   const [loading, setLoading] = useState(true)
@@ -22,6 +30,7 @@ export default function PublicBooking() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [businessName, setBusinessName] = useState("")
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({})
   const [services, setServices] = useState<BookingService[]>([])
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -70,6 +79,7 @@ export default function PublicBooking() {
       .then((data) => {
         if (!active) return
         setBusinessName(data.business?.name ?? "")
+        setBusinessInfo((data.business ?? {}) as BusinessInfo)
         setServices(data.services ?? [])
         setTheme(String(data.business?.booking_theme ?? "default"))
       })
@@ -181,13 +191,41 @@ export default function PublicBooking() {
       <div className="mx-auto max-w-5xl space-y-5">
         <Card className={`${themeClasses.card} shadow-[0_20px_60px_rgba(15,23,42,0.12)]`}>
           <CardContent className="py-6">
-            <div className="text-center">
+            <div className="text-center space-y-3">
+              <div className="mx-auto inline-flex items-center justify-center">
+                {businessInfo.logo_url ? (
+                  <img
+                    src={businessInfo.logo_url}
+                    alt={businessName}
+                    className="h-14 w-14 rounded-2xl border border-border/50 object-cover bg-white"
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-2xl border border-border/50 bg-white/80 flex items-center justify-center text-lg font-semibold">
+                    {(businessName || "B").slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+              </div>
               <h1 className={`text-3xl md:text-4xl font-semibold tracking-tight ${themeClasses.title}`}>
                 {businessName || "Online Booking"}
               </h1>
               <p className="mt-2 text-sm md:text-base text-muted-foreground">
                 Κλείσε το ραντεβού σου εύκολα online, σε λιγότερο από 1 λεπτό.
               </p>
+              <div className="flex flex-wrap justify-center gap-2 pt-1">
+                {businessInfo.business_type ? (
+                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                    {businessInfo.business_type}
+                  </span>
+                ) : null}
+                {businessInfo.phone ? (
+                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                    Τηλ: {businessInfo.phone}
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                  SSL ασφαλής κράτηση
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -320,6 +358,12 @@ export default function PublicBooking() {
               <p className="text-xs text-muted-foreground">
                 Η τελική επιβεβαίωση και το ποσό μπορεί να διαμορφωθούν από την επιχείρηση.
               </p>
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-1">
+                <p className="text-[11px] font-medium">Πολιτική κράτησης</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Σε περίπτωση αδυναμίας, ενημέρωσε έγκαιρα για αλλαγή/ακύρωση ραντεβού.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

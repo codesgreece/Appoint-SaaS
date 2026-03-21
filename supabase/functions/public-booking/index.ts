@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     const { data: biz, error: bizErr } = await supabase
       .from("businesses")
-      .select("id,name,booking_enabled,booking_slug,booking_requires_approval,booking_window_days,booking_theme")
+      .select("id,name,business_type,phone,logo_url,booking_enabled,booking_slug,booking_requires_approval,booking_window_days,booking_theme")
       .ilike("booking_slug", slug)
       .maybeSingle()
     if (bizErr || !biz) return json({ success: false, error: "Business not found" }, 404)
