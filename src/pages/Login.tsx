@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useForm } from "react-hook-form"
@@ -55,7 +55,7 @@ export default function Login() {
       return
     }
     toast({ title: "Επιτυχής σύνδεση", description: "Ανακατεύθυνση..." })
-    navigate("/", { replace: true })
+    navigate("/dashboard", { replace: true })
   }
 
   return (
@@ -169,6 +169,11 @@ export default function Login() {
             </form>
             <p className="mt-4 text-center text-xs text-muted-foreground">
               Δεν υπάρχει δημόσια εγγραφή. Ο λογαριασμός δημιουργείται από τον διαχειριστή.
+            </p>
+            <p className="mt-2 text-center text-xs">
+              <Link to="/" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                Παρουσίαση λειτουργιών & πακέτων
+              </Link>
             </p>
           </CardContent>
         </Card>

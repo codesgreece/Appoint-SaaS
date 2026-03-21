@@ -5,9 +5,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { SubscriptionGate } from "@/components/SubscriptionGate"
 import { AppLayout } from "@/components/layout/AppLayout"
+import { PublicLegalShell } from "@/components/layout/PublicLegalShell"
 import { Toaster } from "@/components/ui/sonner"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { useAuth } from "@/contexts/AuthContext"
 
 import Login from "@/pages/Login"
 import ResetPassword from "@/pages/ResetPassword"
@@ -32,6 +32,7 @@ import PlatformPlans from "@/pages/platform/Plans"
 import PlatformUsers from "@/pages/platform/Users"
 import PlatformTools from "@/pages/platform/Tools"
 import PublicBooking from "@/pages/PublicBooking"
+import PublicSite from "@/pages/PublicSite"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
   return (
@@ -41,14 +42,6 @@ function TenantApp({ children }: { children: React.ReactNode }) {
       </SubscriptionGate>
     </ProtectedRoute>
   )
-}
-
-function Home() {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  if (!user) return null
-  if (user.role === "super_admin") return <Navigate to="/platform/overview" replace />
-  return <Dashboard />
 }
 
 export default function App() {
@@ -62,6 +55,8 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/book/:slug" element={<PublicBooking />} />
+                {/* Όπως το public booking: στατική δημόσια σελίδα, πάντα χωρίς panel / χωρίς redirect */}
+                <Route path="/" element={<PublicSite />} />
                 <Route
                   path="/subscribe"
                   element={
@@ -73,24 +68,24 @@ export default function App() {
                 <Route
                   path="/terms"
                   element={
-                    <TenantApp>
+                    <PublicLegalShell>
                       <Terms />
-                    </TenantApp>
+                    </PublicLegalShell>
                   }
                 />
                 <Route
                   path="/privacy"
                   element={
-                    <TenantApp>
+                    <PublicLegalShell>
                       <PrivacyPolicy />
-                    </TenantApp>
+                    </PublicLegalShell>
                   }
                 />
                 <Route
-                  path="/"
+                  path="/dashboard"
                   element={
                     <TenantApp>
-                      <Home />
+                      <Dashboard />
                     </TenantApp>
                   }
                 />
