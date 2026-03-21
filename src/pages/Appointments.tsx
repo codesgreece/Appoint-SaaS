@@ -4,6 +4,7 @@ import { Plus, Search, Calendar, Filter } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/AuthContext"
 import { fetchAppointments, fetchCustomers, fetchTeam, fetchServices, updateAppointment, deleteAppointment } from "@/services/api"
+import { supabase } from "@/lib/supabase"
 import type { AppointmentJob, AppointmentJobStatus } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -118,6 +119,19 @@ export default function Appointments() {
       .catch(() => toast({ title: "Σφάλμα", description: "Αποτυχία φόρτωσης", variant: "destructive" }))
       .finally(() => setLoading(false))
   }, [businessId, datePreset, statusFilter])
+
+  useEffect(() => {
+    if (!businessId) return
+    // Mark public booking notifications as seen once user opens Appointments page.
+    supabase
+      .from("appointments_jobs")
+      .update({ public_booking_unread: false })
+      .eq("business_id", businessId)
+      .eq("public_booking_unread", true)
+      .then(({ error }) => {
+        if (error) console.warn("Failed to clear public booking unread flag:", error)
+      })
+  }, [businessId])
 
   useEffect(() => {
     const q = searchParams.get("q") ?? ""

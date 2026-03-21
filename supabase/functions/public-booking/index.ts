@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
           end_time: endTime,
           cost_estimate: Number(estimate.toFixed(2)),
           creation_notes: "Created from public booking page",
+          public_booking_unread: true,
         })
         .select("id")
         .single()

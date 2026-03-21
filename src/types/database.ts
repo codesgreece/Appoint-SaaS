@@ -173,6 +173,7 @@ export interface AppointmentJob {
   completion_notes: string | null
   recurrence_rule: string | null
   parent_appointment_id: string | null
+  public_booking_unread: boolean
   created_at: string
   updated_at: string
 }

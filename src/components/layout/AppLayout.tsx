@@ -88,6 +88,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState<number | null>(null)
+  const [publicBookingUnreadCount, setPublicBookingUnreadCount] = useState<number | null>(null)
   const [lastExpiredToastAt, setLastExpiredToastAt] = useState(0)
 
   const isExpiredSubscription =
@@ -138,6 +139,47 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           const c = await loadCount()
           if (!active) return
           setOpenSupportCount(c)
+        } catch {
+          // ignore
+        }
+      })()
+    }, 20000)
+    return () => {
+      active = false
+      window.clearInterval(t)
+    }
+  }, [user, mode])
+
+  useEffect(() => {
+    let active = true
+    if (!user || user.role === "super_admin" || mode !== "business" || !user.business_id) {
+      setPublicBookingUnreadCount(null)
+      return
+    }
+    async function loadCount() {
+      const { count } = await supabase
+        .from("appointments_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", user.business_id)
+        .eq("public_booking_unread", true)
+      return count ?? 0
+    }
+    ;(async () => {
+      try {
+        const c = await loadCount()
+        if (!active) return
+        setPublicBookingUnreadCount(c)
+      } catch {
+        if (active) setPublicBookingUnreadCount(null)
+      }
+    })()
+    const t = window.setInterval(() => {
+      ;(async () => {
+        try {
+          if (!active) return
+          const c = await loadCount()
+          if (!active) return
+          setPublicBookingUnreadCount(c)
         } catch {
           // ignore
         }
@@ -251,6 +293,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 {item.to === "/platform/tools" && openSupportCount != null && openSupportCount > 0 ? (
                   <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-2 text-[11px] font-semibold text-primary">
                     {openSupportCount}
+                  </span>
+                ) : null}
+                {item.to === "/appointments" && publicBookingUnreadCount != null && publicBookingUnreadCount > 0 ? (
+                  <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-2 text-[11px] font-semibold text-primary">
+                    {publicBookingUnreadCount}
                   </span>
                 ) : null}
               </Link>

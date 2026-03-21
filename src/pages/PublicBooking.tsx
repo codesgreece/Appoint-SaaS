@@ -192,19 +192,6 @@ export default function PublicBooking() {
         <Card className={`${themeClasses.card} shadow-[0_20px_60px_rgba(15,23,42,0.12)]`}>
           <CardContent className="py-6">
             <div className="text-center space-y-3">
-              <div className="mx-auto inline-flex items-center justify-center">
-                {businessInfo.logo_url ? (
-                  <img
-                    src={businessInfo.logo_url}
-                    alt={businessName}
-                    className="h-14 w-14 rounded-2xl border border-border/50 object-cover bg-white"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-2xl border border-border/50 bg-white/80 flex items-center justify-center text-lg font-semibold">
-                    {(businessName || "B").slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-              </div>
               <h1 className={`text-3xl md:text-4xl font-semibold tracking-tight ${themeClasses.title}`}>
                 {businessName || "Online Booking"}
               </h1>
