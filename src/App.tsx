@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/layout/AppLayout"
 import { PublicLegalShell } from "@/components/layout/PublicLegalShell"
 import { Toaster } from "@/components/ui/sonner"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { useAuth } from "@/contexts/AuthContext"
 
 import Login from "@/pages/Login"
 import ResetPassword from "@/pages/ResetPassword"
@@ -44,6 +45,14 @@ function TenantApp({ children }: { children: React.ReactNode }) {
   )
 }
 
+function Home() {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return null
+  if (user.role === "super_admin") return <Navigate to="/platform/overview" replace />
+  return <Dashboard />
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -55,8 +64,16 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/book/:slug" element={<PublicBooking />} />
-                {/* Όπως το public booking: στατική δημόσια σελίδα, πάντα χωρίς panel / χωρίς redirect */}
-                <Route path="/" element={<PublicSite />} />
+                {/* Δημόσια παρουσίαση — ξεχωριστό URL, χωρίς panel (όπως /book/...) */}
+                <Route path="/site" element={<PublicSite />} />
+                <Route
+                  path="/"
+                  element={
+                    <TenantApp>
+                      <Home />
+                    </TenantApp>
+                  }
+                />
                 <Route
                   path="/subscribe"
                   element={
@@ -81,14 +98,7 @@ export default function App() {
                     </PublicLegalShell>
                   }
                 />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <TenantApp>
-                      <Dashboard />
-                    </TenantApp>
-                  }
-                />
+                <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 <Route
                   path="/customers"
                   element={

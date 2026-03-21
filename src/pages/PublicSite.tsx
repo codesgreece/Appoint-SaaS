@@ -1,12 +1,6 @@
 import { Link } from "react-router-dom"
 import { motion } from "framer-motion"
-import {
-  ArrowRight,
-  Check,
-  Menu,
-  Sparkles,
-  X,
-} from "lucide-react"
+import { Check, Menu, Sparkles, X } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,20 +21,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useAuth } from "@/contexts/AuthContext"
 
 const planOrder: PlanId[] = ["starter", "pro", "premium"]
 
 export default function PublicSite() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const { user } = useAuth()
-  const appHref = user?.role === "super_admin" ? "/platform/overview" : "/dashboard"
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+          <Link to="/site" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Sparkles className="h-4 w-4" />
             </span>
@@ -66,21 +57,6 @@ export default function PublicSite() {
             <Button variant="outline" size="sm" className="hidden sm:inline-flex" asChild>
               <a href="#compare">Σύγκριση</a>
             </Button>
-            {user ? (
-              <Button size="sm" className="shadow-md shadow-primary/15" asChild>
-                <Link to={appHref}>
-                  Άνοιγμα εφαρμογής
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            ) : (
-              <Button size="sm" className="shadow-md shadow-primary/15" asChild>
-                <Link to="/login">
-                  Σύνδεση χρηστών
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            )}
           </div>
         </div>
         {mobileNavOpen && (
@@ -108,7 +84,7 @@ export default function PublicSite() {
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-20">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <Badge variant="secondary" className="mb-4 border border-primary/25 bg-primary/10 text-primary">
-              Δημόσια σελίδα (όπως το public booking) · χωρίς σύνδεση με το panel
+              Αυτόνομη παρουσίαση · μόνο ενημέρωση (χωρίς σύνδεση στην εφαρμογή)
             </Badge>
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
               Όλα όσα προσφέρει το{" "}
@@ -248,12 +224,8 @@ export default function PublicSite() {
                     </li>
                   </ul>
                   <p className="mt-auto rounded-lg border border-dashed border-border/80 bg-muted/30 p-3 text-xs leading-relaxed">
-                    Δεν υπάρχει κουμπί αγοράς. Για συνδρομή επικοινωνήστε με τον διαχειριστή της πλατφόρμας ή δείτε αν
-                    έχετε ήδη πρόσβαση μέσω{" "}
-                    <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
-                      σύνδεσης
-                    </Link>
-                    .
+                    Δεν υπάρχει κουμπί αγοράς. Η συνδρομή και η πρόσβαση στο πάνελ γίνονται μόνο μέσω του διαχειριστή της
+                    πλατφόρμας.
                   </p>
                 </CardContent>
               </Card>
@@ -274,9 +246,6 @@ export default function PublicSite() {
             </Link>
             <Link to="/privacy" className="hover:text-foreground">
               Απόρρητο
-            </Link>
-            <Link to="/login" className="hover:text-foreground">
-              Σύνδεση
             </Link>
           </div>
         </div>

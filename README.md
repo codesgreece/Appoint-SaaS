@@ -83,7 +83,7 @@ The function uses `SUPABASE_SERVICE_ROLE_KEY` to create auth users and insert in
 npm run dev
 ```
 
-Open `http://localhost:5173`: **`/`** is always the **public marketing page** (like `/book/...` — no panel, works even when logged in). The app lives at **`/dashboard`** after **Login**.
+Open `http://localhost:5173`: **`/site`** is the **public marketing page** (standalone, like public booking). The app **panel** is at **`/`** after **Login** (same as before).
 
 ## Project structure
 

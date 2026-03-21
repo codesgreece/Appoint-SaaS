@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils"
 import { CommandPalette } from "@/components/CommandPalette"
 
 const businessNavItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/customers", icon: Users, label: "Πελάτες" },
   { to: "/services", icon: Briefcase, label: "Υπηρεσίες" },
   { to: "/appointments", icon: Calendar, label: "Ραντεβού" },
@@ -249,7 +249,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex h-16 items-center justify-between px-3 border-b border-border/60 lg:justify-center">
-          <Link to="/dashboard" className="font-semibold text-lg tracking-tight">
+          <Link to="/" className="font-semibold text-lg tracking-tight">
             <span className="bg-gradient-to-r from-primary via-primary to-purple-500 bg-clip-text text-transparent">
               Appoint SaaS
             </span>
@@ -352,7 +352,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={() => {
                     setMode("business")
-                    if (location.pathname.startsWith("/platform")) navigate("/dashboard")
+                    if (location.pathname.startsWith("/platform")) navigate("/")
                   }}
                   className={cn(
                     "px-3 py-1 rounded-full transition-colors",

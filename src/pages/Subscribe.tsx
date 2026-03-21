@@ -40,7 +40,7 @@ export default function Subscribe() {
   }
 
   if (tenantSubscriptionPlan !== "unsubscribed") {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
   }
 
   async function handlePurchase() {
@@ -57,7 +57,7 @@ export default function Subscribe() {
         title: "Συνδρομή ενεργή",
         description: "Όλες οι λειτουργίες ξεκλειδώθηκαν. Καλή συνέχεια!",
       })
-      navigate("/dashboard", { replace: true })
+      navigate("/", { replace: true })
     } catch (e) {
       toast({
         title: "Σφάλμα",
