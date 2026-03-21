@@ -125,6 +125,12 @@ RLS is by `business_id`; role-based UI restrictions can be added on top.
 
 Buckets: `attachments`, `job_photos`. Paths are tenant-scoped: `{business_id}/jobs/`, `{business_id}/customers/`. RLS on `storage.objects` restricts access by path prefix.
 
+## Telegram notifications
+
+Αυτόματες ειδοποιήσεις (ραντεβού, πληρωμές, support, digests, όρια) περνάνε από Edge Functions και χρειάζονται **cron** + secrets. Λεπτομέρειες: **[docs/TELEGRAM_SETUP.md](docs/TELEGRAM_SETUP.md)**.
+
+Στις **Ρυθμίσεις → Telegram** μπορείς να στείλεις **δοκιμαστικό μήνυμα** για να επιβεβαιώσεις bot + chat id.
+
 ## Deploy
 
 Build:

@@ -156,11 +156,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       setPublicBookingUnreadCount(null)
       return
     }
+    const businessId = user.business_id
     async function loadCount() {
       const { count } = await supabase
         .from("appointments_jobs")
         .select("id", { count: "exact", head: true })
-        .eq("business_id", user.business_id)
+        .eq("business_id", businessId)
         .eq("public_booking_unread", true)
       return count ?? 0
     }

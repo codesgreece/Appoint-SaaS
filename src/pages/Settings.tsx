@@ -54,6 +54,7 @@ export default function Settings() {
     defaultTelegramPreferences,
   )
   const [savingNotifications, setSavingNotifications] = useState(false)
+  const [testingTelegram, setTestingTelegram] = useState(false)
   const [isDemoPlan, setIsDemoPlan] = useState(false)
   const [resettingDemo, setResettingDemo] = useState(false)
   const [exportingCustomers, setExportingCustomers] = useState(false)
@@ -93,6 +94,45 @@ export default function Settings() {
       setBookingTheme(((b as any).booking_theme ?? "default").toString())
     })
   }, [businessId])
+
+  async function handleTestTelegram() {
+    if (!businessId) return
+    try {
+      setTestingTelegram(true)
+      const { data, error } = await supabase.functions.invoke("send-telegram-notification", {
+        body: {
+          business_id: businessId,
+          message:
+            "<b>Δοκιμή Telegram — Appoint SaaS</b>\nΑν βλέπεις αυτό το μήνυμα, η αποστολή από την εφαρμογή λειτουργεί.",
+        },
+      })
+      if (error) throw error
+      const payload = data as { success?: boolean; skipped?: boolean; reason?: string }
+      if (payload.skipped) {
+        toast({
+          title: "Δεν στάλθηκε",
+          description:
+            payload.reason === "telegram_disabled"
+              ? "Ενεργοποίησε το Telegram ή συμπλήρωσε Chat ID."
+              : "Έλεγξε Chat ID και ότι το Telegram είναι ενεργό.",
+          variant: "destructive",
+        })
+        return
+      }
+      toast({
+        title: "Στάλθηκε",
+        description: "Έλεγξε το Telegram για το δοκιμαστικό μήνυμα.",
+      })
+    } catch (e) {
+      toast({
+        title: "Σφάλμα δοκιμής",
+        description: e instanceof Error ? e.message : "Αποτυχία αποστολής δοκιμαστικού μηνύματος",
+        variant: "destructive",
+      })
+    } finally {
+      setTestingTelegram(false)
+    }
+  }
 
   async function handleSaveNotifications() {
     if (!businessId) return
@@ -343,7 +383,10 @@ export default function Settings() {
                 ))}
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleTestTelegram} disabled={testingTelegram || savingNotifications}>
+                  {testingTelegram ? "Αποστολή..." : "Δοκιμαστικό μήνυμα"}
+                </Button>
                 <Button type="button" onClick={handleSaveNotifications} disabled={savingNotifications}>
                   {savingNotifications ? "Αποθήκευση..." : "Αποθήκευση ειδοποιήσεων"}
                 </Button>

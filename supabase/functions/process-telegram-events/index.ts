@@ -63,6 +63,70 @@ function amount(n: number | null | undefined) {
   return Number(n ?? 0).toFixed(2)
 }
 
+/** Europe/Athens — ώρα και ημερομηνία για σωστό “σήμερα/αύριο” και βραδινό summary μετά τις 23:00. */
+const DIGEST_TZ = "Europe/Athens"
+
+function ymdInTimeZone(d: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d)
+}
+
+function hourInTimeZone(d: Date, timeZone: string): number {
+  const part = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "numeric",
+    hourCycle: "h23",
+  })
+    .formatToParts(d)
+    .find((p) => p.type === "hour")?.value
+  return Number(part ?? 0)
+}
+
+/** Επόμενη ημερομηνία YYYY-MM-DD μετά το ymd (ημερολογιακά). */
+function addOneCalendarDayYmd(ymd: string): string {
+  try {
+    // Deno / σύγχρονα runtimes
+    const T = (globalThis as unknown as { Temporal?: typeof Temporal }).Temporal
+    if (T?.PlainDate) {
+      return T.PlainDate.from(ymd).add({ days: 1 }).toString()
+    }
+  } catch {
+    // ignore
+  }
+  const [y, m, d] = ymd.split("-").map(Number)
+  const next = new Date(Date.UTC(y, m - 1, d + 1, 12, 0, 0))
+  return ymdInTimeZone(next, DIGEST_TZ)
+}
+
+/** Έναρξη (συμπεριλαμβανομένη) και λήξη (αποκλειόμενη) της ημέρας ymd στο DIGEST_TZ, σε UTC ISO για φίλτρα timestamptz. */
+function localYmdBoundsUtcIso(ymd: string): { start: string; endExclusive: string } {
+  try {
+    const T = (globalThis as unknown as { Temporal?: typeof Temporal }).Temporal
+    if (T?.PlainDate && T?.PlainTime) {
+      const plain = T.PlainDate.from(ymd)
+      const midnight = T.PlainTime.from("00:00:00")
+      const zStart = plain.toZonedDateTime({ timeZone: DIGEST_TZ, plainTime: midnight })
+      const zEnd = plain.add({ days: 1 }).toZonedDateTime({ timeZone: DIGEST_TZ, plainTime: midnight })
+      return {
+        start: zStart.toInstant().toString(),
+        endExclusive: zEnd.toInstant().toString(),
+      }
+    }
+  } catch {
+    // ignore
+  }
+  // Fallback (σπάνιο χωρίς Temporal): μέση ημέρα UTC — λιγότερο ακριβές από Europe/Athens
+  const next = addOneCalendarDayYmd(ymd)
+  return {
+    start: `${ymd}T00:00:00.000Z`,
+    endExclusive: `${next}T00:00:00.000Z`,
+  }
+}
+
 function appointmentActions(appointmentId: string) {
   return {
     inline_keyboard: [
@@ -129,6 +193,7 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
       const payload = row.payload ?? {}
       const appointmentId = typeof payload.appointment_id === "string" ? payload.appointment_id : ""
       const supportRequestId = typeof payload.support_request_id === "string" ? payload.support_request_id : ""
+      const supportMessageId = typeof payload.support_message_id === "string" ? payload.support_message_id : ""
       const paymentId = typeof payload.payment_id === "string" ? payload.payment_id : ""
 
       if (row.event_type.startsWith("appointment_") && appointmentId) {
@@ -281,13 +346,14 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
             .eq("id", row.id)
           continue
         }
-        const { data: msg } = await supabase
+        let msgQuery = supabase
           .from("support_request_messages")
           .select("content,sender_role,support_request_id")
           .eq("support_request_id", supportRequestId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        if (supportMessageId) {
+          msgQuery = msgQuery.eq("id", supportMessageId)
+        }
+        const { data: msg } = await msgQuery.order("created_at", { ascending: false }).limit(1).maybeSingle()
         const m = msg as { content: string; sender_role: string; support_request_id: string } | null
         if (!m) throw new Error("Support reply not found")
         text = [
@@ -333,22 +399,36 @@ async function sendDigestIfMissing(
   sendFn: () => Promise<void>,
 ) {
   const digestDate = dateIso.slice(0, 10)
+  // Check first: if we already logged this digest, do nothing (idempotent).
+  const { data: existing } = await supabase
+    .from("telegram_digest_logs")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("digest_type", type)
+    .eq("digest_date", digestDate)
+    .maybeSingle()
+  if (existing) return false
+
+  // Send before persisting log so a failed Telegram send can retry on the next cron run.
+  await sendFn()
   const { error } = await supabase
     .from("telegram_digest_logs")
     .insert({ business_id: businessId, digest_type: type, digest_date: digestDate })
-  if (error) return false
-  await sendFn()
+  if (error) {
+    console.error("telegram_digest_logs insert failed after successful send:", error)
+  }
   return true
 }
 
 async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>, fallbackToken: string) {
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
-  const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  const tomorrow = tomorrowDate.toISOString().slice(0, 10)
-  const hourUtc = now.getUTCHours()
-  const shouldMorning = hourUtc === 8
-  const shouldDaily = hourUtc === 21
+  const todayAthens = ymdInTimeZone(now, DIGEST_TZ)
+  const tomorrowAthens = addOneCalendarDayYmd(todayAthens)
+  const hourAthens = hourInTimeZone(now, DIGEST_TZ)
+  /** Πρωινό briefing ~08:00 τοπική ώρα (μία φορά την ημέρα μέσω digest log). */
+  const shouldMorning = hourAthens === 8
+  /** Βραδινό summary μετά τις 23:00 τοπική ώρα — έσοδα ημέρας, ολοκληρωμένα σήμερα, κρατήσεις για αύριο. */
+  const shouldDaily = hourAthens >= 23
 
   const { data: businesses, error } = await supabase
     .from("businesses")
@@ -368,25 +448,28 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
       if (!isEnabledFor(b, "daily_summary")) {
         // no-op
       } else {
-      const didSend = await sendDigestIfMissing(supabase, b.id, "daily_summary", today, async () => {
-        const [{ count: completed }, { count: cancelled }, { count: noShow }, { data: paymentsToday }, { count: tomorrowAppointments }] =
+      const didSend = await sendDigestIfMissing(supabase, b.id, "daily_summary", todayAthens, async () => {
+        const { start: dayStart, endExclusive: dayEnd } = localYmdBoundsUtcIso(todayAthens)
+        const [{ count: completedToday }, { data: paymentsToday }, { count: tomorrowBooked }] =
           await Promise.all([
-            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", today).eq("status", "completed"),
-            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", today).eq("status", "cancelled"),
-            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", today).eq("status", "no_show"),
-            supabase.from("payments").select("paid_amount").eq("business_id", b.id).gte("created_at", `${today}T00:00:00`).lt("created_at", `${today}T23:59:59`),
-            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", tomorrow),
+            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", todayAthens).eq("status", "completed"),
+            supabase.from("payments").select("paid_amount,amount").eq("business_id", b.id).gte("created_at", dayStart).lt("created_at", dayEnd),
+            supabase
+              .from("appointments_jobs")
+              .select("id", { count: "exact", head: true })
+              .eq("business_id", b.id)
+              .eq("scheduled_date", tomorrowAthens)
+              .in("status", ["pending", "confirmed", "in_progress", "rescheduled"]),
           ])
-        const revenue = ((paymentsToday ?? []) as { paid_amount?: number | null }[]).reduce(
-          (sum, x) => sum + Number(x.paid_amount ?? 0),
+        const revenue = ((paymentsToday ?? []) as { paid_amount?: number | null; amount?: number | null }[]).reduce(
+          (sum, x) => sum + Number(x.paid_amount ?? x.amount ?? 0),
           0,
         )
         const text = [
-          "<b>Καθημερινό summary</b>",
-          `Ολοκληρωμένα ραντεβού: ${completed ?? 0}`,
-          `Συνολικά έσοδα: €${amount(revenue)}`,
-          `Ακυρώσεις / no-show: ${(cancelled ?? 0) + (noShow ?? 0)} (${cancelled ?? 0} / ${noShow ?? 0})`,
-          `Αυριανά ραντεβού: ${tomorrowAppointments ?? 0}`,
+          `<b>Βραδινό summary (${todayAthens})</b>`,
+          `Συνολικά έσοδα ημέρας: €${amount(revenue)}`,
+          `Ολοκληρωμένα ραντεβού σήμερα: ${completedToday ?? 0}`,
+          `Ραντεβού κλεισμένα για αύριο (${tomorrowAthens}): ${tomorrowBooked ?? 0}`,
         ].join("\n")
         await sendTelegram(token, chatId, text)
       })
@@ -398,12 +481,12 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
       if (!isEnabledFor(b, "morning_briefing")) {
         // no-op
       } else {
-      const didSend = await sendDigestIfMissing(supabase, b.id, "morning_briefing", today, async () => {
+      const didSend = await sendDigestIfMissing(supabase, b.id, "morning_briefing", todayAthens, async () => {
         const { data: rows } = await supabase
           .from("appointments_jobs")
           .select("start_time,end_time,title,assigned_user:users(full_name)")
           .eq("business_id", b.id)
-          .eq("scheduled_date", today)
+          .eq("scheduled_date", todayAthens)
           .in("status", ["pending", "confirmed", "in_progress", "rescheduled"])
           .order("start_time", { ascending: true })
           .limit(25)
