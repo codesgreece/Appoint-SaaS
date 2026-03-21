@@ -29,6 +29,11 @@ export interface Business {
   telegram_enabled: boolean
   telegram_chat_id: string | null
   telegram_bot_token: string | null
+  booking_enabled: boolean
+  booking_slug: string | null
+  booking_requires_approval: boolean
+  booking_window_days: number | null
+  booking_theme: string | null
   telegram_notification_preferences: {
     appointment_created?: boolean
     appointment_cancelled_or_no_show?: boolean

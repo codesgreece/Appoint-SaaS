@@ -31,6 +31,7 @@ import PlatformBusinesses from "@/pages/platform/Businesses"
 import PlatformPlans from "@/pages/platform/Plans"
 import PlatformUsers from "@/pages/platform/Users"
 import PlatformTools from "@/pages/platform/Tools"
+import PublicBooking from "@/pages/PublicBooking"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
   return (
@@ -60,6 +61,7 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/book/:slug" element={<PublicBooking />} />
                 <Route
                   path="/subscribe"
                   element={
