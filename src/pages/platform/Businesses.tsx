@@ -87,8 +87,15 @@ const initialBusinessForm = {
 }
 
 type PlanKey = "unsubscribed" | "demo" | "starter" | "pro" | "premium" | "premium_plus"
-type BillingCycle = "monthly" | "yearly"
-type CreateBusinessType = "standard" | "demo" | "premium_plus"
+type BillingCycle = "daily" | "monthly" | "yearly"
+
+const PLAN_LIMITS: Record<Exclude<PlanKey, "premium_plus">, { maxUsers: number; maxCustomers: number; maxAppointments: number }> = {
+  unsubscribed: { maxUsers: 1, maxCustomers: 0, maxAppointments: 0 },
+  demo: { maxUsers: 1, maxCustomers: 20, maxAppointments: 50 },
+  starter: { maxUsers: 3, maxCustomers: 300, maxAppointments: 1000 },
+  pro: { maxUsers: 10, maxCustomers: 2000, maxAppointments: 10000 },
+  premium: { maxUsers: 30, maxCustomers: 10000, maxAppointments: 50000 },
+}
 
 const PLAN_LABEL: Record<PlanKey, string> = {
   unsubscribed: "Χωρίς συνδρομή (αγορά από πελάτη)",
@@ -116,7 +123,7 @@ export default function PlatformBusinesses() {
   const [updatingExpiry, setUpdatingExpiry] = useState(false)
 
   const [businessForm, setBusinessForm] = useState(initialBusinessForm)
-  const [createType, setCreateType] = useState<CreateBusinessType>("standard")
+  const [createPlan, setCreatePlan] = useState<PlanKey>("unsubscribed")
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [durationCount, setDurationCount] = useState(1)
   const [addAdminForm, setAddAdminForm] = useState({ full_name: "", username: "", password: "" })
@@ -214,11 +221,12 @@ export default function PlatformBusinesses() {
       return
     }
     setCreating(true)
-    const createTypeSnapshot = createType
+    const createPlanSnapshot = createPlan
     try {
       const now = new Date()
       const expires = new Date(now)
-      if (billingCycle === "monthly") expires.setMonth(expires.getMonth() + Math.max(1, durationCount))
+      if (billingCycle === "daily") expires.setDate(expires.getDate() + Math.max(1, durationCount))
+      else if (billingCycle === "monthly") expires.setMonth(expires.getMonth() + Math.max(1, durationCount))
       else expires.setFullYear(expires.getFullYear() + Math.max(1, durationCount))
 
       let plan: PlanKey
@@ -229,23 +237,7 @@ export default function PlatformBusinesses() {
       let subscription_started_at: string | null
       let subscription_expires_at: string | null
 
-      if (createTypeSnapshot === "standard") {
-        plan = "unsubscribed"
-        maxUsers = 1
-        maxCustomers = 0
-        maxAppointments = 0
-        subscription_status = "none"
-        subscription_started_at = null
-        subscription_expires_at = null
-      } else if (createTypeSnapshot === "demo") {
-        plan = "demo"
-        maxUsers = 1
-        maxCustomers = 20
-        maxAppointments = 50
-        subscription_status = "active"
-        subscription_started_at = now.toISOString()
-        subscription_expires_at = null
-      } else {
+      if (createPlanSnapshot === "premium_plus") {
         if (!businessForm.max_users || !businessForm.max_customers || !businessForm.max_appointments) {
           toast({
             title: "Σφάλμα",
@@ -262,6 +254,25 @@ export default function PlatformBusinesses() {
         subscription_status = "active"
         subscription_started_at = now.toISOString()
         subscription_expires_at = expires.toISOString()
+      } else {
+        plan = createPlanSnapshot
+        const limits = PLAN_LIMITS[createPlanSnapshot]
+        maxUsers = limits.maxUsers
+        maxCustomers = limits.maxCustomers
+        maxAppointments = limits.maxAppointments
+        if (createPlanSnapshot === "unsubscribed") {
+          subscription_status = "none"
+          subscription_started_at = null
+          subscription_expires_at = null
+        } else if (createPlanSnapshot === "demo") {
+          subscription_status = "active"
+          subscription_started_at = now.toISOString()
+          subscription_expires_at = null
+        } else {
+          subscription_status = "active"
+          subscription_started_at = now.toISOString()
+          subscription_expires_at = expires.toISOString()
+        }
       }
 
       const { error } = await supabase.from("businesses").insert({
@@ -281,7 +292,7 @@ export default function PlatformBusinesses() {
       if (error) throw error
       setCreateOpen(false)
       setBusinessForm(initialBusinessForm)
-      setCreateType("standard")
+      setCreatePlan("unsubscribed")
       setBillingCycle("monthly")
       setDurationCount(1)
       await loadBusinesses()
@@ -289,7 +300,7 @@ export default function PlatformBusinesses() {
       toast({
         title: "Επιχείρηση δημιουργήθηκε",
         description:
-          createTypeSnapshot === "standard"
+          createPlanSnapshot === "unsubscribed"
             ? "Προσθέστε διαχειριστή. Ο πελάτης θα ενεργοποιήσει πλάνο από «Αγορά προγράμματος»."
             : "Η επιχείρηση δημιουργήθηκε επιτυχώς.",
       })
@@ -744,38 +755,43 @@ export default function PlatformBusinesses() {
                 <Input id="b-address" value={businessForm.address} onChange={(e) => setBusinessForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Τύπος επιχείρησης</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Label>Επιλογή πακέτου</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {(
                     [
-                      { key: "standard" as const, title: "Κανονική", desc: "Χωρίς πλάνο — ο πελάτης αγοράζει Starter/Pro/Premium μετά την είσοδο." },
-                      { key: "demo" as const, title: "Demo", desc: "Δοκιμαστικό πλάνο με όρια, χωρίς λήξη." },
-                      { key: "premium_plus" as const, title: "Premium+", desc: "Custom όρια + διάρκεια από εσάς." },
+                      { key: "unsubscribed" as const, title: "Χωρίς συνδρομή", desc: "Ο πελάτης αγοράζει πακέτο μετά την είσοδο.", limits: "U1 / C0 / A0" },
+                      { key: "demo" as const, title: "Demo", desc: "Δοκιμαστικό, χωρίς λήξη.", limits: "U1 / C20 / A50" },
+                      { key: "starter" as const, title: "Starter", desc: "Μικρές ομάδες.", limits: "U3 / C300 / A1000" },
+                      { key: "pro" as const, title: "Pro", desc: "Αναπτυσσόμενες επιχειρήσεις.", limits: "U10 / C2000 / A10000" },
+                      { key: "premium" as const, title: "Premium", desc: "Μεγάλος όγκος.", limits: "U30 / C10000 / A50000" },
+                      { key: "premium_plus" as const, title: "Premium+", desc: "Custom όρια από super admin.", limits: "Custom" },
                     ] as const
-                  ).map(({ key, title, desc }) => (
+                  ).map(({ key, title, desc, limits }) => (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setCreateType(key)}
+                      onClick={() => setCreatePlan(key)}
                       className={`rounded-lg border p-3 text-left text-xs transition-colors ${
-                        createType === key ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/40"
+                        createPlan === key ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/40"
                       }`}
                     >
                       <span className="font-semibold text-sm text-foreground">{title}</span>
                       <p className="mt-1 text-muted-foreground leading-snug">{desc}</p>
+                      <p className="mt-1 text-[11px] text-foreground/80">{limits}</p>
                     </button>
                   ))}
                 </div>
               </div>
-              {createType === "premium_plus" && (
+              {createPlan !== "unsubscribed" && createPlan !== "demo" && (
                 <div className="space-y-2">
-                  <Label>Διάρκεια συνδρομής (Premium+)</Label>
+                  <Label>Διάρκεια συνδρομής</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={billingCycle} onValueChange={(v) => setBillingCycle(v as BillingCycle)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="daily">Ανά ημέρα</SelectItem>
                         <SelectItem value="monthly">Ανά μήνα</SelectItem>
                         <SelectItem value="yearly">Ανά χρόνο</SelectItem>
                       </SelectContent>
@@ -785,25 +801,26 @@ export default function PlatformBusinesses() {
                       min={1}
                       value={durationCount}
                       onChange={(e) => setDurationCount(Math.max(1, Number(e.target.value) || 1))}
-                      placeholder={billingCycle === "monthly" ? "Μήνες" : "Χρόνια"}
+                      placeholder={billingCycle === "daily" ? "Ημέρες" : billingCycle === "monthly" ? "Μήνες" : "Χρόνια"}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Λήξη μετά από {durationCount} {billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
+                    Λήξη μετά από {durationCount}{" "}
+                    {billingCycle === "daily" ? "ημέρα/ες" : billingCycle === "monthly" ? "μήνα/ες" : "χρόνο/ια"}.
                   </p>
                 </div>
               )}
-              {createType === "demo" && (
+              {createPlan === "demo" && (
                 <p className="text-sm text-muted-foreground sm:col-span-2">
                   Demo: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>, όρια 1 χρήστης / 20 πελάτες / 50 ραντεβού.
                 </p>
               )}
-              {createType === "standard" && (
+              {createPlan === "unsubscribed" && (
                 <p className="text-sm text-muted-foreground sm:col-span-2">
                   Ο πελάτης βλέπει μόνο την <strong>Αγορά προγράμματος</strong> μέχρι να ενεργοποιήσει Starter, Pro ή Premium.
                 </p>
               )}
-              {createType === "premium_plus" && (
+              {createPlan === "premium_plus" && (
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Όρια χρήσης (μόνο για Premium+)</Label>
                   <div className="grid grid-cols-3 gap-2">

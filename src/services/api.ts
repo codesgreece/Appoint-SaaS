@@ -253,6 +253,37 @@ export async function updateAppointment(id: string, payload: Partial<Appointment
   return data as AppointmentJob
 }
 
+export async function fetchAppointmentServiceIds(appointmentId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("appointment_job_services")
+    .select("service_id")
+    .eq("appointment_job_id", appointmentId)
+    .order("created_at", { ascending: true })
+  if (error) throw error
+  return ((data ?? []) as { service_id: string }[]).map((r) => r.service_id)
+}
+
+export async function replaceAppointmentServiceIds(
+  appointmentId: string,
+  businessId: string,
+  serviceIds: string[],
+): Promise<void> {
+  const unique = Array.from(new Set(serviceIds.filter(Boolean)))
+  const { error: delErr } = await supabase
+    .from("appointment_job_services")
+    .delete()
+    .eq("appointment_job_id", appointmentId)
+  if (delErr) throw delErr
+  if (unique.length === 0) return
+  const payload = unique.map((serviceId) => ({
+    appointment_job_id: appointmentId,
+    business_id: businessId,
+    service_id: serviceId,
+  }))
+  const { error: insErr } = await supabase.from("appointment_job_services").insert(payload)
+  if (insErr) throw insErr
+}
+
 /** Deletes an appointment and its related payments. Call this before deleting a customer who has appointments. */
 export async function deleteAppointment(id: string): Promise<void> {
   const { error: paymentsError } = await supabase.from("payments").delete().eq("appointment_job_id", id)

@@ -35,6 +35,16 @@ const statusOptions: AppointmentJobStatus[] = [
   "rescheduled",
 ]
 
+const STATUS_LABELS: Record<AppointmentJobStatus, string> = {
+  pending: "Εκκρεμεί",
+  confirmed: "Επιβεβαιωμένο",
+  in_progress: "Σε εξέλιξη",
+  completed: "Ολοκληρώθηκε",
+  cancelled: "Ακυρώθηκε",
+  no_show: "Δεν εμφανίστηκε",
+  rescheduled: "Επαναπρογραμματισμένο",
+}
+
 const schema = z.object({
   title: z.string().min(1, "Απαιτείται"),
   customer_id: z.string().min(1, "Επιλέξτε πελάτη"),
@@ -222,14 +232,20 @@ export function AppointmentForm({
   const watchedCostEstimate = watch("cost_estimate")
   const watchedStartTime = watch("start_time") ?? "09:00"
   const watchedEndTime = watch("end_time") ?? "10:00"
-  const watchedServiceId = watch("service_id") ?? ""
 
   const serviceById = useMemo(() => {
     const map = new Map<string, Service>()
     for (const s of safeServices) map.set(s.id, s)
     return map
   }, [safeServices])
-  const selectedService = watchedServiceId ? serviceById.get(watchedServiceId) ?? null : null
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(
+    serviceIdRaw ? [serviceIdRaw] : [],
+  )
+  const selectedServices = useMemo(
+    () => selectedServiceIds.map((id) => serviceById.get(id)).filter(Boolean) as Service[],
+    [selectedServiceIds, serviceById],
+  )
+  const selectedService = selectedServices[0] ?? null
 
   const lastAutoRef = useRef<{ serviceId: string | null; endTime: string | null }>({ serviceId: null, endTime: null })
   const initialDurationMinutes = Math.max(0, timeToMinutes(toTimeInputValue(defaultValues.end_time)) - timeToMinutes(toTimeInputValue(defaultValues.start_time)))
@@ -238,67 +254,75 @@ export function AppointmentForm({
   )
   const [extraChargesInput, setExtraChargesInput] = useState("")
 
-  // Smart defaults: when selecting a service, auto-fill cost estimate and end time if user hasn't customized them.
   useEffect(() => {
-    const sid = serviceIdRaw && serviceIdRaw.length > 0 ? serviceIdRaw : ""
-    if (!sid) {
+    if (!initial?.id) return
+    import("@/services/api")
+      .then(({ fetchAppointmentServiceIds }) => fetchAppointmentServiceIds(initial.id!))
+      .then((ids) => {
+        if (ids.length > 0) {
+          setSelectedServiceIds(ids)
+          setValue("service_id", ids[0], { shouldDirty: false })
+        }
+      })
+      .catch((e) => console.warn("Failed to load appointment services:", e))
+  }, [initial?.id, setValue])
+
+  // Recalculate cost + duration when services change.
+  useEffect(() => {
+    if (selectedServices.length === 0) {
+      setValue("service_id", "", { shouldDirty: true })
       lastAutoRef.current = { serviceId: null, endTime: null }
       return
     }
-    const svc = serviceById.get(sid)
-    if (!svc) return
+    const primaryServiceId = selectedServices[0]?.id ?? ""
+    setValue("service_id", primaryServiceId, { shouldDirty: true })
 
-    // Auto-fill cost_estimate only if empty.
-    if (watchedCostEstimate == null || watchedCostEstimate === undefined || String(watchedCostEstimate) === "") {
-      let estimatedCost: number | null = null
+    const estimatedCost = selectedServices.reduce((sum, svc) => {
       if (svc.billing_type === "hourly" && svc.hourly_rate != null && svc.duration_minutes != null) {
-        estimatedCost = Number(((Number(svc.hourly_rate) * Number(svc.duration_minutes)) / 60).toFixed(2))
-      } else if (svc.price != null) {
-        estimatedCost = Number(svc.price)
+        return sum + (Number(svc.hourly_rate) * Number(svc.duration_minutes)) / 60
       }
+      return sum + Number(svc.price ?? 0)
+    }, 0)
+    setValue("cost_estimate", Number(estimatedCost.toFixed(2)) as any, { shouldDirty: true })
 
-      if (estimatedCost != null) {
-        setValue("cost_estimate", estimatedCost as any, { shouldDirty: true })
-      }
-    }
-
-    // Auto-fill end_time if duration exists and end_time looks auto-generated (or unchanged since last auto-fill).
-    if (svc.duration_minutes != null && Number.isFinite(Number(svc.duration_minutes))) {
-      const nextEnd = addMinutesToTime(toTimeInputValue(watchedStartTime), Number(svc.duration_minutes))
+    const totalDurationMinutes = selectedServices.reduce((sum, svc) => sum + Number(svc.duration_minutes ?? 0), 0)
+    if (totalDurationMinutes > 0) {
+      const nextEnd = addMinutesToTime(toTimeInputValue(watchedStartTime), totalDurationMinutes)
       const prevAuto = lastAutoRef.current.endTime
       const currentEnd = toTimeInputValue(watchedEndTime)
-      const shouldUpdateEnd =
-        !prevAuto || currentEnd === prevAuto || currentEnd === "10:00"
-
+      const shouldUpdateEnd = !prevAuto || currentEnd === prevAuto || currentEnd === "10:00"
       if (shouldUpdateEnd) {
         setValue("end_time", nextEnd, { shouldDirty: true })
-        lastAutoRef.current = { serviceId: sid, endTime: nextEnd }
+        lastAutoRef.current = { serviceId: primaryServiceId, endTime: nextEnd }
       }
     }
-  }, [serviceIdRaw, serviceById, setValue, watchedCostEstimate, watchedStartTime, watchedEndTime])
+  }, [selectedServices, setValue, watchedStartTime, watchedEndTime])
 
   useEffect(() => {
-    if (!selectedService) return
+    if (selectedServices.length === 0) return
     if (completionDurationInput.trim()) return
-    if (selectedService.duration_minutes != null) {
-      setCompletionDurationInput(String(selectedService.duration_minutes))
-    }
-  }, [selectedService?.id])
+    const totalDuration = selectedServices.reduce((sum, svc) => sum + Number(svc.duration_minutes ?? 0), 0)
+    if (totalDuration > 0) setCompletionDurationInput(String(totalDuration))
+  }, [selectedServices, completionDurationInput])
 
   const completionDurationMinutes = parseNonNegativeNumber(completionDurationInput)
   const extraCharges = parseNonNegativeNumber(extraChargesInput)
 
   const completionBaseAmount = useMemo(() => {
-    if (selectedService?.billing_type === "hourly" && selectedService.hourly_rate != null) {
-      if (completionDurationMinutes <= 0) return 0
-      return Number(((Number(selectedService.hourly_rate) * completionDurationMinutes) / 60).toFixed(2))
+    if (selectedServices.length > 0) {
+      const servicePriceTotal = selectedServices.reduce((sum, svc) => {
+        if (svc.billing_type === "hourly" && svc.hourly_rate != null && svc.duration_minutes != null) {
+          return sum + (Number(svc.hourly_rate) * Number(svc.duration_minutes)) / 60
+        }
+        return sum + Number(svc.price ?? 0)
+      }, 0)
+      return Number(servicePriceTotal.toFixed(2))
     }
-    if (selectedService?.price != null) return Number(selectedService.price)
     if (watchedCostEstimate != null && watchedCostEstimate !== undefined && String(watchedCostEstimate) !== "") {
       return Number(watchedCostEstimate || 0)
     }
     return 0
-  }, [selectedService, completionDurationMinutes, watchedCostEstimate])
+  }, [selectedServices, watchedCostEstimate, completionDurationMinutes])
 
   const completionTotalAmount = Number((completionBaseAmount + extraCharges).toFixed(2))
 
@@ -460,7 +484,7 @@ export function AppointmentForm({
         title: data.title,
         customer_id: data.customer_id,
         assigned_user_id: data.assigned_user_id && data.assigned_user_id.length > 0 ? data.assigned_user_id : null,
-        service_id: data.service_id && data.service_id.length > 0 ? data.service_id : null,
+        service_id: selectedServiceIds.length > 0 ? selectedServiceIds[0] : null,
         status: data.status as AppointmentJobStatus,
         scheduled_date: data.scheduled_date,
         start_time: data.start_time,
@@ -472,9 +496,10 @@ export function AppointmentForm({
         completion_notes: data.completion_notes || null,
         recurrence_rule: data.recurrence_rule || null,
       }
-      const { createAppointment, updateAppointment } = await import("@/services/api")
+      const { createAppointment, updateAppointment, replaceAppointmentServiceIds } = await import("@/services/api")
       if (initial?.id) {
         await updateAppointment(initial.id, payload)
+        await replaceAppointmentServiceIds(initial.id, businessId, selectedServiceIds)
         // Notify completion when status changes to completed.
         if (initial.status !== "completed" && (data.status as AppointmentJobStatus) === "completed") {
           try {
@@ -482,7 +507,10 @@ export function AppointmentForm({
               safeCustomers.find((c) => c.id === data.customer_id)
                 ? `${safeCustomers.find((c) => c.id === data.customer_id)!.first_name} ${safeCustomers.find((c) => c.id === data.customer_id)!.last_name}`
                 : "—"
-            const serviceName = safeServices.find((s) => s.id === data.service_id)?.name ?? "—"
+            const serviceName =
+              selectedServiceIds.length > 0
+                ? selectedServiceIds.map((id) => safeServices.find((s) => s.id === id)?.name).filter(Boolean).join(", ")
+                : "—"
             const message = formatAppointmentTelegramMessage({
               event: "completed",
               customerName,
@@ -497,12 +525,16 @@ export function AppointmentForm({
         }
       } else {
         const created = await createAppointment(payload)
+        await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
         try {
           const customerName =
             safeCustomers.find((c) => c.id === created.customer_id)
               ? `${safeCustomers.find((c) => c.id === created.customer_id)!.first_name} ${safeCustomers.find((c) => c.id === created.customer_id)!.last_name}`
               : "—"
-          const serviceName = safeServices.find((s) => s.id === created.service_id)?.name ?? "—"
+          const serviceName =
+            selectedServiceIds.length > 0
+              ? selectedServiceIds.map((id) => safeServices.find((s) => s.id === id)?.name).filter(Boolean).join(", ")
+              : "—"
           const message = formatAppointmentTelegramMessage({
             event: "created",
             customerName,
@@ -651,25 +683,33 @@ export function AppointmentForm({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Υπηρεσία</Label>
-              <Select
-                value={serviceSelectValue}
-                onValueChange={(v) => {
-                  if (v === "none") {
-                    setValue("service_id", "")
-                  } else {
-                    setValue("service_id", v)
-                  }
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Επιλέξτε" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {safeServices.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Υπηρεσίες</Label>
+              <div className="rounded-md border border-border/60 bg-background/40 p-2 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {safeServices.map((s) => {
+                    const selected = selectedServiceIds.includes(s.id)
+                    return (
+                      <Button
+                        key={s.id}
+                        type="button"
+                        variant={selected ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedServiceIds((prev) =>
+                            prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
+                          )
+                        }}
+                      >
+                        {s.name}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Επιλέξτε μία ή περισσότερες υπηρεσίες. Το κόστος και η διάρκεια υπολογίζονται αυτόματα.
+                </p>
+                <input type="hidden" value={serviceSelectValue} {...register("service_id")} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Κατάσταση</Label>
@@ -677,10 +717,14 @@ export function AppointmentForm({
                 value={status}
                 onValueChange={(v) => setValue("status", (v as FormValues["status"]) ?? "pending")}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>{STATUS_LABELS[status as AppointmentJobStatus] ?? status}</SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {statusOptions.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    <SelectItem key={s} value={s}>
+                      {STATUS_LABELS[s]}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -751,7 +795,7 @@ export function AppointmentForm({
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Βάση υπηρεσίας: {completionBaseAmount.toFixed(2)} € {selectedService?.billing_type === "hourly" ? "(χρέωση ανά ώρα)" : "(σταθερή τιμή)"} + έξτρα χρεώσεις.
+                  Βάση υπηρεσιών: {completionBaseAmount.toFixed(2)} € + έξτρα χρεώσεις.
                 </div>
                 <div className="space-y-2">
                   <Label>Σημειώσεις ολοκλήρωσης</Label>

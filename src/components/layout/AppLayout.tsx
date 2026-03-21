@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/contexts/WorkspaceContext"
 import { supabase } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -80,12 +81,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut, businessName, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
+  const { toast } = useToast()
   useTheme()
 
   const { mode, setMode } = useWorkspace()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState<number | null>(null)
+  const [lastExpiredToastAt, setLastExpiredToastAt] = useState(0)
+
+  const isExpiredSubscription =
+    user?.role !== "super_admin" &&
+    tenantSubscriptionPlan !== "demo" &&
+    Boolean(tenantSubscriptionExpiresAt) &&
+    new Date(tenantSubscriptionExpiresAt as string).getTime() < Date.now()
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -143,6 +152,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   async function handleSignOut() {
     await signOut()
     navigate("/login", { replace: true })
+  }
+
+  function notifyExpired() {
+    const now = Date.now()
+    if (now - lastExpiredToastAt < 1500) return
+    setLastExpiredToastAt(now)
+    toast({
+      title: "Η συνδρομή έχει λήξει",
+      description: "Επικοινωνήστε με κάποιον διαχειριστή για την αγορά προγράμματος.",
+      variant: "destructive",
+    })
+  }
+
+  function blockExpiredInteractions(e: React.SyntheticEvent) {
+    if (!isExpiredSubscription) return
+    const target = e.target as HTMLElement | null
+    if (!target) return
+    const interactive = target.closest("button, a, input, textarea, select, [role='button'], form")
+    if (!interactive) return
+    e.preventDefault()
+    e.stopPropagation()
+    notifyExpired()
   }
 
   return (
@@ -347,7 +378,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           )}
-        <main className="p-3 md:p-4 lg:p-5">{children}</main>
+        <main
+          className="p-3 md:p-4 lg:p-5"
+          onClickCapture={blockExpiredInteractions}
+          onSubmitCapture={blockExpiredInteractions}
+        >
+          {children}
+        </main>
       </div>
     </div>
   )

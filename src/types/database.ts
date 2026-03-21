@@ -193,6 +193,14 @@ export interface AppointmentJobAuditLog {
   reason: string | null
 }
 
+export interface AppointmentJobService {
+  id: string
+  business_id: string
+  appointment_job_id: string
+  service_id: string
+  created_at: string
+}
+
 export interface Payment {
   id: string
   business_id: string
@@ -254,6 +262,7 @@ export type Database = {
       appointments_jobs: { Row: AppointmentJob; Insert: Omit<AppointmentJob, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<AppointmentJob> }
       appointment_job_comments: { Row: AppointmentJobComment; Insert: Omit<AppointmentJobComment, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobComment> }
       appointment_job_audit_logs: { Row: AppointmentJobAuditLog; Insert: Omit<AppointmentJobAuditLog, "changed_at"> & { changed_at?: string }; Update: Partial<AppointmentJobAuditLog> }
+      appointment_job_services: { Row: AppointmentJobService; Insert: Omit<AppointmentJobService, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobService> }
       payments: { Row: Payment; Insert: Omit<Payment, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Payment> }
       attachments: { Row: Attachment; Insert: Omit<Attachment, "created_at"> & { created_at?: string }; Update: Partial<Attachment> }
       activity_logs: { Row: ActivityLog; Insert: Omit<ActivityLog, "created_at"> & { created_at?: string }; Update: Partial<ActivityLog> }
