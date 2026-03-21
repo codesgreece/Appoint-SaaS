@@ -7,6 +7,22 @@ export const PRICE_DISCLAIMER =
   "Οι τιμές είναι ενδεικτικές (προ ΦΠΑ) και ενδέχεται να διαφέρουν ανά συνεργάτη. Η ενεργοποίηση γίνεται μέσω του διαχειριστή της πλατφόρμας — δεν πληρώνεται από αυτή τη σελίδα."
 
 /** Hero — πειστικό, value-first */
+/** WhatsApp — επικοινωνία για δοκιμή / αγορά (ανοίγει wa.me) */
+export const WHATSAPP = {
+  /** Μόνο ψηφία, χωρίς + (για wa.me) */
+  phoneDigits: "306936732844",
+  displayPhone: "+30 693 673 2844",
+  buttonLabel: "Δοκιμή ή αγορά — στείλτε μήνυμα στο WhatsApp",
+  /** Προ-συμπληρωμένο μήνυμα στη συνομιλία */
+  defaultMessage:
+    "Γεια σας! Ενδιαφέρομαι για το Appoint SaaS — δοκιμή ή αγορά πακέτου. Μπορείτε να με ενημερώσετε;",
+} as const
+
+export function getWhatsAppChatUrl(): string {
+  const q = encodeURIComponent(WHATSAPP.defaultMessage)
+  return `https://wa.me/${WHATSAPP.phoneDigits}?text=${q}`
+}
+
 export const HERO = {
   badge: "Λύση για ραντεβού & εργασίες — όχι μόνο ένα ημερολόγιο",
   /** Πρώτο μέρος τίτλου + δεύτερο με gradient */
