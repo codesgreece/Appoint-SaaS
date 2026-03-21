@@ -228,16 +228,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {(user?.role !== "super_admin" || mode === "business") && (
             <div className="mt-1 rounded-xl border border-border/60 bg-card/60 px-2.5 py-2">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Διαθέσιμο σε</p>
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+              <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3">
+                <span className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-border/60 bg-background/60 px-1.5 py-1 text-[10px] text-muted-foreground">
                   <Bot className="h-3 w-3" />
                   Android
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+                <span className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-border/60 bg-background/60 px-1.5 py-1 text-[10px] text-muted-foreground">
                   <Apple className="h-3 w-3" />
                   iOS
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground">
+                <span className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-border/60 bg-background/60 px-1.5 py-1 text-[10px] text-muted-foreground">
                   <Monitor className="h-3 w-3" />
                   Windows
                 </span>
