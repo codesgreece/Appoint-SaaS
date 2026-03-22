@@ -27,20 +27,32 @@ export async function parseFunctionsHttpError(err: unknown): Promise<string> {
   return "Η κλήση Edge Function απέτυχε. Έλεγξε σύνδεση και ρυθμίσεις Supabase."
 }
 
-/** Φρέσκο session + invoke χωρίς χειροκίνητο Authorization (το SDK βάζει σωστά Bearer + apikey). */
+/**
+ * Φρέσκο session + invoke με ρητό Authorization Bearer.
+ * Σε μερικά builds το `functions.invoke` δεν περνά σταθερά το JWT — ο Edge Function έβλεπε 401 / «invalid JWT».
+ */
 async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
-  const { error: refErr } = await supabase.auth.refreshSession()
-  if (refErr) console.warn("[invokeEdgeFunction] refreshSession:", refErr)
+  try {
+    await supabase.auth.refreshSession()
+  } catch {
+    /* συνέχισε με υπάρχον session */
+  }
 
   const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
   if (sessionErr) {
     return { data: null, error: sessionErr as Error }
   }
-  if (!sessionData.session?.access_token) {
+  const token = sessionData.session?.access_token
+  if (!token) {
     return { data: null, error: new Error("Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά.") }
   }
 
-  return supabase.functions.invoke(name, { body }) as Promise<{ data: T | null; error: Error | null }>
+  return supabase.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }) as Promise<{ data: T | null; error: Error | null }>
 }
 
 /** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */

@@ -36,20 +36,39 @@ function normalizeChatIdForTelegram(raw: string): string | number {
 async function sendTelegram(token: string, chatId: string, text: string, replyMarkup?: unknown) {
   const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
   const cid = normalizeChatIdForTelegram(chatId)
-  const res = await fetch(endpoint, {
+  const payload: Record<string, unknown> = {
+    chat_id: cid,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  }
+  let res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: cid,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-    }),
+    body: JSON.stringify(payload),
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => "")
-    throw new Error(`Telegram API error (${res.status})${detail ? `: ${detail}` : ""}`)
+    // Κακά HTML entities από ονόματα/κείμενα — fallback χωρίς parse_mode (ίδιο με send-telegram-notification)
+    if ((detail.includes("parse") || detail.includes("entities")) && res.status === 400) {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: cid,
+          text: text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+          disable_web_page_preview: true,
+          ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+        }),
+      })
+      if (!res.ok) {
+        const d2 = await res.text().catch(() => "")
+        throw new Error(`Telegram API error (${res.status})${d2 ? `: ${d2}` : ""}`)
+      }
+    } else {
+      throw new Error(`Telegram API error (${res.status})${detail ? `: ${detail}` : ""}`)
+    }
   }
 }
 

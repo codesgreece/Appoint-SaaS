@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405)
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: "Missing Supabase env" }, 500)
     const supabase = createClient(supabaseUrl, serviceRoleKey)
@@ -192,10 +193,13 @@ Deno.serve(async (req) => {
       // Άμεση επεξεργασία ουράς Telegram (το DB trigger έχει ήδη enqueue· χωρίς cron δεν στέλνονταν αλλιώς).
       const cronSecret = Deno.env.get("CRON_SECRET")?.trim()
       const processUrl = `${supabaseUrl}/functions/v1/process-telegram-events`
+      const apiKeyForFn = anonKey || serviceRoleKey
+      // Με CRON_SECRET: Bearer = secret. Χωρίς: εσωτερική κλήση — χωρίς έλεγχο JWT στο function (verify_jwt=false).
+      const authBearer = cronSecret ?? apiKeyForFn
       const processHeaders: Record<string, string> = {
         "Content-Type": "application/json",
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${cronSecret ?? serviceRoleKey}`,
+        apikey: apiKeyForFn,
+        Authorization: `Bearer ${authBearer}`,
       }
       fetch(processUrl, { method: "POST", headers: processHeaders }).catch(() => {})
 

@@ -33,13 +33,24 @@ function toDateTime(date: string, time: string): Date | null {
   return Number.isNaN(value.getTime()) ? null : value
 }
 
+function normalizeChatIdForTelegram(raw: string): string | number {
+  const t = String(raw ?? "").trim()
+  if (!t) return t
+  if (/^-?\d+$/.test(t)) {
+    const n = Number(t)
+    if (Number.isSafeInteger(n)) return n
+  }
+  return t
+}
+
 async function sendTelegram(token: string, chatId: string, text: string) {
   const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
-  const res = await fetch(endpoint, {
+  const cid = normalizeChatIdForTelegram(chatId)
+  let res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: cid,
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
@@ -47,7 +58,23 @@ async function sendTelegram(token: string, chatId: string, text: string) {
   })
   if (!res.ok) {
     const detail = await res.text().catch(() => "")
-    throw new Error(`Telegram API error (${res.status})${detail ? `: ${detail}` : ""}`)
+    if ((detail.includes("parse") || detail.includes("entities")) && res.status === 400) {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: cid,
+          text: text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+          disable_web_page_preview: true,
+        }),
+      })
+      if (!res.ok) {
+        const d2 = await res.text().catch(() => "")
+        throw new Error(`Telegram API error (${res.status})${d2 ? `: ${d2}` : ""}`)
+      }
+    } else {
+      throw new Error(`Telegram API error (${res.status})${detail ? `: ${detail}` : ""}`)
+    }
   }
 }
 
