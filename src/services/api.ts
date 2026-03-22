@@ -215,7 +215,9 @@ export async function fetchAppointments(
 ) {
   let q = supabase
     .from("appointments_jobs")
-    .select("*, customer:customers(*), assigned_user:users(full_name, email), service:services(id, name)")
+    .select(
+      "*, customer:customers(*), assigned_user:users(full_name, email), service:services(id, name), payments:payments(paid_amount, amount, payment_status, remaining_balance)",
+    )
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true })
   if (filters?.from) q = q.gte("scheduled_date", filters.from)

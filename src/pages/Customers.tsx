@@ -33,6 +33,11 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import {
+  getAppointmentValueForTotals,
+  sumPaidAmountForAppointment,
+  sumRemainingForAppointment,
+} from "@/lib/appointmentMoney"
 import { CustomerForm } from "@/components/customers/CustomerForm"
 import {
   DropdownMenu,
@@ -124,17 +129,7 @@ export default function Customers() {
   const withEmail = customers.filter((c) => !!c.email).length
   const withPhone = customers.filter((c) => !!c.phone).length
   const historyTotalSpent = useMemo(
-    () =>
-      historyAppointments.reduce(
-        (sum, a) =>
-          sum +
-          (a.final_cost != null
-            ? Number(a.final_cost)
-            : a.cost_estimate != null
-              ? Number(a.cost_estimate)
-              : 0),
-        0,
-      ),
+    () => historyAppointments.reduce((sum, a) => sum + getAppointmentValueForTotals(a), 0),
     [historyAppointments],
   )
   const historyLastVisit = useMemo(() => {
@@ -450,7 +445,7 @@ export default function Customers() {
                 <Card className="border-border/60 bg-card/60">
                   <CardContent className="flex items-center justify-between py-3">
                     <div className="space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Συνολικές χρεώσεις</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Σύνολο (πληρωμές / χρέωση)</p>
                       <p className="text-xl font-semibold tracking-tight">
                         {formatCurrency(historyTotalSpent)}
                       </p>
@@ -461,7 +456,7 @@ export default function Customers() {
                 <Card className="border-border/60 bg-card/60">
                   <CardContent className="flex items-center justify-between py-3">
                     <div className="space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Μέση αξία</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Μέση αξία / ραντεβού</p>
                       <p className="text-xl font-semibold tracking-tight">
                         {historyAppointments.length ? formatCurrency(historyTotalSpent / historyAppointments.length) : "—"}
                       </p>
@@ -498,13 +493,22 @@ export default function Customers() {
                             Υπηρεσία: {a.service?.name ?? "—"}
                           </p>
                         </div>
-                        <div className="text-right space-y-0.5">
-                          <p className="text-sm font-semibold">
-                            {a.final_cost != null
-                              ? formatCurrency(Number(a.final_cost))
-                              : a.cost_estimate != null
-                                ? formatCurrency(Number(a.cost_estimate))
-                                : "—"}
+                        <div className="text-right space-y-0.5 shrink-0 min-w-[120px]">
+                          <p className="text-sm font-semibold tabular-nums">
+                            {getAppointmentValueForTotals(a) > 0
+                              ? formatCurrency(getAppointmentValueForTotals(a))
+                              : "—"}
+                          </p>
+                          <p className="text-[10px] leading-tight text-muted-foreground">
+                            {sumPaidAmountForAppointment(a) > 0
+                              ? sumRemainingForAppointment(a) > 0
+                                ? `Πληρωμή · υπόλ. ${formatCurrency(sumRemainingForAppointment(a))}`
+                                : "Πληρωμή"
+                              : getAppointmentValueForTotals(a) > 0
+                                ? a.final_cost != null
+                                  ? "Τελική χρέωση"
+                                  : "Εκτίμηση τιμής"
+                                : "Χωρίς ποσό"}
                           </p>
                           <p className="text-[11px] text-muted-foreground capitalize">{a.status}</p>
                         </div>
