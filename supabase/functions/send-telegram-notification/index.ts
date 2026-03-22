@@ -63,31 +63,32 @@ async function sendTelegram(token: string, chatId: string, text: string, replyMa
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   try {
-    const authHeader = req.headers.get("Authorization")
+    const authHeader = req.headers.get("Authorization")?.trim() ?? ""
     if (!authHeader) return json({ success: false, error: "Missing Authorization" }, 401)
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     const fallbackToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
-    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-      return json({ success: false, error: "Missing supabase env (URL, ANON_KEY, or SERVICE_ROLE)" }, 500)
+    if (!supabaseUrl || !serviceRoleKey) {
+      return json({ success: false, error: "Missing supabase env (URL or SERVICE_ROLE)" }, 500)
     }
 
-    // Επαλήθευση χρήστη: anon client + Authorization από το request (όχι getUser(jwt) με service role — «invalid JWT»).
-    const supabaseAuth = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser()
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim()
+    if (!jwt) return json({ success: false, error: "Missing Authorization" }, 401)
+
+    // Επαλήθευση access token: επίσημο API `getUser(jwt)` με service role (όχι anon+headers — ασταθές σε Edge).
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    const { data: authData, error: authError } = await supabase.auth.getUser(jwt)
     if (authError || !authData?.user) {
       return json(
-        { success: false, error: authError?.message ?? "Μη έγκυρο session. Κάνε αποσύνδεση και ξανά σύνδεση." },
+        {
+          success: false,
+          error: authError?.message ?? "Μη έγκυρο session. Κάνε αποσύνδεση και ξανά σύνδεση.",
+        },
         401,
       )
     }
     const callerId = authData.user.id
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     let body: Record<string, unknown>
     try {

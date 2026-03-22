@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase"
 
+const functionsBaseUrl = () => {
+  const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
+  return base ? `${base}/functions/v1` : ""
+}
+
 /**
  * Από απάντηση σφάλματος του supabase.functions.invoke — το FunctionsHttpError έχει
  * `context` = Fetch Response (όχι JSON string στο .body).
@@ -28,31 +33,70 @@ export async function parseFunctionsHttpError(err: unknown): Promise<string> {
 }
 
 /**
- * Φρέσκο session + invoke με ρητό Authorization Bearer.
- * Σε μερικά builds το `functions.invoke` δεν περνά σταθερά το JWT — ο Edge Function έβλεπε 401 / «invalid JWT».
+ * Κλήση Edge Function με `fetch` (όχι `supabase.functions.invoke`) ώστε να στέλνονται πάντα
+ * σωστά `Authorization: Bearer <access_token>` + `apikey` — αποφυγή σφαλμάτων «invalid JWT».
  */
 async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
+  const base = functionsBaseUrl()
+  const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? ""
+  if (!base || !anonKey) {
+    return { data: null, error: new Error("Λείπουν VITE_SUPABASE_URL ή VITE_SUPABASE_ANON_KEY.") }
+  }
+
   try {
     await supabase.auth.refreshSession()
   } catch {
-    /* συνέχισε με υπάρχον session */
+    /* συνέχισε με τρέχον session */
   }
-
   const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
   if (sessionErr) {
     return { data: null, error: sessionErr as Error }
   }
-  const token = sessionData.session?.access_token
-  if (!token) {
+  const accessToken = sessionData.session?.access_token
+  if (!accessToken) {
     return { data: null, error: new Error("Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά.") }
   }
 
-  return supabase.functions.invoke(name, {
-    body,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }) as Promise<{ data: T | null; error: Error | null }>
+  const url = `${base}/${name}`
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        apikey: anonKey,
+      },
+      body: JSON.stringify(body ?? {}),
+    })
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e : new Error(String(e)) }
+  }
+
+  const rawText = await res.text()
+  let parsed: unknown = null
+  if (rawText) {
+    try {
+      parsed = JSON.parse(rawText) as unknown
+    } catch {
+      parsed = null
+    }
+  }
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`
+    if (parsed && typeof parsed === "object" && parsed !== null) {
+      const o = parsed as Record<string, unknown>
+      if (typeof o.error === "string") msg = o.error
+      else if (typeof o.message === "string") msg = o.message
+      else if (typeof o.msg === "string") msg = o.msg
+    } else if (rawText) {
+      msg = rawText.slice(0, 500)
+    }
+    return { data: null, error: new Error(msg) }
+  }
+
+  return { data: parsed as T, error: null }
 }
 
 /** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */
