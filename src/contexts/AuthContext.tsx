@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useRef, useState } from "react"
 import { User as SupabaseUser } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import type { User } from "@/types"
@@ -35,6 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tenantSubscriptionPlan, setTenantSubscriptionPlan] = useState<string | null>(null)
   const [tenantSubscriptionExpiresAt, setTenantSubscriptionExpiresAt] = useState<string | null>(null)
   const [tenantSubscriptionLoaded, setTenantSubscriptionLoaded] = useState(true)
+
+  /** Auth user id για τον οποίο έχει ήδη φορτωθεί προφίλ — αποφυγή διπλού SIGNED_IN (καρτέλα/εστίαση) που έκανε refresh και χάνονταν panel/forms. */
+  const resolvedSessionUserIdRef = useRef<string | null>(null)
 
   const refreshTenantBusiness = React.useCallback(async () => {
     const bid = businessId
@@ -125,12 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             else console.log("[Auth] profile loaded", { role: profile.role, hasBusiness: Boolean(profile.business_id) })
             setUser(profile)
             setBusinessId(profile?.business_id ?? null)
+            resolvedSessionUserIdRef.current = profile?.id ?? null
           })
           .catch((e) => {
             console.log("[Auth] profile load error", e)
             setUser(null)
             setBusinessId(null)
             setBusinessName(null)
+            resolvedSessionUserIdRef.current = null
             setBootstrapError(e instanceof Error ? e.message : "Αποτυχία φόρτωσης προφίλ.")
           })
           .finally(() => {
@@ -142,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setBusinessId(null)
         setBusinessName(null)
         setBootstrapError(null)
+        resolvedSessionUserIdRef.current = null
         console.log("[Auth] bootstrap finished")
         setLoading(false)
       }
@@ -160,6 +166,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Σε μερικά περιβάλλοντα το SIGNED_IN ξαναπυροδοτείται (εστίαση παραθύρου / καρτέλα) χωρίς νέο login.
+      if (
+        event === "SIGNED_IN" &&
+        session?.user &&
+        resolvedSessionUserIdRef.current === session.user.id
+      ) {
+        console.log("[Auth] skip duplicate SIGNED_IN for same user (preserve panel state)")
+        return
+      }
+
       if (session?.user) {
         // USER_UPDATED: αθόρυβη ανανέωση προφίλ (χωρίς να ξεφορτώσει όλη τη σελίδα)
         const silentProfileRefresh = event === "USER_UPDATED"
@@ -174,12 +190,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             else console.log("[Auth] profile loaded", { role: profile.role, hasBusiness: Boolean(profile.business_id) })
             setUser(profile)
             setBusinessId(profile?.business_id ?? null)
+            resolvedSessionUserIdRef.current = profile?.id ?? null
           })
           .catch((e) => {
             console.log("[Auth] profile load error", e)
             setUser(null)
             setBusinessId(null)
             setBusinessName(null)
+            resolvedSessionUserIdRef.current = null
             setBootstrapError(e instanceof Error ? e.message : "Αποτυχία φόρτωσης προφίλ.")
           })
           .finally(() => {
@@ -193,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setBusinessId(null)
         setBusinessName(null)
         setBootstrapError(null)
+        resolvedSessionUserIdRef.current = null
         console.log("[Auth] signed out; bootstrap finished")
         setLoading(false)
       }
@@ -246,6 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!session?.user) {
       setUser(null)
       setBusinessId(null)
+      resolvedSessionUserIdRef.current = null
       setLoading(false)
       return
     }
@@ -255,11 +275,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       else console.log("[Auth] profile loaded", { role: profile.role, hasBusiness: Boolean(profile.business_id) })
       setUser(profile)
       setBusinessId(profile?.business_id ?? null)
+      resolvedSessionUserIdRef.current = profile?.id ?? null
     } catch (e) {
       console.log("[Auth] profile load error", e)
       setUser(null)
       setBusinessId(null)
       setBusinessName(null)
+      resolvedSessionUserIdRef.current = null
       setBootstrapError(e instanceof Error ? e.message : "Αποτυχία φόρτωσης προφίλ.")
     } finally {
       console.log("[Auth] bootstrap finished")
@@ -269,6 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
+    resolvedSessionUserIdRef.current = null
     setUser(null)
     setBusinessId(null)
     setBusinessName(null)
