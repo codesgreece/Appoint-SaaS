@@ -576,22 +576,37 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   try {
-    const cronSecret = Deno.env.get("CRON_SECRET")?.trim()
-    if (cronSecret) {
-      const authHeader = req.headers.get("Authorization") ?? ""
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return json({ success: false, error: "Unauthorized" }, 401)
-      }
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     const fallbackToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
     if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: "Missing Supabase env" }, 500)
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+    /** Όταν CRON_SECRET είναι ορισμένο: μόνο cron ή συνδεδεμένος χρήστης (JWT). Χρήστης = μόνο ουρά, όχι digests/όρια (αποφυγή spam). */
+    const cronSecret = Deno.env.get("CRON_SECRET")?.trim()
+    const authHeader = req.headers.get("Authorization") ?? ""
+    const bearer = authHeader.replace(/^Bearer\s+/i, "").trim()
+    let runDigestsAndLimits = true
+
+    if (cronSecret) {
+      if (bearer === cronSecret) {
+        runDigestsAndLimits = true
+      } else if (bearer) {
+        const { data: authData, error: authErr } = await supabase.auth.getUser(bearer)
+        if (authErr || !authData?.user) {
+          return json({ success: false, error: "Unauthorized" }, 401)
+        }
+        runDigestsAndLimits = false
+      } else {
+        return json({ success: false, error: "Unauthorized" }, 401)
+      }
+    }
+
     const queue = await processQueue(supabase, fallbackToken)
-    const digests = await processDigestsAndLimits(supabase, fallbackToken)
+    const digests = runDigestsAndLimits
+      ? await processDigestsAndLimits(supabase, fallbackToken)
+      : { digestSent: 0, limitSent: 0 }
 
     return json({ success: true, queue, digests })
   } catch (err) {

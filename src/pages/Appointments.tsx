@@ -40,7 +40,11 @@ import { CalendarView } from "@/components/appointments/CalendarView"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
-import { formatAppointmentTelegramMessage, sendBusinessTelegramMessage } from "@/lib/telegram"
+import {
+  flushTelegramNotificationQueue,
+  formatAppointmentTelegramMessage,
+  sendBusinessTelegramMessage,
+} from "@/lib/telegram"
 
 const STATUS_LABELS: Record<AppointmentJobStatus, string> = {
   pending: "Εκκρεμεί",
@@ -196,6 +200,12 @@ export default function Appointments() {
         } catch (notifyErr) {
           console.warn("Telegram completion notification failed:", notifyErr)
         }
+      }
+
+      try {
+        await flushTelegramNotificationQueue()
+      } catch (flushErr) {
+        console.warn("Telegram queue flush failed:", flushErr)
       }
 
       toast({ title: "Ενημερώθηκε", description: "Η κατάσταση ενημερώθηκε." })

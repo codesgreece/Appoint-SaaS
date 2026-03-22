@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase"
 
+/** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */
+export function escapeTelegramHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
 function getTelegramBotToken(): string {
   const env = import.meta.env as Record<string, string | undefined>
   return (env.TELEGRAM_BOT_TOKEN ?? env.VITE_TELEGRAM_BOT_TOKEN ?? "").trim()
@@ -58,23 +63,30 @@ export async function sendBusinessTelegramMessage(
     body: { business_id: businessId, message },
   })
   if (error) {
-    // Fallback to direct client-side send only if function call fails.
-    console.warn("send-telegram-notification invoke failed, trying direct fallback:", error)
-    const { data: biz, error: bizErr } = await supabase
-      .from("businesses")
-      .select("telegram_enabled, telegram_chat_id, telegram_bot_token")
-      .eq("id", businessId)
-      .maybeSingle()
-    if (bizErr || !biz) return false
-    const enabled = Boolean((biz as { telegram_enabled?: boolean | null }).telegram_enabled)
-    const chatId = ((biz as { telegram_chat_id?: string | null }).telegram_chat_id ?? "").trim()
-    const businessToken = ((biz as { telegram_bot_token?: string | null }).telegram_bot_token ?? "").trim()
-    const token = businessToken || getTelegramBotToken()
-    if (!enabled || !chatId || !token) return false
-    await sendTelegramMessageWithToken(token, chatId, message)
-    return true
+    console.warn("send-telegram-notification invoke failed:", error)
+    return false
   }
-  return Boolean((data as { success?: boolean } | null)?.success ?? true)
+  const payload = data as { success?: boolean; skipped?: boolean; reason?: string } | null
+  if (payload?.skipped) {
+    console.warn("Telegram skipped:", payload.reason)
+    return false
+  }
+  return payload?.success !== false
+}
+
+/**
+ * Επεξεργάζεται αμέσως την ουρά `telegram_notification_queue` (cron + DB triggers).
+ * Καλέστε μετά από αποθήκευση ραντεβού/πληρωμής ώστε να μην περιμένει cron.
+ */
+export async function flushTelegramNotificationQueue(): Promise<boolean> {
+  const { data, error } = await supabase.functions.invoke("process-telegram-events", {
+    body: {},
+  })
+  if (error) {
+    console.warn("process-telegram-events (flush) failed:", error)
+    return false
+  }
+  return Boolean((data as { success?: boolean } | null)?.success)
 }
 
 export function formatAppointmentTelegramMessage(input: {
@@ -93,10 +105,10 @@ export function formatAppointmentTelegramMessage(input: {
 
   return [
     `<b>${eventLabel}</b>`,
-    `Πελάτης: ${input.customerName || "—"}`,
-    `Ημερομηνία: ${input.date || "—"}`,
-    `Ώρα: ${input.time || "—"}`,
-    `Υπηρεσία: ${input.serviceName || "—"}`,
+    `Πελάτης: ${escapeTelegramHtml(input.customerName || "—")}`,
+    `Ημερομηνία: ${escapeTelegramHtml(input.date || "—")}`,
+    `Ώρα: ${escapeTelegramHtml(input.time || "—")}`,
+    `Υπηρεσία: ${escapeTelegramHtml(input.serviceName || "—")}`,
   ].join("\n")
 }
 

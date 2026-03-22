@@ -189,6 +189,16 @@ Deno.serve(async (req) => {
       }))
       await supabase.from("appointment_job_services").insert(junction)
 
+      // Άμεση επεξεργασία ουράς Telegram (το DB trigger έχει ήδη enqueue· χωρίς cron δεν στέλνονταν αλλιώς).
+      const cronSecret = Deno.env.get("CRON_SECRET")?.trim()
+      const processUrl = `${supabaseUrl}/functions/v1/process-telegram-events`
+      const processHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${cronSecret ?? serviceRoleKey}`,
+      }
+      fetch(processUrl, { method: "POST", headers: processHeaders }).catch(() => {})
+
       return json({ success: true, appointment_id: appointmentId, status: requiresApproval ? "pending" : "confirmed" })
     }
 

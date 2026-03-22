@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/dialog"
 import { AlertCircle } from "lucide-react"
 import { formatDate } from "@/lib/utils"
-import { formatAppointmentTelegramMessage, sendBusinessTelegramMessage } from "@/lib/telegram"
+import {
+  flushTelegramNotificationQueue,
+  formatAppointmentTelegramMessage,
+  sendBusinessTelegramMessage,
+} from "@/lib/telegram"
 
 const statusOptions: AppointmentJobStatus[] = [
   "pending",
@@ -526,26 +530,12 @@ export function AppointmentForm({
       } else {
         const created = await createAppointment(payload)
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
-        try {
-          const customerName =
-            safeCustomers.find((c) => c.id === created.customer_id)
-              ? `${safeCustomers.find((c) => c.id === created.customer_id)!.first_name} ${safeCustomers.find((c) => c.id === created.customer_id)!.last_name}`
-              : "—"
-          const serviceName =
-            selectedServiceIds.length > 0
-              ? selectedServiceIds.map((id) => safeServices.find((s) => s.id === id)?.name).filter(Boolean).join(", ")
-              : "—"
-          const message = formatAppointmentTelegramMessage({
-            event: "created",
-            customerName,
-            date: created.scheduled_date,
-            time: `${created.start_time} - ${created.end_time}`,
-            serviceName,
-          })
-          await sendBusinessTelegramMessage(businessId, message)
-        } catch (notifyErr) {
-          console.warn("Telegram new appointment notification failed:", notifyErr)
-        }
+        // Νέο ραντεβού: η ουρά Telegram γεμίζει από DB trigger — flush για άμεση αποστολή (χωρίς αναμονή cron).
+      }
+      try {
+        await flushTelegramNotificationQueue()
+      } catch (flushErr) {
+        console.warn("Telegram queue flush failed:", flushErr)
       }
       onSaved()
     } catch (err) {
@@ -588,6 +578,11 @@ export function AppointmentForm({
       console.debug("Saving appointment payment with payload:", payload)
       const updated = await upsertPaymentForAppointment(payload)
       setPayment(updated)
+      try {
+        await flushTelegramNotificationQueue()
+      } catch (flushErr) {
+        console.warn("Telegram queue flush failed:", flushErr)
+      }
       toast({ title: "Πληρωμή αποθηκεύτηκε", description: "Η πληρωμή ενημερώθηκε επιτυχώς." })
     } catch (err) {
       console.error("Save payment error:", err)
