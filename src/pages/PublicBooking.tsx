@@ -23,6 +23,14 @@ type BusinessInfo = {
   booking_theme?: string | null
 }
 
+type PublicBookingApiOk = {
+  success: true
+  business?: BusinessInfo & { name?: string }
+  services?: BookingService[]
+  slots?: string[]
+  status?: string
+}
+
 export default function PublicBooking() {
   const { slug = "" } = useParams()
   const [loading, setLoading] = useState(true)
@@ -57,24 +65,44 @@ export default function PublicBooking() {
   }, [selectedServices])
 
   async function callPublicBooking(action: string, body: Record<string, unknown>) {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+    const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "")
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+    if (!supabaseUrl || !anonKey) {
+      throw new Error("Λείπει ρύθμιση Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).")
+    }
+    // Το API των Edge Functions θέλει και τα δύο — χωρίς Authorization συχνά 401 πριν φτάσει ο κώδικας.
     const res = await fetch(`${supabaseUrl}/functions/v1/public-booking`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
       },
-      body: JSON.stringify({ action, slug, ...body }),
+      body: JSON.stringify({ action, slug: slug.trim().toLowerCase(), ...body }),
     })
-    const data = await res.json()
-    if (!res.ok || !data?.success) throw new Error(data?.error || "Request failed")
-    return data
+    const raw = await res.text()
+    let parsed: { success?: boolean; error?: string } & Record<string, unknown> = { success: false }
+    try {
+      parsed = raw ? (JSON.parse(raw) as typeof parsed) : { success: false }
+    } catch {
+      throw new Error(res.ok ? "Άκυρη απάντηση διακομιστή." : `Σφάλμα ${res.status}`)
+    }
+    if (!res.ok || !parsed?.success) {
+      throw new Error(typeof parsed?.error === "string" ? parsed.error : `Αποτυχία (${res.status})`)
+    }
+    return parsed as PublicBookingApiOk
   }
 
   useEffect(() => {
     let active = true
+    const s = slug.trim()
+    if (!s) {
+      setError("Λείπει το όνομα σελίδας κράτησης στο URL (π.χ. /book/to-slug-mou).")
+      setLoading(false)
+      return
+    }
     setLoading(true)
+    setError("")
     callPublicBooking("get_config", {})
       .then((data) => {
         if (!active) return
@@ -94,7 +122,7 @@ export default function PublicBooking() {
   }, [slug])
 
   useEffect(() => {
-    if (!date || selectedServiceIds.length === 0) {
+    if (!slug.trim() || !date || selectedServiceIds.length === 0) {
       setSlots([])
       setStartTime("")
       return
