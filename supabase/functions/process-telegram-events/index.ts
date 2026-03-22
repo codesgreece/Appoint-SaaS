@@ -23,13 +23,24 @@ type BusinessRow = {
   telegram_notification_preferences: Record<string, boolean> | null
 }
 
+function normalizeChatIdForTelegram(raw: string): string | number {
+  const t = raw.trim()
+  if (!t) return t
+  if (/^-?\d+$/.test(t)) {
+    const n = Number(t)
+    if (Number.isSafeInteger(n)) return n
+  }
+  return t
+}
+
 async function sendTelegram(token: string, chatId: string, text: string, replyMarkup?: unknown) {
   const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
+  const cid = normalizeChatIdForTelegram(chatId)
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: cid,
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,

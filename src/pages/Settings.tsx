@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
+import { invokeTelegramTestMessage } from "@/lib/telegram"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import * as XLSX from "xlsx"
@@ -115,16 +116,11 @@ export default function Settings() {
     if (!businessId) return
     try {
       setTestingTelegram(true)
-      const { data, error } = await supabase.functions.invoke("send-telegram-notification", {
-        body: {
-          business_id: businessId,
-          use_form_values: true,
-          telegram_enabled: telegramEnabled,
-          telegram_chat_id: telegramChatId,
-          telegram_bot_token: telegramBotToken,
-          message:
-            "<b>Δοκιμή Telegram — Appoint SaaS</b>\nΑν βλέπεις αυτό το μήνυμα, η αποστολή από την εφαρμογή λειτουργεί.",
-        },
+      const { data, error } = await invokeTelegramTestMessage({
+        businessId,
+        telegramEnabled,
+        telegramChatId,
+        telegramBotToken,
       })
       if (error) throw error
       const payload = data as { success?: boolean; skipped?: boolean; reason?: string }

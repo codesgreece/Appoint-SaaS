@@ -1,0 +1,3 @@
+# Ο έλεγχος JWT γίνεται μέσα στον κώδικα (getUser). Έτσι αποφεύγονται 401 από το gateway
+# όταν το session token δεν περνάει σωστά από το @supabase/supabase-js invoke.
+verify_jwt = false

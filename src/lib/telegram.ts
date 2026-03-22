@@ -1,5 +1,27 @@
 import { supabase } from "@/lib/supabase"
 
+/** Ρητό user JWT — το invoke() μερικές φορές δεν περνάει σωστά το session στο Functions gateway */
+async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
+  if (sessionErr) {
+    return { data: null, error: sessionErr as Error }
+  }
+  let accessToken = sessionData.session?.access_token
+  if (!accessToken) {
+    const { data: refreshed } = await supabase.auth.refreshSession()
+    accessToken = refreshed.session?.access_token
+  }
+  if (!accessToken) {
+    return { data: null, error: new Error("Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά.") }
+  }
+  return supabase.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  }) as Promise<{ data: T | null; error: Error | null }>
+}
+
 /** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */
 export function escapeTelegramHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -58,10 +80,10 @@ export async function sendBusinessTelegramMessage(
   message: string,
 ): Promise<boolean> {
   if (!businessId) return false
-  // Prefer server-side send via Edge Function (avoids browser CORS issues and keeps secrets server-side).
-  const { data, error } = await supabase.functions.invoke("send-telegram-notification", {
-    body: { business_id: businessId, message },
-  })
+  const { data, error } = await invokeEdgeFunction<{ success?: boolean; skipped?: boolean; reason?: string }>(
+    "send-telegram-notification",
+    { business_id: businessId, message },
+  )
   if (error) {
     console.warn("send-telegram-notification invoke failed:", error)
     return false
@@ -79,14 +101,30 @@ export async function sendBusinessTelegramMessage(
  * Καλέστε μετά από αποθήκευση ραντεβού/πληρωμής ώστε να μην περιμένει cron.
  */
 export async function flushTelegramNotificationQueue(): Promise<boolean> {
-  const { data, error } = await supabase.functions.invoke("process-telegram-events", {
-    body: {},
-  })
+  const { data, error } = await invokeEdgeFunction<{ success?: boolean }>("process-telegram-events", {})
   if (error) {
     console.warn("process-telegram-events (flush) failed:", error)
     return false
   }
   return Boolean((data as { success?: boolean } | null)?.success)
+}
+
+/** Δοκιμή από Ρυθμίσεις — χρησιμοποιεί τιμές φόρμας */
+export async function invokeTelegramTestMessage(params: {
+  businessId: string
+  telegramEnabled: boolean
+  telegramChatId: string
+  telegramBotToken: string
+}) {
+  return invokeEdgeFunction("send-telegram-notification", {
+    business_id: params.businessId,
+    use_form_values: true,
+    telegram_enabled: params.telegramEnabled,
+    telegram_chat_id: params.telegramChatId,
+    telegram_bot_token: params.telegramBotToken,
+    message:
+      "<b>Δοκιμή Telegram — Appoint SaaS</b>\nΑν βλέπεις αυτό το μήνυμα, η αποστολή από την εφαρμογή λειτουργεί.",
+  })
 }
 
 export function formatAppointmentTelegramMessage(input: {
