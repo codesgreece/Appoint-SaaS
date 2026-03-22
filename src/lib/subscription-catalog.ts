@@ -12,9 +12,9 @@ export const PLAN_DISPLAY: Record<PurchasablePlan, { title: string; description:
 
 /** Τιμές σε € (συνολικό ποσό για την περίοδο) — συγχρονισμένο με δημόσια τιμολόγηση */
 export const PLAN_PRICES: Record<PurchasablePlan, Record<PurchaseDurationMonths, number>> = {
-  starter: { 1: 19.9, 3: 53.9, 6: 101.9, 12: 179.9 },
-  pro: { 1: 28.9, 3: 78.9, 6: 148.9, 12: 289.9 },
-  premium: { 1: 58.9, 3: 157.9, 6: 298.9, 12: 589.9 },
+  starter: { 1: 9.9, 3: 26.9, 6: 48.9, 12: 88.9 },
+  pro: { 1: 14.9, 3: 38.9, 6: 74.9, 12: 138.9 },
+  premium: { 1: 19.9, 3: 54.9, 6: 104.9, 12: 199.9 },
 }
 
 export const DURATION_LABELS: Record<PurchaseDurationMonths, string> = {
