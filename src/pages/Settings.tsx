@@ -95,6 +95,22 @@ export default function Settings() {
     })
   }, [businessId])
 
+  function parseEdgeFunctionError(err: unknown): string {
+    if (err instanceof Error && err.message) return err.message
+    if (err && typeof err === "object" && "context" in err) {
+      const ctx = (err as { context?: { body?: string } }).context
+      if (ctx?.body) {
+        try {
+          const j = JSON.parse(ctx.body) as { error?: string }
+          if (j?.error) return j.error
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return "Αποτυχία αποστολής δοκιμαστικού μηνύματος"
+  }
+
   async function handleTestTelegram() {
     if (!businessId) return
     try {
@@ -102,6 +118,10 @@ export default function Settings() {
       const { data, error } = await supabase.functions.invoke("send-telegram-notification", {
         body: {
           business_id: businessId,
+          use_form_values: true,
+          telegram_enabled: telegramEnabled,
+          telegram_chat_id: telegramChatId,
+          telegram_bot_token: telegramBotToken,
           message:
             "<b>Δοκιμή Telegram — Appoint SaaS</b>\nΑν βλέπεις αυτό το μήνυμα, η αποστολή από την εφαρμογή λειτουργεί.",
         },
@@ -126,7 +146,7 @@ export default function Settings() {
     } catch (e) {
       toast({
         title: "Σφάλμα δοκιμής",
-        description: e instanceof Error ? e.message : "Αποτυχία αποστολής δοκιμαστικού μηνύματος",
+        description: parseEdgeFunctionError(e),
         variant: "destructive",
       })
     } finally {
@@ -382,6 +402,11 @@ export default function Settings() {
                   </div>
                 ))}
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                Το δοκιμαστικό χρησιμοποιεί τις τιμές παραπάνω (ενεργό Telegram, Chat ID, token) — δεν χρειάζεται να πατήσεις
+                «Αποθήκευση» πριν.
+              </p>
 
               <div className="flex flex-wrap justify-end gap-2">
                 <Button type="button" variant="outline" onClick={handleTestTelegram} disabled={testingTelegram || savingNotifications}>
