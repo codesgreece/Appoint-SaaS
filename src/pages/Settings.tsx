@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { invokeTelegramTestMessage } from "@/lib/telegram"
+import { invokeTelegramTestMessage, parseFunctionsHttpError } from "@/lib/telegram"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import * as XLSX from "xlsx"
@@ -96,22 +96,6 @@ export default function Settings() {
     })
   }, [businessId])
 
-  function parseEdgeFunctionError(err: unknown): string {
-    if (err instanceof Error && err.message) return err.message
-    if (err && typeof err === "object" && "context" in err) {
-      const ctx = (err as { context?: { body?: string } }).context
-      if (ctx?.body) {
-        try {
-          const j = JSON.parse(ctx.body) as { error?: string }
-          if (j?.error) return j.error
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    return "Αποτυχία αποστολής δοκιμαστικού μηνύματος"
-  }
-
   async function handleTestTelegram() {
     if (!businessId) return
     try {
@@ -140,9 +124,10 @@ export default function Settings() {
         description: "Έλεγξε το Telegram για το δοκιμαστικό μήνυμα.",
       })
     } catch (e) {
+      const description = await parseFunctionsHttpError(e)
       toast({
         title: "Σφάλμα δοκιμής",
-        description: parseEdgeFunctionError(e),
+        description,
         variant: "destructive",
       })
     } finally {

@@ -1,25 +1,46 @@
 import { supabase } from "@/lib/supabase"
 
-/** Ρητό user JWT — το invoke() μερικές φορές δεν περνάει σωστά το session στο Functions gateway */
+/**
+ * Από απάντηση σφάλματος του supabase.functions.invoke — το FunctionsHttpError έχει
+ * `context` = Fetch Response (όχι JSON string στο .body).
+ */
+export async function parseFunctionsHttpError(err: unknown): Promise<string> {
+  if (!err || typeof err !== "object") return String(err)
+  const e = err as { name?: string; message?: string; context?: unknown }
+  if (e.context instanceof Response) {
+    try {
+      const res = e.context
+      const ct = res.headers.get("content-type") ?? ""
+      if (ct.includes("application/json")) {
+        const j = (await res.json()) as { error?: string; message?: string }
+        if (typeof j?.error === "string") return j.error
+        if (typeof j?.message === "string") return j.message
+      } else {
+        const t = await res.text()
+        if (t) return t.slice(0, 800)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (e.message && e.message !== "Edge Function returned a non-2xx status code") return e.message
+  return "Η κλήση Edge Function απέτυχε. Έλεγξε σύνδεση και ρυθμίσεις Supabase."
+}
+
+/** Φρέσκο session + invoke χωρίς χειροκίνητο Authorization (το SDK βάζει σωστά Bearer + apikey). */
 async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
+  const { error: refErr } = await supabase.auth.refreshSession()
+  if (refErr) console.warn("[invokeEdgeFunction] refreshSession:", refErr)
+
   const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
   if (sessionErr) {
     return { data: null, error: sessionErr as Error }
   }
-  let accessToken = sessionData.session?.access_token
-  if (!accessToken) {
-    const { data: refreshed } = await supabase.auth.refreshSession()
-    accessToken = refreshed.session?.access_token
-  }
-  if (!accessToken) {
+  if (!sessionData.session?.access_token) {
     return { data: null, error: new Error("Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά.") }
   }
-  return supabase.functions.invoke(name, {
-    body,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  }) as Promise<{ data: T | null; error: Error | null }>
+
+  return supabase.functions.invoke(name, { body }) as Promise<{ data: T | null; error: Error | null }>
 }
 
 /** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */
