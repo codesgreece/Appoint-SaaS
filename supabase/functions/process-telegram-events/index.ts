@@ -607,9 +607,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     const fallbackToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
       return json({ success: false, error: "Missing Supabase env" }, 500)
     }
 
@@ -625,7 +626,10 @@ Deno.serve(async (req) => {
       if (bearer === cronSecret) {
         runDigestsAndLimits = true
       } else if (authHeader && bearer) {
-        const { data: authData, error: authErr } = await supabase.auth.getUser(bearer)
+        const supabaseAuth = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        })
+        const { data: authData, error: authErr } = await supabaseAuth.auth.getUser()
         if (authErr || !authData?.user) {
           return json({ success: false, error: authErr?.message ?? "Unauthorized" }, 401)
         }

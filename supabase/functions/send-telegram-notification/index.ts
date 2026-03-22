@@ -67,18 +67,18 @@ Deno.serve(async (req) => {
     if (!authHeader) return json({ success: false, error: "Missing Authorization" }, 401)
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     const fallbackToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
-    if (!supabaseUrl || !serviceRoleKey) {
-      return json({ success: false, error: "Missing supabase env (URL or SERVICE_ROLE)" }, 500)
+    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+      return json({ success: false, error: "Missing supabase env (URL, ANON_KEY, or SERVICE_ROLE)" }, 500)
     }
 
-    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim()
-    if (!jwt) return json({ success: false, error: "Missing Authorization" }, 401)
-
-    // Επαλήθευση access token: επίσημο API `getUser(jwt)` με service role (όχι anon+headers — ασταθές σε Edge).
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
-    const { data: authData, error: authError } = await supabase.auth.getUser(jwt)
+    // Υποχρεωτικά `Bearer <access_token>` — επαλήθευση με anon client + ίδιο header (όχι getUser(jwt) με service role → «invalid JWT»).
+    const supabaseAuth = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: authData, error: authError } = await supabaseAuth.auth.getUser()
     if (authError || !authData?.user) {
       return json(
         {
@@ -89,6 +89,8 @@ Deno.serve(async (req) => {
       )
     }
     const callerId = authData.user.id
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     let body: Record<string, unknown>
     try {
