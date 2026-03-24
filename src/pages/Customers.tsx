@@ -10,6 +10,8 @@ import {
   fetchAppointments,
   fetchBusiness,
   deleteAppointment,
+  fetchCustomerById,
+  notifyInAppQuiet,
 } from "@/services/api"
 import type { Customer } from "@/types"
 import { useToast } from "@/hooks/use-toast"
@@ -49,7 +51,7 @@ import {
 export default function Customers() {
   const { businessId, user } = useAuth()
   const { toast } = useToast()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
@@ -73,6 +75,41 @@ export default function Customers() {
     if (q && q !== search) setSearch(q)
   }, [searchParams])
 
+  const openFromNotification = searchParams.get("open")
+
+  useEffect(() => {
+    if (!openFromNotification || !businessId) return
+    let cancelled = false
+    ;(async () => {
+      const c = await fetchCustomerById(openFromNotification)
+      if (cancelled) return
+      if (!c) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete("open")
+            return next
+          },
+          { replace: true },
+        )
+        return
+      }
+      setEditing(c)
+      setDialogOpen(true)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete("open")
+          return next
+        },
+        { replace: true },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [openFromNotification, businessId, setSearchParams])
+
   const filtered = customers.filter(
     (c) =>
       c.first_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -87,6 +124,11 @@ export default function Customers() {
       if (editing) {
         await updateCustomer(editing.id, payload)
         setCustomers((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...payload } : c)))
+        const label = `${payload.first_name ?? editing.first_name} ${payload.last_name ?? editing.last_name}`.trim()
+        await notifyInAppQuiet(businessId, `Ενημέρωση στοιχείων πελάτη: ${label}`, {
+          notificationType: "customer_updated",
+          relatedCustomerId: editing.id,
+        })
         toast({ title: "Ενημερώθηκε", description: "Ο πελάτης ενημερώθηκε." })
       } else {
         const biz = await fetchBusiness(businessId)
@@ -100,6 +142,15 @@ export default function Customers() {
         }
         const created = await createCustomer({ ...payload, business_id: businessId })
         setCustomers((prev) => [created, ...prev])
+        await notifyInAppQuiet(
+          businessId,
+          `Νέος πελάτης (λίστα): ${created.first_name} ${created.last_name}`.trim(),
+          {
+            notificationType: "customer_created",
+            relatedCustomerId: created.id,
+            metadata: { source: "customers_page" },
+          },
+        )
         toast({ title: "Προστέθηκε", description: "Νέος πελάτης προστέθηκε." })
       }
       setDialogOpen(false)

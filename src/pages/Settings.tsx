@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchBusiness, fetchCustomers, resetDemoBusiness } from "@/services/api"
+import { fetchBusiness, fetchCustomers, resetDemoBusiness, notifyInAppQuiet } from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "@/components/theme-provider"
@@ -117,6 +117,11 @@ export default function Settings() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Customers")
       const today = new Date().toISOString().slice(0, 10)
       XLSX.writeFile(workbook, `customers-export-${today}.xlsx`)
+      await notifyInAppQuiet(
+        businessId,
+        `Εξαγωγή Excel ολοκληρώθηκε: ${customers.length} πελάτες (${today}).`,
+        { notificationType: "data_export", metadata: { format: "xlsx_customers", row_count: customers.length } },
+      )
       toast({ title: "Ολοκληρώθηκε", description: "Το Excel αρχείο πελατών δημιουργήθηκε επιτυχώς." })
     } catch (e) {
       toast({

@@ -25,6 +25,12 @@ export interface InAppNotification {
   message: string
   created_at: string
   is_read: boolean
+  notification_type?: string
+  related_appointment_id?: string | null
+  related_customer_id?: string | null
+  related_payment_id?: string | null
+  related_support_request_id?: string | null
+  metadata?: Record<string, unknown>
 }
 
 export interface Business {

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { formatCurrency } from "@/lib/utils"
 import type {
   Customer,
   AppointmentJob,
@@ -10,6 +11,17 @@ import type {
   StaffProfile,
   InAppNotification,
 } from "@/types"
+
+const OUTSTANDING_NOTIFY_THRESHOLD_EUR = 150
+
+export type CreateInAppNotificationOptions = {
+  notificationType?: string
+  relatedAppointmentId?: string
+  relatedCustomerId?: string
+  relatedPaymentId?: string
+  relatedSupportRequestId?: string
+  metadata?: Record<string, unknown>
+}
 
 export async function fetchDashboardStats(_businessId: string) {
   const today = new Date().toISOString().slice(0, 10)
@@ -250,9 +262,109 @@ export async function createAppointment(payload: Partial<AppointmentJob>) {
   return data as AppointmentJob
 }
 
-export async function createInAppNotification(businessId: string, message: string): Promise<void> {
-  const { error } = await supabase.from("notifications").insert({ business_id: businessId, message })
+export async function createInAppNotification(
+  businessId: string,
+  message: string,
+  options?: CreateInAppNotificationOptions,
+): Promise<void> {
+  const { error } = await supabase.from("notifications").insert({
+    business_id: businessId,
+    message,
+    notification_type: options?.notificationType ?? "general",
+    related_appointment_id: options?.relatedAppointmentId ?? null,
+    related_customer_id: options?.relatedCustomerId ?? null,
+    related_payment_id: options?.relatedPaymentId ?? null,
+    related_support_request_id: options?.relatedSupportRequestId ?? null,
+    metadata: options?.metadata ?? {},
+  })
   if (error) throw error
+}
+
+/** Fire-and-forget; never throws. Use so UI flows do not block on notification failures. */
+export async function notifyInAppQuiet(
+  businessId: string,
+  message: string,
+  options?: CreateInAppNotificationOptions,
+): Promise<void> {
+  try {
+    await createInAppNotification(businessId, message, options)
+  } catch (e) {
+    console.warn("notifyInAppQuiet:", e)
+  }
+}
+
+/** Compares payment rows before/after save and emits in-app alerts (paid, new row, high outstanding). */
+export function notifyPaymentRecordChange(
+  businessId: string,
+  previous: Payment | null,
+  next: Payment,
+): void {
+  void (async () => {
+    try {
+      const aptId = next.appointment_job_id
+      const amt = Number(next.amount ?? 0)
+      const paid = Number(next.paid_amount ?? 0)
+      const remaining = Number(next.remaining_balance ?? 0)
+      const prevPaid = previous ? Number(previous.paid_amount ?? 0) : 0
+      const prevStatus = previous?.payment_status ?? null
+      const prevRem = previous ? Number(previous.remaining_balance ?? 0) : 0
+
+      const base: CreateInAppNotificationOptions = {
+        notificationType: "payment",
+        relatedPaymentId: next.id,
+        relatedAppointmentId: aptId,
+      }
+
+      if (!previous) {
+        const msg =
+          next.payment_status === "paid"
+            ? `Νέα πληρωμή ολοκληρώθηκε: ${formatCurrency(paid)}`
+            : `Νέα καταχώριση πληρωμής: ${formatCurrency(amt)} · κατάσταση ${next.payment_status}`
+        await createInAppNotification(businessId, msg, base)
+        return
+      }
+
+      if (prevStatus !== "paid" && next.payment_status === "paid") {
+        await createInAppNotification(
+          businessId,
+          `Ολοκληρώθηκε πληρωμή: ${formatCurrency(paid)} από ${formatCurrency(amt)}`,
+          base,
+        )
+      } else if (paid > prevPaid + 0.009) {
+        await createInAppNotification(
+          businessId,
+          `Ενημέρωση πληρωμής: καταβλήθηκαν ${formatCurrency(paid - prevPaid)} (σύνολο: ${formatCurrency(paid)})`,
+          base,
+        )
+      }
+
+      if (
+        next.payment_status !== "paid" &&
+        remaining >= OUTSTANDING_NOTIFY_THRESHOLD_EUR &&
+        prevRem < OUTSTANDING_NOTIFY_THRESHOLD_EUR
+      ) {
+        await createInAppNotification(
+          businessId,
+          `Εκκρεμές υπόλοιπο πάνω από ${OUTSTANDING_NOTIFY_THRESHOLD_EUR}€: ${formatCurrency(remaining)}`,
+          { ...base, notificationType: "payment_outstanding" },
+        )
+      }
+    } catch (e) {
+      console.warn("notifyPaymentRecordChange:", e)
+    }
+  })()
+}
+
+export async function fetchPaymentById(id: string): Promise<Payment | null> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select(
+      "*, appointment_job:appointments_jobs(id, title, scheduled_date, customer_id, customer:customers(first_name, last_name))",
+    )
+    .eq("id", id)
+    .maybeSingle()
+  if (error || !data) return null
+  return data as Payment
 }
 
 export async function fetchNotifications(businessId: string, limit = 40): Promise<InAppNotification[]> {
@@ -538,6 +650,8 @@ export async function upsertPaymentForAppointment(payload: {
   payment_method?: string | null
   notes?: string | null
   deposit?: number | null
+  /** Pass previous row so notifications can compare (omit on first insert if unknown). */
+  previousPayment?: Payment | null
 }): Promise<Payment> {
   const insertOrUpdatePayload = {
     business_id: payload.business_id,
@@ -564,7 +678,9 @@ export async function upsertPaymentForAppointment(payload: {
       console.error("Supabase updatePaymentForAppointment error:", error)
       throw error
     }
-    return data as Payment
+    const row = data as Payment
+    notifyPaymentRecordChange(payload.business_id, payload.previousPayment ?? null, row)
+    return row
   }
   console.debug("Supabase insertPaymentForAppointment payload:", insertOrUpdatePayload)
   const { data, error } = await supabase
@@ -576,7 +692,9 @@ export async function upsertPaymentForAppointment(payload: {
     console.error("Supabase insertPaymentForAppointment error:", error)
     throw error
   }
-  return data as Payment
+  const row = data as Payment
+  notifyPaymentRecordChange(payload.business_id, payload.previousPayment ?? null, row)
+  return row
 }
 
 export async function updatePayment(id: string, payload: Partial<Payment>): Promise<Payment> {

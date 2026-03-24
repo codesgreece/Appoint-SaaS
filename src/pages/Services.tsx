@@ -4,7 +4,7 @@ import { Plus, Search, Briefcase, MoreHorizontal } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import type { Service } from "@/types"
-import { fetchServices, createService, updateService, deleteService } from "@/services/api"
+import { fetchServices, createService, updateService, deleteService, notifyInAppQuiet } from "@/services/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -76,7 +76,7 @@ function formatServicePrice(service: Service): string {
 export default function Services() {
   const { businessId } = useAuth()
   const { toast } = useToast()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<Service[]>([])
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
@@ -99,6 +99,41 @@ export default function Services() {
     const q = searchParams.get("q") ?? ""
     if (q && q !== search) setSearch(q)
   }, [searchParams])
+
+  const openServiceId = searchParams.get("open")
+
+  useEffect(() => {
+    if (!openServiceId || !businessId) return
+    let cancelled = false
+    ;(async () => {
+      const data = await fetchServices(businessId)
+      if (cancelled) return
+      const s = data.find((x) => x.id === openServiceId)
+      if (!s) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete("open")
+            return next
+          },
+          { replace: true },
+        )
+        return
+      }
+      openEdit(s)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete("open")
+          return next
+        },
+        { replace: true },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [openServiceId, businessId, setSearchParams])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -167,9 +202,31 @@ export default function Services() {
       }
       if (editing) {
         await updateService(editing.id, payload)
+        const oldP = editing.price != null ? Number(editing.price) : null
+        const oldH = editing.hourly_rate != null ? Number(editing.hourly_rate) : null
+        const newP = computedPrice != null ? Number(computedPrice) : null
+        const newH = form.billing_type === "hourly" && hourlyRate != null ? Number(hourlyRate) : null
+        const billingChanged = editing.billing_type !== form.billing_type
+        const priceChanged =
+          billingChanged ||
+          (oldP != null && newP != null && Math.abs(oldP - newP) > 0.009) ||
+          (oldH != null && newH != null && Math.abs(oldH - newH) > 0.009)
+        if (priceChanged) {
+          const preview = { ...editing, ...payload } as Service
+          await notifyInAppQuiet(
+            businessId,
+            `Αλλαγή τιμολόγησης «${editing.name}»: ${formatServicePrice(editing)} → ${formatServicePrice(preview)}`,
+            { notificationType: "service_price", metadata: { related_service_id: editing.id } },
+          )
+        }
         toast({ title: "Αποθηκεύτηκε", description: "Η υπηρεσία ενημερώθηκε." })
       } else {
-        await createService(payload)
+        const created = await createService(payload)
+        await notifyInAppQuiet(
+          businessId,
+          `Νέα υπηρεσία: «${created.name}» (${formatServicePrice(created)})`,
+          { notificationType: "service_created", metadata: { related_service_id: created.id } },
+        )
         toast({ title: "Προστέθηκε", description: "Η υπηρεσία δημιουργήθηκε." })
       }
       setDialogOpen(false)
@@ -186,6 +243,13 @@ export default function Services() {
   async function handleDelete(s: Service) {
     if (!confirm(`Διαγραφή υπηρεσίας "${s.name}";`)) return
     try {
+      if (businessId) {
+        await notifyInAppQuiet(
+          businessId,
+          `Η υπηρεσία «${s.name}» αφαιρέθηκε από τον κατάλογο (δεν εμφανίζεται πλέον στις επιλογές).`,
+          { notificationType: "service_removed", metadata: { related_service_id: s.id } },
+        )
+      }
       await deleteService(s.id)
       toast({ title: "Διαγράφηκε", description: "Η υπηρεσία διαγράφηκε." })
       setRows((prev) => prev.filter((x) => x.id !== s.id))

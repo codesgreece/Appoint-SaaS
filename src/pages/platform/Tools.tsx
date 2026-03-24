@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { SupportRequest, SupportRequestMessage } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
+import { createInAppNotification } from "@/services/api"
 
 interface BusinessLite {
   id: string
@@ -129,6 +130,15 @@ export default function PlatformTools() {
       if (msgError) throw msgError
 
       setMessagesByRequestId((prev) => ({ ...prev, [id]: (msgData ?? []) as SupportRequestMessage[] }))
+
+      try {
+        await createInAppNotification(req.business_id, "Νέα απάντηση από την υποστήριξη πλατφόρμας στο αίτημά σας.", {
+          notificationType: "support_reply",
+          relatedSupportRequestId: id,
+        })
+      } catch (e) {
+        console.warn("Tools: tenant notification insert failed:", e)
+      }
     } finally {
       setChatSendingId((prev) => (prev === id ? null : prev))
     }

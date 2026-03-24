@@ -3,7 +3,16 @@ import { useSearchParams } from "react-router-dom"
 import { Plus, Search, Calendar, Filter } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchAppointments, fetchCustomers, fetchTeam, fetchServices, updateAppointment, deleteAppointment } from "@/services/api"
+import {
+  fetchAppointments,
+  fetchAppointmentById,
+  fetchCustomers,
+  fetchTeam,
+  fetchServices,
+  updateAppointment,
+  deleteAppointment,
+  notifyInAppQuiet,
+} from "@/services/api"
 import { supabase } from "@/lib/supabase"
 import type { AppointmentJob, AppointmentJobStatus } from "@/types"
 import { useToast } from "@/hooks/use-toast"
@@ -69,7 +78,7 @@ type AppointmentRow = AppointmentJob & {
 export default function Appointments() {
   const { businessId, user } = useAuth()
   const { toast } = useToast()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [appointments, setAppointments] = useState<AppointmentRow[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [team, setTeam] = useState<User[]>([])
@@ -136,6 +145,42 @@ export default function Appointments() {
     if (q && q !== search) setSearch(q)
   }, [searchParams])
 
+  const openFromNotification = searchParams.get("open")
+
+  /** Άνοιγμα ραντεβού από ειδοποίηση (?open=uuid) */
+  useEffect(() => {
+    if (!openFromNotification || !businessId) return
+    let cancelled = false
+    ;(async () => {
+      const apt = await fetchAppointmentById(openFromNotification)
+      if (cancelled) return
+      if (!apt) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete("open")
+            return next
+          },
+          { replace: true },
+        )
+        return
+      }
+      setEditing(apt as AppointmentRow)
+      setDialogOpen(true)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete("open")
+          return next
+        },
+        { replace: true },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [openFromNotification, businessId, setSearchParams])
+
   const filtered = appointments.filter((a) => {
     const matchSearch =
       !search ||
@@ -174,8 +219,28 @@ export default function Appointments() {
   async function quickUpdateStatus(a: AppointmentRow, next: AppointmentJobStatus) {
     try {
       if (!businessId) return
+      const prevStatus = a.status
       await updateAppointment(a.id, { status: next })
-      setAppointments((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: next } : x)))
+      setAppointments((list) => list.map((x) => (x.id === a.id ? { ...x, status: next } : x)))
+
+      const cust = a.customer
+        ? `${(a.customer as Customer).first_name ?? ""} ${(a.customer as Customer).last_name ?? ""}`.trim()
+        : "Πελάτης"
+      const dateLabel = formatDate(a.scheduled_date)
+      const timeLabel = (a.start_time ?? "").slice(0, 5)
+      if (next === "cancelled" && prevStatus !== "cancelled") {
+        void notifyInAppQuiet(
+          businessId,
+          `Ακύρωση ραντεβού: ${cust} — ${dateLabel} ${timeLabel}`,
+          { notificationType: "appointment_cancelled", relatedAppointmentId: a.id },
+        )
+      } else if (next === "no_show" && prevStatus !== "no_show") {
+        void notifyInAppQuiet(
+          businessId,
+          `No-show: ${cust} — ${dateLabel} ${timeLabel}`,
+          { notificationType: "appointment_no_show", relatedAppointmentId: a.id },
+        )
+      }
 
       toast({ title: "Ενημερώθηκε", description: "Η κατάσταση ενημερώθηκε." })
     } catch (e) {

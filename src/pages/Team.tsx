@@ -12,6 +12,7 @@ import {
   fetchStaffProfileForUser,
   upsertStaffProfile,
   fetchBusiness,
+  notifyInAppQuiet,
 } from "@/services/api"
 import type { AppointmentJob, StaffProfile, User } from "@/types"
 import { useToast } from "@/hooks/use-toast"
@@ -214,6 +215,11 @@ export default function Team() {
       setDialogOpen(false)
       const refreshed = await fetchTeam(businessId!)
       setTeam(refreshed)
+      await notifyInAppQuiet(
+        businessId,
+        `Νέο μέλος ομάδας: ${formName.trim()} (${ROLE_LABELS[formRole] ?? formRole}) · σύνδεση ${usernameTrimmed}`,
+        { notificationType: "team_invite", metadata: { username: usernameTrimmed, role: formRole } },
+      )
       toast({
         title: "Προστέθηκε στη team",
         description: temporary_password

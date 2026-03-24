@@ -246,6 +246,27 @@ export function AppointmentForm({
   const selectedService = selectedServices[0] ?? null
 
   const lastAutoRef = useRef<{ serviceId: string | null; endTime: string | null }>({ serviceId: null, endTime: null })
+  const editBaselineRef = useRef<{
+    scheduled_date: string
+    start_time: string
+    end_time: string
+    status: AppointmentJobStatus
+    recurrence_rule: string | null
+  } | null>(null)
+
+  useEffect(() => {
+    if (!initial?.id) {
+      editBaselineRef.current = null
+      return
+    }
+    editBaselineRef.current = {
+      scheduled_date: toDateInputValue(initial.scheduled_date),
+      start_time: toTimeInputValue(initial.start_time),
+      end_time: toTimeInputValue(initial.end_time),
+      status: (initial.status as AppointmentJobStatus) ?? "pending",
+      recurrence_rule: initial.recurrence_rule ?? null,
+    }
+  }, [initial?.id, initial?.scheduled_date, initial?.start_time, initial?.end_time, initial?.status, initial?.recurrence_rule])
   const initialDurationMinutes = Math.max(0, timeToMinutes(toTimeInputValue(defaultValues.end_time)) - timeToMinutes(toTimeInputValue(defaultValues.start_time)))
   const [completionDurationInput, setCompletionDurationInput] = useState(() =>
     initialDurationMinutes > 0 ? String(initialDurationMinutes) : selectedService?.duration_minutes != null ? String(selectedService.duration_minutes) : "",
@@ -390,7 +411,8 @@ export function AppointmentForm({
         throw new Error("Λείπει το αναγνωριστικό επιχείρησης. Κάντε επαναφόρτωση και δοκιμάστε ξανά.")
       }
 
-      const { fetchAppointments, fetchStaffProfileForUser, fetchBusiness, countAppointmentsForBusiness } = await import("@/services/api")
+      const { fetchAppointments, fetchStaffProfileForUser, fetchBusiness, countAppointmentsForBusiness, notifyInAppQuiet } =
+        await import("@/services/api")
 
       // Έλεγχος ορίων πλάνου για συνολικά ραντεβού (max_appointments).
       const biz = await fetchBusiness(businessId)
@@ -427,6 +449,11 @@ export function AppointmentForm({
       })
 
       if (hasOverlap) {
+        void notifyInAppQuiet(
+          businessId,
+          `Αποφεύχθηκε διπλοκράτηση: η ώρα ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) συγκρούεται με άλλο ραντεβού.`,
+          { notificationType: "appointment_overlap_blocked", metadata: { source: "panel" } },
+        )
         toast({
           title: "Μη διαθέσιμη ώρα",
           description: "Υπάρχει ήδη ραντεβού σε αυτό το διάστημα. Διάλεξε άλλη ώρα ή υπεύθυνο.",
@@ -494,16 +521,90 @@ export function AppointmentForm({
         completion_notes: data.completion_notes || null,
         recurrence_rule: data.recurrence_rule || null,
       }
-      const { createAppointment, updateAppointment, replaceAppointmentServiceIds, createInAppNotification } =
-        await import("@/services/api")
+      const { createAppointment, updateAppointment, replaceAppointmentServiceIds } = await import("@/services/api")
       if (initial?.id) {
         await updateAppointment(initial.id, payload)
         await replaceAppointmentServiceIds(initial.id, businessId, selectedServiceIds)
+        const b = editBaselineRef.current
+        if (b && businessId) {
+          const customer = customerOptions.find((c) => c.id === data.customer_id)
+          const customerLabel = customer
+            ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "Πελάτης"
+            : "Πελάτης"
+          const dateLabel = formatDate(data.scheduled_date)
+          const timeLabel = (data.start_time ?? "").slice(0, 5)
+          const svcLabels = selectedServiceIds
+            .map((sid) => safeServices.find((s) => s.id === sid)?.name)
+            .filter(Boolean) as string[]
+          const svcPart = svcLabels.length ? ` · ${svcLabels.join(", ")}` : ""
+          const dateTimeChanged =
+            b.scheduled_date !== data.scheduled_date ||
+            b.start_time !== data.start_time ||
+            b.end_time !== data.end_time
+          if (dateTimeChanged) {
+            await notifyInAppQuiet(
+              businessId,
+              `Αλλαγή ώρας/ημερομηνίας: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Πίνακας`,
+              {
+                notificationType: "appointment_rescheduled",
+                relatedAppointmentId: initial.id,
+                metadata: { source: "panel" },
+              },
+            )
+          }
+          if (b.status !== data.status) {
+            if (data.status === "cancelled") {
+              await notifyInAppQuiet(
+                businessId,
+                `Ακύρωση ραντεβού: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                { notificationType: "appointment_cancelled", relatedAppointmentId: initial.id },
+              )
+            } else if (data.status === "no_show") {
+              await notifyInAppQuiet(
+                businessId,
+                `No-show (δεν εμφανίστηκε): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                { notificationType: "appointment_no_show", relatedAppointmentId: initial.id },
+              )
+            }
+          }
+          const newRec = (data.recurrence_rule || "").trim()
+          const oldRec = (b.recurrence_rule ?? "").trim()
+          if (newRec && newRec !== oldRec) {
+            await notifyInAppQuiet(
+              businessId,
+              `Επαναλαμβανόμενο ραντεβού (κανόνας): ${customerLabel} — «${newRec}»`,
+              { notificationType: "appointment_recurrence", relatedAppointmentId: initial.id },
+            )
+          }
+        }
       } else {
         const created = await createAppointment(payload)
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
         try {
-          await createInAppNotification(businessId, "New appointment created")
+          const customer = customerOptions.find((c) => c.id === data.customer_id)
+          const customerLabel = customer
+            ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "Πελάτης"
+            : "Πελάτης"
+          const dateLabel = formatDate(data.scheduled_date)
+          const timeLabel = (data.start_time ?? "").slice(0, 5)
+          const svcLabels = selectedServiceIds
+            .map((sid) => safeServices.find((s) => s.id === sid)?.name)
+            .filter(Boolean) as string[]
+          const svcPart = svcLabels.length ? ` · ${svcLabels.join(", ")}` : ""
+          const msg = `Νέο ραντεβού (πίνακας): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`
+          await notifyInAppQuiet(businessId, msg, {
+            notificationType: "appointment_created",
+            relatedAppointmentId: created.id,
+            metadata: { source: "panel" },
+          })
+          const rec = (data.recurrence_rule || "").trim()
+          if (rec) {
+            await notifyInAppQuiet(
+              businessId,
+              `Ορίστηκε επανάληψη για τις επόμενες περιόδους: ${customerLabel} — «${rec}»`,
+              { notificationType: "appointment_recurrence", relatedAppointmentId: created.id },
+            )
+          }
         } catch {
           // Non-blocking
         }
@@ -544,6 +645,7 @@ export function AppointmentForm({
         payment_method: paymentMethodInput || null,
         notes: paymentNotesInput || null,
         deposit: null,
+        previousPayment: payment ?? null,
       } as const
 
       console.debug("Saving appointment payment with payload:", payload)
@@ -1032,6 +1134,16 @@ export function AppointmentForm({
                     const created = (await createCustomer(payload)) as Customer
                     setCustomerOptions((prev) => [created, ...prev])
                     setValue("customer_id", created.id)
+                    const { notifyInAppQuiet } = await import("@/services/api")
+                    await notifyInAppQuiet(
+                      businessId,
+                      `Νέος πελάτης από φόρμα ραντεβού: ${created.first_name} ${created.last_name}`.trim(),
+                      {
+                        notificationType: "customer_created",
+                        relatedCustomerId: created.id,
+                        metadata: { source: "appointment_form" },
+                      },
+                    )
                     toast({
                       title: "Πελάτης δημιουργήθηκε",
                       description: "Ο νέος πελάτης προστέθηκε και επιλέχθηκε στο ραντεβού.",

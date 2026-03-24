@@ -189,9 +189,18 @@ Deno.serve(async (req) => {
       }))
       await supabase.from("appointment_job_services").insert(junction)
 
+      const svcNames = selected.map((s) => s.name).join(", ")
+      const timeShort = startTime.length >= 5 ? startTime.slice(0, 5) : startTime
+      const notifMessage =
+        `Νέα online κράτηση: ${customerFirstName} ${customerLastName} — ${date} ${timeShort}` +
+        (svcNames ? ` · ${svcNames}` : "")
+
       const { error: notifErr } = await supabase.from("notifications").insert({
         business_id: businessId,
-        message: "New appointment created",
+        message: notifMessage,
+        notification_type: "appointment_online_booking",
+        related_appointment_id: appointmentId,
+        metadata: { source: "online_booking" },
       })
       if (notifErr) {
         console.error("public-booking: notification insert failed:", notifErr.message)

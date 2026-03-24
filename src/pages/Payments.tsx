@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { CreditCard, Euro, Pencil, PlusCircle, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchPayments, updatePayment } from "@/services/api"
+import { fetchPayments, updatePayment, fetchPaymentById, notifyPaymentRecordChange } from "@/services/api"
+import type { Payment, PaymentStatus } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -44,6 +46,7 @@ type PaymentRow = {
 export default function Payments() {
   const { businessId } = useAuth()
   const { toast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -81,8 +84,69 @@ export default function Payments() {
     setDialogOpen(true)
   }
 
+  const paymentFromQuery = searchParams.get("payment")
+
+  useEffect(() => {
+    if (!paymentFromQuery || !businessId) return
+    let cancelled = false
+    ;(async () => {
+      const found = payments.find((p) => p.id === paymentFromQuery)
+      if (found) {
+        if (!cancelled) {
+          openDialog("edit", found)
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev)
+              next.delete("payment")
+              return next
+            },
+            { replace: true },
+          )
+        }
+        return
+      }
+      if (loading) return
+      const p = await fetchPaymentById(paymentFromQuery)
+      if (cancelled) return
+      if (!p) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            next.delete("payment")
+            return next
+          },
+          { replace: true },
+        )
+        return
+      }
+      const aj = (p as Payment & { appointment_job?: PaymentRow["appointment_job"] }).appointment_job
+      const row: PaymentRow = {
+        id: p.id,
+        amount: p.amount,
+        payment_method: p.payment_method,
+        payment_status: p.payment_status,
+        paid_amount: p.paid_amount,
+        remaining_balance: p.remaining_balance,
+        created_at: p.created_at,
+        appointment_job: aj,
+      }
+      openDialog("edit", row)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete("payment")
+          return next
+        },
+        { replace: true },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [paymentFromQuery, businessId, payments, loading, setSearchParams])
+
   async function handleSave() {
-    if (!activePayment || !dialogMode) return
+    if (!activePayment || !dialogMode || !businessId) return
     try {
       const baseAmount = Number(activePayment.amount ?? 0)
       const currentPaid = Number(activePayment.paid_amount ?? 0)
@@ -115,6 +179,20 @@ export default function Payments() {
       const remaining = Math.max(0, newAmount - newPaid)
 
       setSaving(true)
+      const prevPayment: Payment = {
+        id: activePayment.id,
+        business_id: businessId,
+        appointment_job_id: activePayment.appointment_job?.id ?? "",
+        amount: baseAmount,
+        payment_method: activePayment.payment_method,
+        payment_status: activePayment.payment_status as PaymentStatus,
+        deposit: null,
+        paid_amount: activePayment.paid_amount,
+        remaining_balance: activePayment.remaining_balance,
+        notes: null,
+        created_at: activePayment.created_at,
+        updated_at: activePayment.created_at,
+      }
       const updated = await updatePayment(activePayment.id, {
         amount: newAmount,
         paid_amount: newPaid,
@@ -123,6 +201,7 @@ export default function Payments() {
         payment_method: methodInput || null,
         notes: notesInput || null,
       })
+      notifyPaymentRecordChange(businessId, prevPayment, updated)
       setPayments((prev) => prev.map((p) => (p.id === updated.id ? { ...(p as PaymentRow), ...updated } : p)))
       toast({ title: "Πληρωμή ενημερώθηκε", description: "Οι αλλαγές αποθηκεύτηκαν." })
       setDialogOpen(false)

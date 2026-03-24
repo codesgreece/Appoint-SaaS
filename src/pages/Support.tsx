@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Lightbulb, Bug, Send, History, HelpCircle, FileText, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChangelogCard } from "@/components/ChangelogCard"
+import { notifyInAppQuiet } from "@/services/api"
 import FAQ from "@/pages/FAQ"
 import Terms from "@/pages/Terms"
 import PrivacyPolicy from "@/pages/PrivacyPolicy"
@@ -19,6 +21,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy"
 export default function Support() {
   const { businessId, user, businessName } = useAuth()
   const { toast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [suggestionText, setSuggestionText] = useState("")
   const [issueText, setIssueText] = useState("")
   const [sending, setSending] = useState<"suggestion" | "issue" | null>(null)
@@ -75,6 +78,25 @@ export default function Support() {
       active = false
     }
   }, [businessId])
+
+  const ticketFromQuery = searchParams.get("ticket")
+
+  useEffect(() => {
+    if (!ticketFromQuery || loading) return
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(`support-req-${ticketFromQuery}`)
+      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete("ticket")
+          return next
+        },
+        { replace: true },
+      )
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [ticketFromQuery, loading, rows, setSearchParams])
 
   const openCount = useMemo(() => rows.filter((r) => r.status === "open").length, [rows])
 
@@ -135,8 +157,17 @@ export default function Support() {
         created_by_name: user.full_name ?? null,
         created_by_username: user.username ?? null,
       }
-      const { error } = await supabase.from("support_requests").insert(payload)
+      const { data: inserted, error } = await supabase.from("support_requests").insert(payload).select("id").single()
       if (error) throw error
+      if (inserted?.id) {
+        await notifyInAppQuiet(
+          businessId,
+          type === "suggestion"
+            ? "Νέο αίτημα υποστήριξης (πρόταση)"
+            : "Νέο αίτημα υποστήριξης (πρόβλημα)",
+          { notificationType: "support_request", relatedSupportRequestId: inserted.id as string },
+        )
+      }
       type === "suggestion" ? setSuggestionText("") : setIssueText("")
       toast({ title: "Εστάλη", description: type === "suggestion" ? "Η πρόταση καταχωρήθηκε." : "Το πρόβλημα καταχωρήθηκε." })
       await refresh()
@@ -336,6 +367,7 @@ export default function Support() {
                   {rows.map((r) => (
                     <div
                       key={r.id}
+                      id={`support-req-${r.id}`}
                       className="rounded-xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs flex items-start justify-between gap-3"
                     >
                       <div className="space-y-1 flex-1 min-w-0">
