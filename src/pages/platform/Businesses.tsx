@@ -122,6 +122,12 @@ const PLAN_LABEL: Record<PlanKey, string> = {
   premium_plus: "Premium+ (custom)",
 }
 
+function formatPlanLabel(plan: string | null): string {
+  if (!plan) return "—"
+  const k = plan as PlanKey
+  return PLAN_LABEL[k] ?? plan
+}
+
 function getExpiryStatus(b: BusinessRow): { label: string; className: string } {
   if (b.subscription_plan === "unsubscribed") {
     return { label: "Χωρίς συνδρομή", className: "bg-slate-100 text-slate-700 border-slate-200" }
@@ -663,55 +669,103 @@ export default function PlatformBusinesses() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Επιχειρήσεις</h1>
-          <p className="text-muted-foreground">Διαχείριση tenants της πλατφόρμας</p>
+    <div className="space-y-8">
+      <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-primary/[0.06] via-background to-muted/25 p-6 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.15)] ring-1 ring-border/40 sm:p-8">
+        <div
+          className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-primary/[0.07] blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 left-1/2 h-px w-[min(100%,28rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-primary/20 to-transparent"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary shadow-sm backdrop-blur-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+              Platform
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Επιχειρήσεις</h1>
+            <p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Διαχείριση tenants — πλάνα, λήξεις και όρια σε μια ενιαία, καθαρή εικόνα.
+            </p>
+          </div>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="h-11 shrink-0 rounded-xl px-6 shadow-lg shadow-primary/25 transition hover:shadow-xl hover:shadow-primary/20"
+          >
+            Νέα επιχείρηση
+          </Button>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>Νέα επιχείρηση</Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Λίστα επιχειρήσεων</CardTitle>
+      <Card className="overflow-hidden border-border/50 bg-card/90 shadow-[0_24px_48px_-16px_rgba(15,23,42,0.14)] ring-1 ring-border/30 backdrop-blur-sm">
+        <CardHeader className="border-b border-border/40 bg-muted/15 px-6 py-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold">Λίστα επιχειρήσεων</CardTitle>
+                <CardDescription>
+                  {loading ? "Φόρτωση…" : `${businesses.length} ${businesses.length === 1 ? "επιχείρηση" : "επιχειρήσεις"}`}
+                </CardDescription>
+              </div>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <Skeleton className="h-64 w-full" />
+            <div className="px-6 py-8">
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
           ) : businesses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-              <Building2 className="h-12 w-12 mb-4 opacity-50" />
-              <p className="font-medium text-foreground/80">Δεν υπάρχουν επιχειρήσεις</p>
-              <p className="text-sm">Δημιούργησε την πρώτη επιχείρηση για να ξεκινήσεις.</p>
-              <Button variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
+            <div className="flex flex-col items-center justify-center px-6 py-16 text-center text-muted-foreground">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50 ring-1 ring-border/50">
+                <Building2 className="h-8 w-8 opacity-30" />
+              </div>
+              <p className="font-medium text-foreground/90">Δεν υπάρχουν επιχειρήσεις</p>
+              <p className="mt-1 max-w-sm text-sm">Δημιούργησε την πρώτη επιχείρηση για να ξεκινήσεις.</p>
+              <Button variant="outline" className="mt-6 rounded-xl" onClick={() => setCreateOpen(true)}>
                 Νέα επιχείρηση
               </Button>
             </div>
           ) : (
             <>
-              <div className="md:hidden space-y-2">
+              <div className="space-y-3 p-4 md:hidden">
                 {businesses.map((b) => {
                   const admin = adminByBusinessId[b.id]
                   const expiryStatus = getExpiryStatus(b)
+                  const recordStatus = getSubscriptionRecordStatusBadge(b.subscription_status)
                   return (
-                    <div key={b.id} className="rounded-lg border bg-card p-4">
+                    <div
+                      key={b.id}
+                      className="rounded-2xl border border-border/50 bg-gradient-to-b from-card to-muted/20 p-4 shadow-sm ring-1 ring-border/30"
+                    >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium">{b.name}</div>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            <span>{b.subscription_plan ?? "—"} • {b.subscription_status ?? "—"}</span>
-                            <Badge variant="outline" className={expiryStatus.className}>
+                        <div className="min-w-0 space-y-2">
+                          <p className="font-semibold leading-snug text-foreground">{b.name}</p>
+                          <p className="text-xs text-muted-foreground">{b.business_type ?? "—"}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="outline" className={cn("text-[10px] font-medium", recordStatus.className)}>
+                              {recordStatus.label}
+                            </Badge>
+                            <Badge variant="outline" className={cn("text-[10px] font-medium", expiryStatus.className)}>
                               {expiryStatus.label}
                             </Badge>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Admin: {admin?.username ?? "—"}
-                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            <span className="font-mono text-foreground/80">{admin?.username ?? "—"}</span>
+                            {" · "}
+                            {formatPlanLabel(b.subscription_plan)}
+                          </p>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">Ενέργειες</Button>
+                            <Button variant="outline" size="sm" className="shrink-0 rounded-lg">
+                              Ενέργειες
+                            </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setDetailsBusinessId(b.id)}>Λεπτομέρειες</DropdownMenuItem>
@@ -726,69 +780,130 @@ export default function PlatformBusinesses() {
                 })}
               </div>
 
-              <div className="hidden md:block rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead>Όνομα</TableHead>
-                      <TableHead>Τύπος</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead className="whitespace-nowrap">Admin Username</TableHead>
-                      <TableHead>Πλάνο</TableHead>
-                      <TableHead>Κατάσταση</TableHead>
-                      <TableHead>Όρια</TableHead>
-                      <TableHead>Δημιουργήθηκε</TableHead>
-                      <TableHead className="w-[60px]" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {businesses.map((b) => {
-                      const admin = adminByBusinessId[b.id]
-                      const expiryStatus = getExpiryStatus(b)
-                      return (
-                        <TableRow key={b.id} className="odd:bg-muted/40">
-                          <TableCell className="font-medium">{b.name}</TableCell>
-                          <TableCell>{b.business_type ?? "—"}</TableCell>
-                          <TableCell>{b.email ?? "—"}</TableCell>
-                          <TableCell className="font-mono text-sm">{admin?.username ?? "—"}</TableCell>
-                          <TableCell>{b.subscription_plan ?? "—"}</TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <p>{b.subscription_status ?? "—"}</p>
-                              <Badge variant="outline" className={expiryStatus.className}>
-                                {expiryStatus.label}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            U: {b.max_users ?? "—"} / C: {b.max_customers ?? "—"} / A: {b.max_appointments ?? "—"}
-                          </TableCell>
-                          <TableCell>{new Date(b.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" aria-label="Ενέργειες">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setDetailsBusinessId(b.id)}>
-                                  Λεπτομέρειες
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteBusiness(b.id, b.name)}
-                                >
-                                  Διαγραφή
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+              <div className="hidden md:block p-4">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-muted/20 shadow-inner">
+                  <div className="max-h-[min(70vh,720px)] overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-border/50 hover:bg-transparent">
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Όνομα
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Τύπος
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Email
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 whitespace-nowrap bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Admin
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Πλάνο
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Κατάσταση
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Όρια
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 bg-muted/60 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+                            Δημιουργία
+                          </TableHead>
+                          <TableHead className="sticky top-0 z-10 w-[52px] bg-muted/60 py-3 backdrop-blur-sm" />
                         </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {businesses.map((b) => {
+                          const admin = adminByBusinessId[b.id]
+                          const expiryStatus = getExpiryStatus(b)
+                          const recordStatus = getSubscriptionRecordStatusBadge(b.subscription_status)
+                          return (
+                            <TableRow
+                              key={b.id}
+                              className="border-b border-border/40 transition-colors hover:bg-primary/[0.03]"
+                            >
+                              <TableCell className="max-w-[200px] py-3.5 font-medium leading-snug">
+                                <span className="line-clamp-2">{b.name}</span>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{b.business_type ?? "—"}</TableCell>
+                              <TableCell className="max-w-[160px] truncate text-sm" title={b.email ?? undefined}>
+                                {b.email ?? "—"}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-foreground/90">{admin?.username ?? "—"}</TableCell>
+                              <TableCell className="max-w-[140px]">
+                                <span
+                                  className="inline-flex rounded-lg border border-border/50 bg-background/80 px-2 py-1 text-[11px] font-medium leading-tight text-foreground shadow-sm"
+                                  title={formatPlanLabel(b.subscription_plan)}
+                                >
+                                  <span className="line-clamp-2">{formatPlanLabel(b.subscription_plan)}</span>
+                                </span>
+                              </TableCell>
+                              <TableCell className="min-w-[140px]">
+                                <div className="flex flex-col gap-1">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("w-fit border px-2 py-0.5 text-[10px] font-semibold", recordStatus.className)}
+                                  >
+                                    {recordStatus.label}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("w-fit border px-2 py-0.5 text-[10px] font-semibold", expiryStatus.className)}
+                                  >
+                                    {expiryStatus.label}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {[
+                                    { k: "U", v: b.max_users },
+                                    { k: "C", v: b.max_customers },
+                                    { k: "A", v: b.max_appointments },
+                                  ].map(({ k, v }) => (
+                                    <span
+                                      key={k}
+                                      className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border/40"
+                                    >
+                                      {k} {v ?? "—"}
+                                    </span>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm text-muted-foreground tabular-nums">
+                                {new Date(b.created_at).toLocaleDateString("el-GR")}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-9 w-9 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                                      aria-label="Ενέργειες"
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setDetailsBusinessId(b.id)}>Λεπτομέρειες</DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => handleDeleteBusiness(b.id, b.name)}
+                                    >
+                                      Διαγραφή
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
             </>
           )}
