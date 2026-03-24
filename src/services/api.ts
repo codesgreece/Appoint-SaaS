@@ -245,28 +245,37 @@ export async function fetchAppointmentById(id: string) {
 
 /** Fire-and-forget Telegram notify (Edge Function). Safe to call after full appointment + services are saved. */
 export async function notifyNewAppointmentTelegram(appointmentId: string): Promise<void> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-  const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? ""
-  try {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData?.session?.access_token
-    if (!supabaseUrl || !anonKey || !token) return
+  const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
+  const fnUrl = `${base}/functions/v1/telegram-new-appointment`
 
-    const res = await fetch(`${supabaseUrl}/functions/v1/telegram-new-appointment`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: anonKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ appointment_id: appointmentId }),
-    })
-    if (!res.ok) {
-      const t = await res.text()
-      console.warn("telegram-new-appointment:", res.status, t)
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    let accessToken = session?.access_token
+    if (!accessToken) {
+      const { data: refreshed } = await supabase.auth.refreshSession()
+      accessToken = refreshed.session?.access_token
     }
+
+    console.log("[notifyNewAppointmentTelegram] about to invoke", { appointmentId, fnUrl, hasToken: Boolean(accessToken) })
+
+    if (!accessToken) {
+      console.error("[notifyNewAppointmentTelegram] no session access_token; edge function not called")
+      return
+    }
+
+    const { data, error } = await supabase.functions.invoke("telegram-new-appointment", {
+      body: { appointment_id: appointmentId },
+    })
+
+    if (error) {
+      console.error("[notifyNewAppointmentTelegram] invoke failed", { fnUrl, error })
+      return
+    }
+    console.log("[notifyNewAppointmentTelegram] ok", { fnUrl, data })
   } catch (e) {
-    console.warn("telegram-new-appointment failed:", e)
+    console.error("[notifyNewAppointmentTelegram] threw", { fnUrl, err: e })
   }
 }
 

@@ -56,15 +56,8 @@ Deno.serve(async (req) => {
     if (!authHeader.startsWith("Bearer ")) {
       return json({ success: false, error: "Unauthorized" }, 401)
     }
-
-    const supabaseUser = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userErr } = await supabaseUser.auth.getUser()
-    if (userErr || !userData.user) {
-      return json({ success: false, error: "Unauthorized" }, 401)
-    }
-    console.log("[telegram-debug] auth user id:", userData.user.id)
+    const bearer = authHeader.slice(7).trim()
+    const serviceKey = serviceRoleKey.trim()
 
     let body: Record<string, unknown>
     try {
@@ -79,6 +72,23 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+    // Same edge function: trusted server caller (e.g. public-booking) uses service role key as Bearer.
+    if (serviceKey && bearer === serviceKey) {
+      console.log("[telegram-debug] internal service-role invoke for appointment:", appointmentId)
+      const result = await sendNewAppointmentTelegramIfConfigured(supabase, appointmentId)
+      console.log("[telegram-debug] sendNewAppointmentTelegramIfConfigured result (internal):", result)
+      return json({ success: true, ...result, via: "service_role" }, 200)
+    }
+
+    const supabaseUser = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: userData, error: userErr } = await supabaseUser.auth.getUser()
+    if (userErr || !userData.user) {
+      return json({ success: false, error: "Unauthorized" }, 401)
+    }
+    console.log("[telegram-debug] auth user id:", userData.user.id)
 
     const { data: profile, error: profileErr } = await supabase
       .from("users")

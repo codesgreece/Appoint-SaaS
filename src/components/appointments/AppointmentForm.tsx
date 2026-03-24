@@ -502,6 +502,7 @@ export function AppointmentForm({
       } else {
         const created = await createAppointment(payload)
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
+        console.log("[AppointmentForm] calling notifyNewAppointmentTelegram", created.id)
         void notifyNewAppointmentTelegram(created.id)
       }
       onSaved()
