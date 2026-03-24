@@ -23,6 +23,7 @@ export async function sendNewAppointmentTelegramIfConfigured(
   appointmentId: string,
 ): Promise<{ sent: boolean; skipped?: string }> {
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim()
+  console.log("[telegram-debug] shared: TELEGRAM_BOT_TOKEN present:", Boolean(token))
   if (!token) {
     console.warn("[telegram-new-appointment] TELEGRAM_BOT_TOKEN missing")
     return { sent: false, skipped: "missing_bot_token" }
@@ -53,7 +54,12 @@ export async function sendNewAppointmentTelegramIfConfigured(
   const enabled = Boolean((business as { telegram_enabled?: boolean }).telegram_enabled)
   const chatId = String((business as { telegram_chat_id?: string | null }).telegram_chat_id ?? "").trim()
 
+  console.log("[telegram-debug] shared: business_id", appointment.business_id)
+  console.log("[telegram-debug] shared: telegram_enabled", enabled)
+  console.log("[telegram-debug] shared: telegram_chat_id loaded", chatId || "(empty)")
+
   if (!enabled || !chatId) {
+    console.log("[telegram-debug] shared: skip send —", !enabled ? "telegram disabled" : "no chat id")
     return { sent: false, skipped: "telegram_disabled_or_no_chat_id" }
   }
 
@@ -101,12 +107,15 @@ export async function sendNewAppointmentTelegramIfConfigured(
       body: JSON.stringify({ chat_id: chatId, text: message }),
     })
     const bodyText = await res.text()
+    console.log("[telegram-debug] shared: real sendMessage HTTP status:", res.status)
+    console.log("[telegram-debug] shared: real sendMessage API body (raw):", bodyText)
     if (!res.ok) {
       console.error("[telegram-new-appointment] Telegram API error:", res.status, bodyText)
       return { sent: false, skipped: "telegram_api_error" }
     }
     return { sent: true }
   } catch (e) {
+    console.error("[telegram-debug] shared: real sendMessage threw:", e)
     console.error("[telegram-new-appointment] send failed:", e)
     return { sent: false, skipped: "telegram_send_exception" }
   }
