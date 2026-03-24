@@ -18,6 +18,15 @@ export type ServiceBillingType = "fixed" | "hourly"
 
 export type SubscriptionStatus = "active" | "trialing" | "past_due" | "cancelled" | "none"
 
+/** In-app notification row (DB column is_read). */
+export interface InAppNotification {
+  id: string
+  business_id: string
+  message: string
+  created_at: string
+  is_read: boolean
+}
+
 export interface Business {
   id: string
   name: string
@@ -31,8 +40,6 @@ export interface Business {
   booking_requires_approval: boolean
   booking_window_days: number | null
   booking_theme: string | null
-  telegram_enabled: boolean
-  telegram_chat_id: string | null
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null

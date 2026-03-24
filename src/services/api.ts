@@ -8,6 +8,7 @@ import type {
   Payment,
   PaymentStatus,
   StaffProfile,
+  InAppNotification,
 } from "@/types"
 
 export async function fetchDashboardStats(_businessId: string) {
@@ -243,31 +244,50 @@ export async function fetchAppointmentById(id: string) {
   return data
 }
 
-/** Notify Telegram via Edge Function (server-side token). Safe to fire-and-forget after create. */
-export async function notifyNewAppointmentTelegram(appointmentId: string): Promise<void> {
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    let accessToken = session?.access_token
-    if (!accessToken) {
-      const { data: refreshed } = await supabase.auth.refreshSession()
-      accessToken = refreshed.session?.access_token
-    }
-    if (!accessToken) return
-
-    await supabase.functions.invoke("telegram-new-appointment", {
-      body: { appointment_id: appointmentId },
-    })
-  } catch {
-    // Non-blocking; avoid surfacing Telegram failures to the user
-  }
-}
-
 export async function createAppointment(payload: Partial<AppointmentJob>) {
   const { data, error } = await supabase.from("appointments_jobs").insert(payload).select().single()
   if (error) throw error
   return data as AppointmentJob
+}
+
+export async function createInAppNotification(businessId: string, message: string): Promise<void> {
+  const { error } = await supabase.from("notifications").insert({ business_id: businessId, message })
+  if (error) throw error
+}
+
+export async function fetchNotifications(businessId: string, limit = 40): Promise<InAppNotification[]> {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return (data ?? []) as InAppNotification[]
+}
+
+export async function fetchUnreadNotificationCount(businessId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("is_read", false)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  const { error } = await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
+  if (error) throw error
+}
+
+export async function markAllNotificationsRead(businessId: string): Promise<void> {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("business_id", businessId)
+    .eq("is_read", false)
+  if (error) throw error
 }
 
 export async function updateAppointment(id: string, payload: Partial<AppointmentJob>) {

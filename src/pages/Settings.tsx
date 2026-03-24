@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "@/components/theme-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sparkles, Palette, FileSpreadsheet, Database, Bell } from "lucide-react"
+import { Sparkles, Palette, FileSpreadsheet, Database } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,6 @@ export default function Settings() {
   const [bookingWindowDays, setBookingWindowDays] = useState(30)
   const [bookingTheme, setBookingTheme] = useState("default")
   const [savingBooking, setSavingBooking] = useState(false)
-  const [telegramEnabled, setTelegramEnabled] = useState(false)
-  const [telegramChatId, setTelegramChatId] = useState("")
-  const [savingTelegram, setSavingTelegram] = useState(false)
-  const [testingTelegram, setTestingTelegram] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
@@ -166,78 +162,6 @@ export default function Settings() {
     }
   }
 
-  async function handleSaveTelegram() {
-    if (!businessId) return
-    try {
-      setSavingTelegram(true)
-      const { error } = await supabase
-        .from("businesses")
-        .update({
-          telegram_enabled: telegramEnabled,
-          telegram_chat_id: telegramChatId.trim() || null,
-        })
-        .eq("id", businessId)
-      if (error) throw error
-      toast({ title: "Αποθηκεύτηκε", description: "Οι ρυθμίσεις Telegram ενημερώθηκαν." })
-    } catch (e) {
-      toast({
-        title: "Σφάλμα",
-        description: getErrorMessage(e, "Αποτυχία αποθήκευσης"),
-        variant: "destructive",
-      })
-    } finally {
-      setSavingTelegram(false)
-    }
-  }
-
-  /** TEMP: debug Telegram — remove with edge function revert */
-  async function handleTestTelegram() {
-    const appointmentId = window.prompt("Appointment ID (UUID) για debug test")?.trim()
-    if (!appointmentId) return
-
-    const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
-    const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-    if (!base || !anon) {
-      toast({ title: "Σφάλμα", description: "Λείπει VITE_SUPABASE_URL ή VITE_SUPABASE_ANON_KEY.", variant: "destructive" })
-      return
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const token = session?.access_token
-    if (!token) {
-      toast({ title: "Σφάλμα", description: "Χρειάζεσαι σύνδεση για το test.", variant: "destructive" })
-      return
-    }
-    try {
-      setTestingTelegram(true)
-      const res = await fetch(`${base}/functions/v1/telegram-new-appointment`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: anon,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ appointment_id: appointmentId }),
-      })
-      const raw = await res.text()
-      const preview = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw
-      if (res.ok) {
-        toast({ title: "Telegram test OK", description: preview })
-      } else {
-        toast({ title: "Telegram test failed", description: preview, variant: "destructive" })
-      }
-    } catch (e) {
-      toast({
-        title: "Telegram test failed",
-        description: e instanceof Error ? e.message : String(e),
-        variant: "destructive",
-      })
-    } finally {
-      setTestingTelegram(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="relative">
@@ -255,7 +179,6 @@ export default function Settings() {
         <TabsList className="bg-card/60 border border-border/60 backdrop-blur text-[11px]">
           <TabsTrigger value="appearance">Εμφάνιση</TabsTrigger>
           <TabsTrigger value="booking">Public Booking</TabsTrigger>
-          <TabsTrigger value="notifications">Ειδοποιήσεις</TabsTrigger>
           <TabsTrigger value="exports">Exports</TabsTrigger>
           {isDemoPlan && <TabsTrigger value="demo">Demo Panel</TabsTrigger>}
         </TabsList>
@@ -288,46 +211,6 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Το “Beauty Pink” είναι πιο premium επιλογή για beauty/wellness επιχειρήσεις.
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4 text-primary" />
-                Telegram
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Μήνυμα στο Telegram μόνο όταν δημιουργείται νέο ραντεβού (από το panel ή τη δημόσια σελίδα κράτησης).
-              </p>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Ενεργοποίηση ειδοποιήσεων Telegram</p>
-                  <p className="text-xs text-muted-foreground">Απαιτείται έγκυρο Chat ID.</p>
-                </div>
-                <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
-              </div>
-              <div className="space-y-1">
-                <Label>Telegram Chat ID</Label>
-                <Input
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="π.χ. 123456789"
-                  className="max-w-md bg-background/40 border-border/60"
-                />
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleTestTelegram} disabled={testingTelegram}>
-                  {testingTelegram ? "Test…" : "Test Telegram"}
-                </Button>
-                <Button type="button" onClick={handleSaveTelegram} disabled={savingTelegram}>
-                  {savingTelegram ? "Αποθήκευση..." : "Αποθήκευση"}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

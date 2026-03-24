@@ -494,7 +494,7 @@ export function AppointmentForm({
         completion_notes: data.completion_notes || null,
         recurrence_rule: data.recurrence_rule || null,
       }
-      const { createAppointment, updateAppointment, replaceAppointmentServiceIds, notifyNewAppointmentTelegram } =
+      const { createAppointment, updateAppointment, replaceAppointmentServiceIds, createInAppNotification } =
         await import("@/services/api")
       if (initial?.id) {
         await updateAppointment(initial.id, payload)
@@ -502,7 +502,11 @@ export function AppointmentForm({
       } else {
         const created = await createAppointment(payload)
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
-        void notifyNewAppointmentTelegram(created.id)
+        try {
+          await createInAppNotification(businessId, "New appointment created")
+        } catch {
+          // Non-blocking
+        }
       }
       onSaved()
     } catch (err) {

@@ -28,9 +28,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405)
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json({ success: false, error: "Missing Supabase env" }, 500)
+    if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: "Missing Supabase env" }, 500)
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     const body = (await req.json()) as Record<string, unknown>
@@ -190,19 +189,12 @@ Deno.serve(async (req) => {
       }))
       await supabase.from("appointment_job_services").insert(junction)
 
-      const notifyUrl = `${supabaseUrl}/functions/v1/telegram-new-appointment`
-      try {
-        await fetch(notifyUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: anonKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ appointment_id: appointmentId }),
-        })
-      } catch {
-        // Booking already succeeded; Telegram is best-effort
+      const { error: notifErr } = await supabase.from("notifications").insert({
+        business_id: businessId,
+        message: "New appointment created",
+      })
+      if (notifErr) {
+        console.error("public-booking: notification insert failed:", notifErr.message)
       }
 
       return json({ success: true, appointment_id: appointmentId, status: requiresApproval ? "pending" : "confirmed" })

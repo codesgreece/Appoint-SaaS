@@ -35,6 +35,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { CommandPalette } from "@/components/CommandPalette"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
 
 const businessNavItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -80,7 +81,7 @@ function daysUntilSubscriptionEnd(iso: string | null): number | null {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, signOut, businessName, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
+  const { user, signOut, businessName, businessId, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
   const { toast } = useToast()
   useTheme()
 
@@ -382,6 +383,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-1.5">
+            <NotificationBell businessId={businessId} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">

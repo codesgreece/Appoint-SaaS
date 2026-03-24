@@ -1,5 +1,4 @@
--- Remove all Telegram artifacts (tables, triggers, functions, business columns).
--- Idempotent: safe if Telegram migrations were never applied.
+-- Idempotent cleanup of legacy automation triggers, tables, and optional business columns.
 
 DROP TRIGGER IF EXISTS trg_enqueue_appointment_created ON public.appointments_jobs;
 DROP TRIGGER IF EXISTS trg_enqueue_appointment_updates ON public.appointments_jobs;

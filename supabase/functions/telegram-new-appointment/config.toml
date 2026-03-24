@@ -1,2 +1,0 @@
-# Auth validated in code (user JWT or service role for internal calls).
-verify_jwt = false
