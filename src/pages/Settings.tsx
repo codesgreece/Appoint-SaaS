@@ -38,6 +38,15 @@ export default function Settings() {
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
+  function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) return error.message
+    if (typeof error === "object" && error !== null && "message" in error) {
+      const msg = (error as { message?: unknown }).message
+      if (typeof msg === "string" && msg.trim()) return msg
+    }
+    return fallback
+  }
+
   function handleThemePresetChange(value: string) {
     const [nextTheme, nextPalette] = value.split(":")
     if (nextTheme === "light" || nextTheme === "dark" || nextTheme === "system") {
@@ -158,7 +167,7 @@ export default function Settings() {
     } catch (e) {
       toast({
         title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία αποθήκευσης booking settings",
+        description: getErrorMessage(e, "Αποτυχία αποθήκευσης booking settings"),
         variant: "destructive",
       })
     } finally {
@@ -186,7 +195,7 @@ export default function Settings() {
     } catch (e) {
       toast({
         title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία αποθήκευσης ρυθμίσεων Telegram",
+        description: getErrorMessage(e, "Αποτυχία αποθήκευσης ρυθμίσεων Telegram"),
         variant: "destructive",
       })
     } finally {
