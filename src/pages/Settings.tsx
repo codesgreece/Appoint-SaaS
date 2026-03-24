@@ -5,57 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "@/components/theme-provider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sparkles, Palette, FileSpreadsheet, Bell, Database } from "lucide-react"
+import { Sparkles, Palette, FileSpreadsheet, Database } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { invokeTelegramTestMessage, parseFunctionsHttpError } from "@/lib/telegram"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import * as XLSX from "xlsx"
 import { Link as LinkIcon } from "lucide-react"
 
-type TelegramNotificationPreferences = {
-  appointment_created: boolean
-  appointment_cancelled_or_no_show: boolean
-  appointment_rescheduled: boolean
-  payment_recorded: boolean
-  support_incident_new: boolean
-  support_reply: boolean
-  daily_summary: boolean
-  morning_briefing: boolean
-  plan_limits: boolean
-  subscription_alerts: boolean
-  reminder_30m: boolean
-}
-
-const defaultTelegramPreferences: TelegramNotificationPreferences = {
-  appointment_created: true,
-  appointment_cancelled_or_no_show: true,
-  appointment_rescheduled: true,
-  payment_recorded: true,
-  support_incident_new: true,
-  support_reply: true,
-  daily_summary: true,
-  morning_briefing: true,
-  plan_limits: true,
-  subscription_alerts: true,
-  reminder_30m: true,
-}
-
 export default function Settings() {
   const { businessId } = useAuth()
   const { theme, setTheme, palette, setPalette } = useTheme()
   const { toast } = useToast()
-  const [telegramEnabled, setTelegramEnabled] = useState(false)
-  const [telegramChatId, setTelegramChatId] = useState("")
-  const [telegramBotToken, setTelegramBotToken] = useState("")
-  const [telegramPreferences, setTelegramPreferences] = useState<TelegramNotificationPreferences>(
-    defaultTelegramPreferences,
-  )
-  const [savingNotifications, setSavingNotifications] = useState(false)
-  const [testingTelegram, setTestingTelegram] = useState(false)
   const [isDemoPlan, setIsDemoPlan] = useState(false)
   const [resettingDemo, setResettingDemo] = useState(false)
   const [exportingCustomers, setExportingCustomers] = useState(false)
@@ -82,11 +45,6 @@ export default function Settings() {
     if (!businessId) return
     fetchBusiness(businessId).then((b) => {
       if (!b) return
-      setTelegramEnabled(Boolean(b.telegram_enabled))
-      setTelegramChatId(b.telegram_chat_id ?? "")
-      setTelegramBotToken(b.telegram_bot_token ?? "")
-      const loaded = (b.telegram_notification_preferences ?? {}) as Partial<TelegramNotificationPreferences>
-      setTelegramPreferences({ ...defaultTelegramPreferences, ...loaded })
       setIsDemoPlan((b.subscription_plan ?? "").toLowerCase() === "demo")
       setBookingEnabled(Boolean((b as any).booking_enabled))
       setBookingSlug(((b as any).booking_slug ?? "").toString())
@@ -95,71 +53,6 @@ export default function Settings() {
       setBookingTheme(((b as any).booking_theme ?? "default").toString())
     })
   }, [businessId])
-
-  async function handleTestTelegram() {
-    if (!businessId) return
-    try {
-      setTestingTelegram(true)
-      const { data, error } = await invokeTelegramTestMessage({
-        businessId,
-        telegramEnabled,
-        telegramChatId,
-        telegramBotToken,
-      })
-      if (error) throw error
-      const payload = data as { success?: boolean; skipped?: boolean; reason?: string }
-      if (payload.skipped) {
-        toast({
-          title: "Δεν στάλθηκε",
-          description:
-            payload.reason === "telegram_disabled"
-              ? "Ενεργοποίησε το Telegram ή συμπλήρωσε Chat ID."
-              : "Έλεγξε Chat ID και ότι το Telegram είναι ενεργό.",
-          variant: "destructive",
-        })
-        return
-      }
-      toast({
-        title: "Στάλθηκε",
-        description: "Έλεγξε το Telegram για το δοκιμαστικό μήνυμα.",
-      })
-    } catch (e) {
-      const description = await parseFunctionsHttpError(e)
-      toast({
-        title: "Σφάλμα δοκιμής",
-        description,
-        variant: "destructive",
-      })
-    } finally {
-      setTestingTelegram(false)
-    }
-  }
-
-  async function handleSaveNotifications() {
-    if (!businessId) return
-    try {
-      setSavingNotifications(true)
-      const { error } = await supabase
-        .from("businesses")
-        .update({
-          telegram_enabled: telegramEnabled,
-          telegram_chat_id: telegramChatId.trim() || null,
-          telegram_bot_token: telegramBotToken.trim() || null,
-          telegram_notification_preferences: telegramPreferences,
-        })
-        .eq("id", businessId)
-      if (error) throw error
-      toast({ title: "Αποθηκεύτηκε", description: "Οι ρυθμίσεις Telegram ενημερώθηκαν." })
-    } catch (e) {
-      toast({
-        title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία αποθήκευσης ρυθμίσεων Telegram",
-        variant: "destructive",
-      })
-    } finally {
-      setSavingNotifications(false)
-    }
-  }
 
   async function handleResetDemoData() {
     if (!businessId) return
@@ -276,7 +169,6 @@ export default function Settings() {
       <Tabs defaultValue="appearance" className="space-y-4">
         <TabsList className="bg-card/60 border border-border/60 backdrop-blur text-[11px]">
           <TabsTrigger value="appearance">Εμφάνιση</TabsTrigger>
-          <TabsTrigger value="notifications">Telegram</TabsTrigger>
           <TabsTrigger value="booking">Public Booking</TabsTrigger>
           <TabsTrigger value="exports">Exports</TabsTrigger>
           {isDemoPlan && <TabsTrigger value="demo">Demo Panel</TabsTrigger>}
@@ -310,143 +202,6 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Το “Beauty Pink” είναι πιο premium επιλογή για beauty/wellness επιχειρήσεις.
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4 text-primary" />
-                Ρυθμίσεις Telegram ειδοποιήσεων
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Enable Telegram Notifications</p>
-                  <p className="text-xs text-muted-foreground">
-                    Ενεργοποίηση αποστολής ειδοποιήσεων στο Telegram.
-                  </p>
-                </div>
-                <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Telegram Chat ID</Label>
-                <Input
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="π.χ. -1001234567890"
-                  className="max-w-md bg-background/40 border-border/60"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Telegram Bot Token</Label>
-                <Input
-                  type="password"
-                  value={telegramBotToken}
-                  onChange={(e) => setTelegramBotToken(e.target.value)}
-                  placeholder="π.χ. 123456789:AA..."
-                  className="max-w-md bg-background/40 border-border/60"
-                />
-              </div>
-
-              <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
-                <p className="font-medium text-foreground">Πρόγραμμα (Europe/Athens)</p>
-                <p className="mt-1">
-                  <strong className="text-foreground">08:00</strong> — πόσα ραντεβού έχεις σήμερα, λίστα ωρών, και αναλυτικά κλεισμένα
-                  ανά ημέρα (14 ημέρες).
-                </p>
-                <p className="mt-1">
-                  <strong className="text-foreground">από 22:00</strong> — κλείσιμο ημέρας: έσοδα, ολοκληρωμένα / ακυρώσεις / no-show,
-                  κρατήσεις για αύριο, και σύνοψη ανά υπεύθυνο προσωπικό.
-                </p>
-                <p className="mt-1.5 text-[11px]">
-                  Χρειάζεται προγραμματισμένη κλήση του Edge Function <code className="rounded bg-background/80 px-1">process-telegram-events</code>{" "}
-                  (π.χ. κάθε 5 λεπτά) με το secret του cron — αλλιώς τα πρωινά/βραδινά δεν στέλνονται.
-                </p>
-              </div>
-
-              <div className="space-y-4 rounded-xl border border-border/60 bg-background/40 p-3">
-                <p className="text-sm font-medium">Άμεσες ειδοποιήσεις</p>
-                {[
-                  { key: "appointment_created", label: "Νέο ραντεβού" },
-                  { key: "appointment_cancelled_or_no_show", label: "Ακύρωση / no-show" },
-                  { key: "appointment_rescheduled", label: "Επαναπρογραμματισμός" },
-                  { key: "payment_recorded", label: "Πληρωμές" },
-                ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between gap-3">
-                    <p className="text-sm">{item.label}</p>
-                    <Switch
-                      checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
-                      onCheckedChange={(checked) =>
-                        setTelegramPreferences((prev) => ({
-                          ...prev,
-                          [item.key]: checked,
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-
-                <p className="text-sm font-medium pt-2 border-t border-border/60">Ημερήσια μηνύματα στο Telegram</p>
-                {[
-                  { key: "morning_briefing", label: "Πρωινή ενημέρωση (~08:00)" },
-                  { key: "daily_summary", label: "Κλείσιμο ημέρας (μετά τις 22:00)" },
-                ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between gap-3">
-                    <p className="text-sm">{item.label}</p>
-                    <Switch
-                      checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
-                      onCheckedChange={(checked) =>
-                        setTelegramPreferences((prev) => ({
-                          ...prev,
-                          [item.key]: checked,
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-
-                <p className="text-sm font-medium pt-2 border-t border-border/60">Λοιπά</p>
-                {[
-                  { key: "support_incident_new", label: "Support — νέο αίτημα" },
-                  { key: "support_reply", label: "Support — απάντηση" },
-                  { key: "plan_limits", label: "Όρια πλάνου" },
-                  { key: "subscription_alerts", label: "Λήξη συνδρομής" },
-                  { key: "reminder_30m", label: "Υπενθύμιση 30 λεπτά πριν" },
-                ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between gap-3">
-                    <p className="text-sm">{item.label}</p>
-                    <Switch
-                      checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
-                      onCheckedChange={(checked) =>
-                        setTelegramPreferences((prev) => ({
-                          ...prev,
-                          [item.key]: checked,
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Το δοκιμαστικό χρησιμοποιεί τις τιμές παραπάνω (ενεργό Telegram, Chat ID, token) — δεν χρειάζεται να πατήσεις
-                «Αποθήκευση» πριν.
-              </p>
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleTestTelegram} disabled={testingTelegram || savingNotifications}>
-                  {testingTelegram ? "Αποστολή..." : "Δοκιμαστικό μήνυμα"}
-                </Button>
-                <Button type="button" onClick={handleSaveNotifications} disabled={savingNotifications}>
-                  {savingNotifications ? "Αποθήκευση..." : "Αποθήκευση ειδοποιήσεων"}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

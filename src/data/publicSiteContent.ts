@@ -120,8 +120,8 @@ export const PRICING_PROMOS = {
     "Σε κάθε πακέτο, με αγορά συνδρομής 6 μηνών ή 12 μηνών προσφέρονται επιπλέον 2 μήνες δωρεάν.",
   freeInstallTitle: "Δωρεάν εγκατάσταση",
   freeInstallBody: "Έξοδα εγκατάστασης αξίας 90 € — χωρίς χρέωση.",
-  freeBotTitle: "Δωρεάν Telegram bot",
-  freeBotBody: "Δημιουργία bot αξίας 19,90 € — χωρίς χρέωση.",
+  freeOnboardingTitle: "Δωρεάν ρύθμιση λογαριασμού",
+  freeOnboardingBody: "Βοήθεια στην πρώτη εγκατάσταση — χωρίς χρέωση.",
 } as const
 
 export interface PlanCard {
@@ -183,7 +183,7 @@ export const COMPARISON_ROWS: { label: string; values: Record<PlanId, string> }[
   { label: "Πληρωμές & υπόλοιπα", values: { starter: "✓", pro: "✓", premium: "✓" } },
   { label: "Αναφορές & KPIs", values: { starter: "✓", pro: "✓", premium: "✓" } },
   { label: "Ομάδα & ρόλοι", values: { starter: "✓", pro: "✓", premium: "✓" } },
-  { label: "Ειδοποιήσεις Telegram (ρυθμιζόμενες)", values: { starter: "✓", pro: "✓", premium: "✓" } },
+  { label: "Ειδοποιήσεις εντός εφαρμογής", values: { starter: "✓", pro: "✓", premium: "✓" } },
   { label: "Public booking (δημόσια κράτηση)", values: { starter: "✓", pro: "✓", premium: "✓" } },
   { label: "Υποστήριξη εντός εφαρμογής", values: { starter: "✓", pro: "✓", premium: "✓" } },
 ]
@@ -277,20 +277,6 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       "Κανένας δεν βλέπει δεδομένα άλλης επιχείρησης — κατάλληλο για multi-tenant πλατφόρμα.",
     ],
     idealFor: "Καταστήματα με ρεσεψιόν, πολλαπλούς τεχνίτες ή υποκαταστήματα.",
-  },
-  {
-    id: "telegram",
-    title: "Telegram",
-    hook: "Μείνετε ενημερωμένοι χωρίς να κάνετε refresh συνέχεια",
-    pain:
-      "Όταν τα ραντεβού αλλάζουν και δεν είστε μπροστά στο PC, χάνονται ευκαιρίες και απαντήσεις.",
-    summary:
-      "Προαιρετικές ειδοποιήσεις στο Telegram: νέα ραντεβού, αλλαγές, πληρωμές, υπενθυμίσεις, ημερήσια σύνοψη και άλλα — με διακόπτη ανά τύπο στις ρυθμίσεις.",
-    bullets: [
-      "Ρυθμίσεις ανά επιχείρηση (ενεργοποίηση bot, chat id).",
-      "Δεν είναι υποχρεωτικό για τη λειτουργία εφαρμογής — αλλά δυναμώνει την επιχείρηση που κινείται γρήγορα.",
-    ],
-    idealFor: "Όσους θέλουν ειδοποιήσεις στο κινητό χωρίς να χάνουν χρόνο.",
   },
   {
     id: "booking",

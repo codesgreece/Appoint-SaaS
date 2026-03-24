@@ -26,27 +26,11 @@ export interface Business {
   email: string | null
   address: string | null
   logo_url: string | null
-  telegram_enabled: boolean
-  telegram_chat_id: string | null
-  telegram_bot_token: string | null
   booking_enabled: boolean
   booking_slug: string | null
   booking_requires_approval: boolean
   booking_window_days: number | null
   booking_theme: string | null
-  telegram_notification_preferences: {
-    appointment_created?: boolean
-    appointment_cancelled_or_no_show?: boolean
-    appointment_rescheduled?: boolean
-    payment_recorded?: boolean
-    support_incident_new?: boolean
-    support_reply?: boolean
-    daily_summary?: boolean
-    morning_briefing?: boolean
-    plan_limits?: boolean
-    subscription_alerts?: boolean
-    reminder_30m?: boolean
-  } | null
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null

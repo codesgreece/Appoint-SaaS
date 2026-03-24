@@ -103,8 +103,7 @@ export default function Subscribe() {
           <p className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
             <strong className="text-foreground">14 ημέρες δωρεάν δοκιμή</strong> σε όλα τα πακέτα, χωρίς υποχρέωση αγοράς ή
             πληρωμής. Με αγορά <strong className="text-foreground">6 ή 12 μηνών</strong>: επιπλέον{" "}
-            <strong className="text-foreground">2 μήνες δώρο</strong>. Δωρεάν εγκατάσταση (αξίας 90 €) και δημιουργία Telegram
-            bot (αξίας 19,90 €).
+            <strong className="text-foreground">2 μήνες δώρο</strong>. Δωρεάν εγκατάσταση (αξίας 90 €).
           </p>
         </div>
 

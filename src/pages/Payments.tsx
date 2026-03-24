@@ -3,7 +3,6 @@ import { CreditCard, Euro, Pencil, PlusCircle, CheckCircle2 } from "lucide-react
 import { useAuth } from "@/contexts/AuthContext"
 import { fetchPayments, updatePayment } from "@/services/api"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { flushTelegramNotificationQueue } from "@/lib/telegram"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
   Table,
@@ -125,7 +124,6 @@ export default function Payments() {
         notes: notesInput || null,
       })
       setPayments((prev) => prev.map((p) => (p.id === updated.id ? { ...(p as PaymentRow), ...updated } : p)))
-      void flushTelegramNotificationQueue()
       toast({ title: "Πληρωμή ενημερώθηκε", description: "Οι αλλαγές αποθηκεύτηκαν." })
       setDialogOpen(false)
     } catch (err) {

@@ -1,2 +1,0 @@
-# Έλεγχος: CRON_SECRET ή JWT χρήστη μέσα στον κώδικα (όχι μόνο gateway JWT).
-verify_jwt = false

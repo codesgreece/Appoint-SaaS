@@ -396,8 +396,8 @@ export default function PublicSite() {
               <p className="mt-1 text-sm text-muted-foreground">{PRICING_PROMOS.freeInstallBody}</p>
             </div>
             <div className="rounded-2xl border border-border/60 bg-card/60 p-5 md:p-6">
-              <p className="font-semibold text-foreground">{PRICING_PROMOS.freeBotTitle}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{PRICING_PROMOS.freeBotBody}</p>
+              <p className="font-semibold text-foreground">{PRICING_PROMOS.freeOnboardingTitle}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{PRICING_PROMOS.freeOnboardingBody}</p>
             </div>
           </div>
 

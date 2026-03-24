@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,77 +9,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders })
 }
 
-function escapeTgHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-}
-
-type AppointmentRow = {
-  id: string
-  business_id: string
-  scheduled_date: string
-  start_time: string
-  end_time: string
-  status: string
-  customer: { first_name: string; last_name: string } | null
-  service: { name: string } | null
-  business: {
-    telegram_enabled: boolean
-    telegram_chat_id: string | null
-    telegram_bot_token: string | null
-    telegram_notification_preferences: Record<string, boolean> | null
-  } | null
-}
-
-function toDateTime(date: string, time: string): Date | null {
-  const value = new Date(`${date}T${time}`)
-  return Number.isNaN(value.getTime()) ? null : value
-}
-
-function normalizeChatIdForTelegram(raw: string): string | number {
-  const t = String(raw ?? "").trim()
-  if (!t) return t
-  if (/^-?\d+$/.test(t)) {
-    const n = Number(t)
-    if (Number.isSafeInteger(n)) return n
-  }
-  return t
-}
-
-async function sendTelegram(token: string, chatId: string, text: string) {
-  const endpoint = `https://api.telegram.org/bot${token}/sendMessage`
-  const cid = normalizeChatIdForTelegram(chatId)
-  let res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: cid,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "")
-    if ((detail.includes("parse") || detail.includes("entities")) && res.status === 400) {
-      res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: cid,
-          text: text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
-          disable_web_page_preview: true,
-        }),
-      })
-      if (!res.ok) {
-        const d2 = await res.text().catch(() => "")
-        throw new Error(`Telegram API error (${res.status})${d2 ? `: ${d2}` : ""}`)
-      }
-    } else {
-      throw new Error(`Telegram API error (${res.status})${detail ? `: ${detail}` : ""}`)
-    }
-  }
-}
-
+/** No-op: κρατιέται για συμβατότητα αν υπάρχει cron που καλούσε αυτό το endpoint. */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   try {
@@ -94,85 +22,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    const fallbackBotToken = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? ""
-    if (!supabaseUrl || !serviceRoleKey) return json({ error: "Missing supabase env" }, 500)
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
-
-    const { data, error } = await supabase
-      .from("appointments_jobs")
-      .select(
-        "id, business_id, scheduled_date, start_time, end_time, status, customer:customers(first_name,last_name), service:services(name), business:businesses(telegram_enabled,telegram_chat_id,telegram_bot_token,telegram_notification_preferences)",
-      )
-      .in("status", ["pending", "confirmed", "in_progress"])
-    if (error) throw error
-
-    const now = new Date()
-    const targetStart = new Date(now.getTime() + 29 * 60 * 1000)
-    const targetEnd = new Date(now.getTime() + 31 * 60 * 1000)
-    let sent = 0
-    let skipped = 0
-
-    for (const row of (data ?? []) as AppointmentRow[]) {
-      const b = row.business
-      if (!b?.telegram_enabled || !b.telegram_chat_id) {
-        skipped += 1
-        continue
-      }
-      if ((b.telegram_notification_preferences ?? {}).reminder_30m === false) {
-        skipped += 1
-        continue
-      }
-      const token = (b.telegram_bot_token ?? "").trim() || fallbackBotToken
-      if (!token) {
-        skipped += 1
-        continue
-      }
-      const startAt = toDateTime(row.scheduled_date, row.start_time)
-      if (!startAt) {
-        skipped += 1
-        continue
-      }
-      if (startAt < targetStart || startAt > targetEnd) continue
-
-      const reminderFor = startAt.toISOString()
-      const { data: existing } = await supabase
-        .from("appointment_telegram_reminders")
-        .select("id")
-        .eq("appointment_id", row.id)
-        .eq("reminder_for", reminderFor)
-        .maybeSingle()
-      if (existing?.id) continue
-
-      const customerName = escapeTgHtml(row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "—")
-      const serviceName = escapeTgHtml(row.service?.name ?? "—")
-      const text = [
-        "<b>Υπενθύμιση 30 λεπτά πριν</b>",
-        `Πελάτης: ${customerName}`,
-        `Ημερομηνία: ${escapeTgHtml(row.scheduled_date)}`,
-        `Ώρα: ${escapeTgHtml(row.start_time)} - ${escapeTgHtml(row.end_time)}`,
-        `Υπηρεσία: ${serviceName}`,
-      ].join("\n")
-
-      await sendTelegram(token, b.telegram_chat_id, text)
-
-      const { error: insErr } = await supabase.from("appointment_telegram_reminders").insert({
-        appointment_id: row.id,
-        business_id: row.business_id,
-        reminder_for: reminderFor,
-      })
-      if (insErr) {
-        // Do not fail the whole cron call; reminder was sent and duplicate protection might fail only once.
-        console.error("Failed to persist reminder log:", insErr)
-      }
-      sent += 1
-    }
-
-    return json({ success: true, sent, skipped, window: "29-31 minutes before start" }, 200)
+    return json({ success: true, sent: 0, skipped: 0, message: "noop" }, 200)
   } catch (err) {
     return json({ success: false, error: err instanceof Error ? err.message : "Error" }, 500)
   }
 })
-

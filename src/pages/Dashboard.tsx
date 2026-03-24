@@ -14,13 +14,11 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { fetchDashboardStats } from "@/services/api"
-import { sendBusinessTelegramMessage } from "@/lib/telegram"
 import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
 import { Link } from "react-router-dom"
 import {
   BarChart,
@@ -62,12 +60,10 @@ function timeOfDayGreetingGr(): "Καλημέρα" | "Καλησπέρα" {
 
 export default function Dashboard() {
   const { businessId, user } = useAuth()
-  const { toast } = useToast()
   const greetAs = dashboardGreetingName(user)
   const [stats, setStats] = useState<Awaited<ReturnType<typeof fetchDashboardStats>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [setupLoading, setSetupLoading] = useState(true)
-  const [sendingTodayRevenue, setSendingTodayRevenue] = useState(false)
   const [setupCounts, setSetupCounts] = useState<{ services: number; team: number; customers: number; appointments: number }>({
     services: 0,
     team: 0,
@@ -120,52 +116,6 @@ export default function Dashboard() {
     const completed = items.filter((i) => i.done).length
     return { items, completed, total: items.length }
   }, [setupCounts])
-
-  async function handleSendTodayRevenueTelegram() {
-    if (!businessId) return
-    try {
-      setSendingTodayRevenue(true)
-      const today = new Date().toISOString().slice(0, 10)
-      const { data, error } = await supabase
-        .from("appointments_jobs")
-        .select("final_cost,cost_estimate")
-        .eq("business_id", businessId)
-        .eq("status", "completed")
-        .eq("scheduled_date", today)
-      if (error) throw error
-
-      const rows = (data ?? []) as { final_cost: number | null; cost_estimate: number | null }[]
-      const totalRevenue = rows.reduce((sum, r) => sum + Number(r.final_cost ?? r.cost_estimate ?? 0), 0)
-      const message = [
-        "<b>Σημερινά έσοδα από ολοκληρωμένα ραντεβού</b>",
-        `Ημερομηνία: ${today}`,
-        `Ολοκληρωμένα ραντεβού: ${rows.length}`,
-        `Συνολικά έσοδα: ${formatCurrency(totalRevenue)}`,
-      ].join("\n")
-
-      const sent = await sendBusinessTelegramMessage(businessId, message)
-      if (!sent) {
-        toast({
-          title: "Δεν στάλθηκε",
-          description: "Έλεγξε αν το Telegram είναι ενεργό και σωστά ρυθμισμένο στο Settings.",
-          variant: "destructive",
-        })
-        return
-      }
-      toast({
-        title: "Εστάλη",
-        description: `Στάλθηκαν τα σημερινά έσοδα (${formatCurrency(totalRevenue)}) στο Telegram.`,
-      })
-    } catch (e) {
-      toast({
-        title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία αποστολής στο Telegram.",
-        variant: "destructive",
-      })
-    } finally {
-      setSendingTodayRevenue(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -285,15 +235,6 @@ export default function Dashboard() {
           <p className="text-xs md:text-sm text-muted-foreground">Premium επισκόπηση της επιχείρησής σου.</p>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleSendTodayRevenueTelegram}
-            disabled={sendingTodayRevenue}
-          >
-            {sendingTodayRevenue ? "Αποστολή..." : "Αποστολή σημερινών εσόδων στο Telegram"}
-          </Button>
           <span className="inline-flex items-center rounded-full border border-border/60 bg-card/60 px-2.5 py-0.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2" />
             Σε πραγματικό χρόνο
