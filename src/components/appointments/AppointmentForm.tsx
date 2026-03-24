@@ -21,8 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { AlertCircle } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { AlertCircle, ChevronDown, Clock } from "lucide-react"
+import { cn, formatDate } from "@/lib/utils"
 const statusOptions: AppointmentJobStatus[] = [
   "pending",
   "confirmed",
@@ -91,6 +91,59 @@ function timeToMinutes(timeHHMM: string): number {
   const [hh, mm] = timeHHMM.split(":").map((x) => Number(x))
   if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0
   return hh * 60 + mm
+}
+
+function minutesToHHMM(total: number): string {
+  const h = Math.floor(total / 60) % 24
+  const mm = total % 60
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+}
+
+/** Ίδιο φίλτρο με το overlap στο submit: μπλοκάρει μόνο αν ίδιος υπεύθυνος ή κενό από τη μία πλευρά. */
+function appointmentCanBlockSlot(myAssigned: string | undefined | null, a: AppointmentJob): boolean {
+  if (myAssigned && a.assigned_user_id && a.assigned_user_id !== myAssigned) return false
+  return true
+}
+
+function slotOverlapsExisting(
+  startMin: number,
+  endMin: number,
+  dayApps: AppointmentJob[],
+  myAssigned: string | undefined | null,
+  excludeAppointmentId?: string,
+): boolean {
+  if (endMin <= startMin) return true
+  return dayApps.some((a) => {
+    if (excludeAppointmentId && a.id === excludeAppointmentId) return false
+    if (!appointmentCanBlockSlot(myAssigned, a)) return false
+    const ex = timeToMinutes(toTimeInputValue(a.start_time))
+    const ee = timeToMinutes(toTimeInputValue(a.end_time))
+    return startMin < ee && endMin > ex
+  })
+}
+
+const SLOT_STEP_MIN = 15
+const BUSINESS_DAY_START_MIN = 8 * 60
+const BUSINESS_DAY_END_MIN = 22 * 60
+
+function generateAvailableStartTimes(
+  durationMin: number,
+  dayApps: AppointmentJob[],
+  myAssigned: string | undefined | null,
+  excludeAppointmentId?: string,
+): string[] {
+  const dur = Math.max(15, durationMin)
+  const out: string[] = []
+  const lastStart = BUSINESS_DAY_END_MIN - dur
+  if (lastStart < BUSINESS_DAY_START_MIN) return out
+  for (let m = BUSINESS_DAY_START_MIN; m <= lastStart; m += SLOT_STEP_MIN) {
+    const endM = m + dur
+    if (endM > BUSINESS_DAY_END_MIN) break
+    if (!slotOverlapsExisting(m, endM, dayApps, myAssigned, excludeAppointmentId)) {
+      out.push(minutesToHHMM(m))
+    }
+  }
+  return out
 }
 
 function parseNonNegativeNumber(raw: string): number {
@@ -244,6 +297,65 @@ export function AppointmentForm({
     [selectedServiceIds, serviceById],
   )
   const selectedService = selectedServices[0] ?? null
+
+  const scheduledDateWatch = watch("scheduled_date")
+  const [dayAppointments, setDayAppointments] = useState<AppointmentJob[]>([])
+  const [manualTimeMode, setManualTimeMode] = useState(false)
+
+  const slotDurationMinutesForPicker = useMemo(() => {
+    if (selectedServices.length === 0) return 60
+    const t = selectedServices.reduce((sum, svc) => sum + Number(svc.duration_minutes ?? 0), 0)
+    return t > 0 ? t : 60
+  }, [selectedServices])
+
+  const availableStartSlots = useMemo(() => {
+    return generateAvailableStartTimes(
+      slotDurationMinutesForPicker,
+      dayAppointments,
+      assignedUserIdRaw || undefined,
+      initial?.id,
+    )
+  }, [slotDurationMinutesForPicker, dayAppointments, assignedUserIdRaw, initial?.id])
+
+  useEffect(() => {
+    if (!businessId || !scheduledDateWatch) {
+      setDayAppointments([])
+      return
+    }
+    let cancelled = false
+    import("@/services/api")
+      .then(({ fetchAppointments }) =>
+        fetchAppointments(businessId, {
+          from: scheduledDateWatch,
+          to: scheduledDateWatch,
+        }),
+      )
+      .then((apps) => {
+        if (!cancelled) setDayAppointments(apps as AppointmentJob[])
+      })
+      .catch(() => {
+        if (!cancelled) setDayAppointments([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [businessId, scheduledDateWatch])
+
+  useEffect(() => {
+    if (manualTimeMode) return
+    if (availableStartSlots.length === 0) return
+    const st = toTimeInputValue(watchedStartTime)
+    if (availableStartSlots.includes(st)) return
+    const first = availableStartSlots[0]
+    setValue("start_time", first, { shouldDirty: true })
+    setValue("end_time", addMinutesToTime(first, slotDurationMinutesForPicker), { shouldDirty: true })
+  }, [
+    availableStartSlots,
+    manualTimeMode,
+    slotDurationMinutesForPicker,
+    setValue,
+    watchedStartTime,
+  ])
 
   const lastAutoRef = useRef<{ serviceId: string | null; endTime: string | null }>({ serviceId: null, endTime: null })
   const editBaselineRef = useRef<{
@@ -747,32 +859,48 @@ export function AppointmentForm({
             </div>
             <div className="space-y-2">
               <Label>Υπηρεσίες</Label>
-              <div className="rounded-md border border-border/60 bg-background/40 p-2 space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {safeServices.map((s) => {
-                    const selected = selectedServiceIds.includes(s.id)
-                    return (
-                      <Button
-                        key={s.id}
-                        type="button"
-                        variant={selected ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          setSelectedServiceIds((prev) =>
-                            prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
-                          )
-                        }}
-                      >
-                        {s.name}
-                      </Button>
-                    )
-                  })}
+              <details className="group rounded-xl border border-border/60 bg-gradient-to-b from-card/80 to-muted/20 open:border-primary/25 open:shadow-md open:shadow-primary/5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2">
+                    Επιλογή υπηρεσιών
+                    {selectedServiceIds.length > 0 ? (
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {selectedServiceIds.length} επιλεγμένες
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-normal text-muted-foreground">(προαιρετικό)</span>
+                    )}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                </summary>
+                <div className="space-y-2 border-t border-border/50 px-3 pb-3 pt-2">
+                  <div className="flex flex-wrap gap-2">
+                    {safeServices.map((s) => {
+                      const selected = selectedServiceIds.includes(s.id)
+                      return (
+                        <Button
+                          key={s.id}
+                          type="button"
+                          variant={selected ? "default" : "outline"}
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => {
+                            setSelectedServiceIds((prev) =>
+                              prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id],
+                            )
+                          }}
+                        >
+                          {s.name}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Επιλέξτε μία ή περισσότερες υπηρεσίες. Το κόστος και η διάρκεια υπολογίζονται αυτόματα.
+                  </p>
+                  <input type="hidden" value={serviceSelectValue} {...register("service_id")} />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Επιλέξτε μία ή περισσότερες υπηρεσίες. Το κόστος και η διάρκεια υπολογίζονται αυτόματα.
-                </p>
-                <input type="hidden" value={serviceSelectValue} {...register("service_id")} />
-              </div>
+              </details>
             </div>
             <div className="space-y-2">
               <Label>Κατάσταση</Label>
@@ -794,19 +922,92 @@ export function AppointmentForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2 md:col-span-1">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+            <div className="space-y-2">
               <Label>Ημ/νία</Label>
               <Input type="date" {...register("scheduled_date")} />
               {errors.scheduled_date && <p className="text-sm text-destructive">{errors.scheduled_date.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label>Ώρα έναρξης</Label>
-              <Input type="time" {...register("start_time")} />
-            </div>
-            <div className="space-y-2">
-              <Label>Ώρα λήξης</Label>
-              <Input type="time" {...register("end_time")} />
+            <div className="space-y-2 lg:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Ώρα ραντεβού
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-[11px] text-muted-foreground"
+                  onClick={() => setManualTimeMode((m) => !m)}
+                >
+                  {manualTimeMode ? "Χρήση διαθέσιμων κουλάκιων" : "Χειροκίνητη ώρα"}
+                </Button>
+              </div>
+              {manualTimeMode ? (
+                <div className="flex flex-wrap gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Έναρξη</span>
+                    <Input type="time" className="w-[8.5rem]" {...register("start_time")} />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Λήξη</span>
+                    <Input type="time" className="w-[8.5rem]" {...register("end_time")} />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-background via-muted/20 to-muted/40 p-3 shadow-inner sm:p-4">
+                    <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">
+                      Εμφανίζονται μόνο ελεύθερα κουλάκια (08:00–22:00, βήμα 15 λεπτά
+                      {assignedUserIdRaw ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"}).
+                    </p>
+                    <div className="max-h-48 overflow-y-auto pr-1">
+                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
+                        {availableStartSlots.map((slot) => {
+                          const active = toTimeInputValue(watchedStartTime) === slot
+                          return (
+                            <Button
+                              key={slot}
+                              type="button"
+                              variant={active ? "default" : "secondary"}
+                              className={cn(
+                                "h-9 min-w-0 px-1 text-xs font-semibold tabular-nums",
+                                active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                              )}
+                              onClick={() => {
+                                setValue("start_time", slot, { shouldDirty: true })
+                                setValue(
+                                  "end_time",
+                                  addMinutesToTime(slot, slotDurationMinutesForPicker),
+                                  { shouldDirty: true },
+                                )
+                              }}
+                            >
+                              {slot}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    {availableStartSlots.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                        Δεν υπάρχουν ελεύθερα κουλάκια για αυτή την ημερομηνία και διάρκεια. Άλλαξε ημερομηνία, υπεύθυνο ή
+                        χρησιμοποίησε χειροκίνητη ώρα.
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Λήξη:{" "}
+                    <span className="font-medium text-foreground tabular-nums">
+                      {toTimeInputValue(watchedEndTime)}
+                    </span>{" "}
+                    <span className="text-muted-foreground">({slotDurationMinutesForPicker} λεπ.)</span>
+                  </p>
+                  <input type="hidden" {...register("start_time")} />
+                  <input type="hidden" {...register("end_time")} />
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Εκτίμηση κόστους (€)</Label>
@@ -985,11 +1186,12 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="new-address">Διεύθυνση *</Label>
+                <Label htmlFor="new-address">Διεύθυνση (προαιρετικό)</Label>
                 <Input
                   id="new-address"
                   value={newAddress}
                   onChange={(e) => setNewAddress(e.target.value)}
+                  placeholder="Οδός, αριθμός…"
                 />
               </div>
               <div className="space-y-2">
@@ -1042,7 +1244,7 @@ export function AppointmentForm({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              * Υποχρεωτικά πεδία. Απαιτείται τουλάχιστον ένα από Τηλέφωνο ή Email.
+              * Όνομα και επώνυμο υποχρεωτικά. Απαιτείται τουλάχιστον ένα από Τηλέφωνο ή Email. Η διεύθυνση είναι προαιρετική.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -1065,10 +1267,10 @@ export function AppointmentForm({
                       })
                       return
                     }
-                    if (!newFirstName.trim() || !newLastName.trim() || !newAddress.trim()) {
+                    if (!newFirstName.trim() || !newLastName.trim()) {
                       toast({
                         title: "Σφάλμα",
-                        description: "Συμπληρώστε όνομα, επώνυμο και διεύθυνση.",
+                        description: "Συμπληρώστε όνομα και επώνυμο.",
                         variant: "destructive",
                       })
                       return
@@ -1119,7 +1321,7 @@ export function AppointmentForm({
                       last_name: newLastName.trim(),
                       phone: normalizedPhone || null,
                       email: normalizedEmail || null,
-                      address: newAddress.trim(),
+                      address: newAddress.trim() || null,
                       area: newArea.trim() || null,
                       postal_code: newPostalCode.trim() || null,
                       company: newCompany.trim() || null,
