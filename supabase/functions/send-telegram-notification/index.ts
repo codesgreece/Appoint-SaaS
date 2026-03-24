@@ -64,7 +64,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   try {
     const authHeader = req.headers.get("Authorization")?.trim() ?? ""
-    if (!authHeader) return json({ success: false, error: "Missing Authorization" }, 401)
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i)
+    const accessToken = bearerMatch?.[1]?.trim() ?? ""
+    if (!accessToken) return json({ success: false, error: "Missing Authorization" }, 401)
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
@@ -74,11 +76,10 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "Missing supabase env (URL, ANON_KEY, or SERVICE_ROLE)" }, 500)
     }
 
-    // Υποχρεωτικά `Bearer <access_token>` — επαλήθευση με anon client + ίδιο header (όχι getUser(jwt) με service role → «invalid JWT»).
-    const supabaseAuth = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser()
+    // Στο Deno δεν υπάρχει persisted session — το getUser() χωρίς όρισμα δεν «βλέπει» το JWT από headers.
+    // Πέρασε ρητά το access token: getUser(jwt) → GET /auth/v1/user με αυτό το JWT.
+    const supabaseAuth = createClient(supabaseUrl, anonKey)
+    const { data: authData, error: authError } = await supabaseAuth.auth.getUser(accessToken)
     if (authError || !authData?.user) {
       return json(
         {

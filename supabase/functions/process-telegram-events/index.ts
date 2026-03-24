@@ -748,10 +748,8 @@ Deno.serve(async (req) => {
       if (bearer === cronSecret) {
         runDigestsAndLimits = true
       } else if (authHeader && bearer) {
-        const supabaseAuth = createClient(supabaseUrl, anonKey, {
-          global: { headers: { Authorization: authHeader } },
-        })
-        const { data: authData, error: authErr } = await supabaseAuth.auth.getUser()
+        const supabaseAuth = createClient(supabaseUrl, anonKey)
+        const { data: authData, error: authErr } = await supabaseAuth.auth.getUser(bearer)
         if (authErr || !authData?.user) {
           return json({ success: false, error: authErr?.message ?? "Unauthorized" }, 401)
         }
