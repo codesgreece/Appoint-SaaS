@@ -28,19 +28,61 @@ export async function parseFunctionsHttpError(err: unknown): Promise<string> {
 }
 
 /**
- * Κλήση Edge Functions — το SDK στέλνει `apikey` + `Authorization` όπως περιμένει το `getUser()` με anon στο Edge.
- * (Η επαλήθευση στο server είναι anon client + Authorization header, όχι getUser(jwt) με service role.)
+ * Φρέσκο JWT για Edge Functions. Το cached session συχνά έχει ληγμένο access token → «Invalid JWT» στο Edge.
+ * Πρώτα `refreshSession()`· αν δεν επιστρέψει session, χρησιμοποιούμε μόνο token που ακόμα δεν έχει λήξει.
  */
-async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
-  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
-  if (sessionErr) {
-    return { data: null, error: sessionErr as Error }
-  }
-  if (!sessionData.session?.access_token) {
-    return { data: null, error: new Error("Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά.") }
+async function getAccessTokenForFunctions(): Promise<{ token: string | null; error: Error | null }> {
+  const { data: fromRefresh, error: refErr } = await supabase.auth.refreshSession()
+  const t1 = fromRefresh.session?.access_token?.trim()
+  if (t1) return { token: t1, error: null }
+
+  const { data: { session }, error: sessionErr } = await supabase.auth.getSession()
+  if (sessionErr) return { token: null, error: sessionErr as Error }
+  if (!session) {
+    return {
+      token: null,
+      error: new Error(refErr?.message ?? "Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά."),
+    }
   }
 
-  return supabase.functions.invoke(name, { body }) as Promise<{ data: T | null; error: Error | null }>
+  const token = session.access_token?.trim()
+  if (!token) {
+    return {
+      token: null,
+      error: new Error(refErr?.message ?? "Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά."),
+    }
+  }
+
+  const exp = session.expires_at
+  const nowSec = Math.floor(Date.now() / 1000)
+  const stillValid = typeof exp === "number" && exp > nowSec + 5
+  if (stillValid) {
+    return { token, error: null }
+  }
+
+  return {
+    token: null,
+    error: new Error(
+      "Η σύνδεση έληξε. Κάνε αποσύνδεση και ξανά είσοδο (ή δοκίμασε ξανά σε λίγο).",
+    ),
+  }
+}
+
+/**
+ * Κλήση Edge Functions με φρέσκο JWT — `apikey` (anon) + `Authorization: Bearer …` όπως περιμένει το `getUser()` στο Edge.
+ */
+async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
+  const { token, error: tokenErr } = await getAccessTokenForFunctions()
+  if (tokenErr || !token) {
+    return { data: null, error: tokenErr }
+  }
+
+  return supabase.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }) as Promise<{ data: T | null; error: Error | null }>
 }
 
 /** Για HTML parse_mode — αποφυγή σπασίματος μηνυμάτων από χαρακτήρες <>& */
