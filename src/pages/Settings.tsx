@@ -31,6 +31,7 @@ export default function Settings() {
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState("")
   const [savingTelegram, setSavingTelegram] = useState(false)
+  const [testingTelegram, setTestingTelegram] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
@@ -189,6 +190,43 @@ export default function Settings() {
     }
   }
 
+  /** TEMP: debug Telegram — remove with edge function revert */
+  async function handleTestTelegram() {
+    const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
+    const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+    if (!base || !anon) {
+      toast({ title: "Σφάλμα", description: "Λείπει VITE_SUPABASE_URL ή VITE_SUPABASE_ANON_KEY.", variant: "destructive" })
+      return
+    }
+    try {
+      setTestingTelegram(true)
+      const res = await fetch(`${base}/functions/v1/telegram-new-appointment`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${anon}`,
+          apikey: anon,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      })
+      const raw = await res.text()
+      const preview = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw
+      if (res.ok) {
+        toast({ title: "Telegram test OK", description: preview })
+      } else {
+        toast({ title: "Telegram test failed", description: preview, variant: "destructive" })
+      }
+    } catch (e) {
+      toast({
+        title: "Telegram test failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      })
+    } finally {
+      setTestingTelegram(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="relative">
@@ -271,7 +309,10 @@ export default function Settings() {
                   className="max-w-md bg-background/40 border-border/60"
                 />
               </div>
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={handleTestTelegram} disabled={testingTelegram}>
+                  {testingTelegram ? "Test…" : "Test Telegram"}
+                </Button>
                 <Button type="button" onClick={handleSaveTelegram} disabled={savingTelegram}>
                   {savingTelegram ? "Αποθήκευση..." : "Αποθήκευση"}
                 </Button>
