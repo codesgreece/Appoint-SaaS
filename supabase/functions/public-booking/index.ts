@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: "Missing Supabase env" }, 500)
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json({ success: false, error: "Missing Supabase env" }, 500)
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     const body = (await req.json()) as Record<string, unknown>
@@ -190,10 +190,9 @@ Deno.serve(async (req) => {
       }))
       await supabase.from("appointment_job_services").insert(junction)
 
-      const fnUrl = `${supabaseUrl}/functions/v1/telegram-new-appointment`
-      console.log("[public-booking] about to call telegram-new-appointment", { fnUrl, appointmentId })
+      const notifyUrl = `${supabaseUrl}/functions/v1/telegram-new-appointment`
       try {
-        const notifyRes = await fetch(fnUrl, {
+        await fetch(notifyUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${serviceRoleKey}`,
@@ -202,14 +201,8 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({ appointment_id: appointmentId }),
         })
-        const notifyText = await notifyRes.text()
-        if (!notifyRes.ok) {
-          console.error("[public-booking] telegram-new-appointment failed", notifyRes.status, notifyText)
-        } else {
-          console.log("[public-booking] telegram-new-appointment ok", notifyText)
-        }
-      } catch (telegramErr) {
-        console.error("[public-booking] telegram-new-appointment error:", telegramErr)
+      } catch {
+        // Booking already succeeded; Telegram is best-effort
       }
 
       return json({ success: true, appointment_id: appointmentId, status: requiresApproval ? "pending" : "confirmed" })

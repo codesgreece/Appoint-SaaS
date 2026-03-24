@@ -30,11 +30,7 @@ export default function Settings() {
   const [savingBooking, setSavingBooking] = useState(false)
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState("")
-  const [telegramNewAppointmentEnabled, setTelegramNewAppointmentEnabled] = useState(false)
-  const [telegramReminder30minEnabled, setTelegramReminder30minEnabled] = useState(false)
-  const [telegramMorningSummaryEnabled, setTelegramMorningSummaryEnabled] = useState(false)
-  const [telegramNightSummaryEnabled, setTelegramNightSummaryEnabled] = useState(false)
-  const [savingNotifications, setSavingNotifications] = useState(false)
+  const [savingTelegram, setSavingTelegram] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
 
@@ -67,12 +63,6 @@ export default function Settings() {
       setBookingRequiresApproval(Boolean((b as any).booking_requires_approval ?? true))
       setBookingWindowDays(Number((b as any).booking_window_days ?? 30))
       setBookingTheme(((b as any).booking_theme ?? "default").toString())
-      setTelegramEnabled(Boolean((b as any).telegram_enabled ?? false))
-      setTelegramChatId(((b as any).telegram_chat_id ?? "").toString())
-      setTelegramMorningSummaryEnabled(Boolean((b as any).telegram_morning_summary_enabled ?? false))
-      setTelegramNightSummaryEnabled(Boolean((b as any).telegram_night_summary_enabled ?? false))
-      setTelegramReminder30minEnabled(Boolean((b as any).telegram_reminder_30min_enabled ?? false))
-      setTelegramNewAppointmentEnabled(Boolean((b as any).telegram_new_appointment_enabled ?? false))
     })
   }, [businessId])
 
@@ -175,19 +165,15 @@ export default function Settings() {
     }
   }
 
-  async function handleSaveTelegramSettings() {
+  async function handleSaveTelegram() {
     if (!businessId) return
     try {
-      setSavingNotifications(true)
+      setSavingTelegram(true)
       const { error } = await supabase
         .from("businesses")
         .update({
           telegram_enabled: telegramEnabled,
           telegram_chat_id: telegramChatId.trim() || null,
-          telegram_new_appointment_enabled: telegramNewAppointmentEnabled,
-          telegram_reminder_30min_enabled: telegramReminder30minEnabled,
-          telegram_morning_summary_enabled: telegramMorningSummaryEnabled,
-          telegram_night_summary_enabled: telegramNightSummaryEnabled,
         })
         .eq("id", businessId)
       if (error) throw error
@@ -195,11 +181,11 @@ export default function Settings() {
     } catch (e) {
       toast({
         title: "Σφάλμα",
-        description: getErrorMessage(e, "Αποτυχία αποθήκευσης ρυθμίσεων Telegram"),
+        description: getErrorMessage(e, "Αποτυχία αποθήκευσης"),
         variant: "destructive",
       })
     } finally {
-      setSavingNotifications(false)
+      setSavingTelegram(false)
     }
   }
 
@@ -253,6 +239,43 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Το “Beauty Pink” είναι πιο premium επιλογή για beauty/wellness επιχειρήσεις.
               </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-4 w-4 text-primary" />
+                Telegram
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Μήνυμα στο Telegram μόνο όταν δημιουργείται νέο ραντεβού (από το panel ή τη δημόσια σελίδα κράτησης).
+              </p>
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Ενεργοποίηση ειδοποιήσεων Telegram</p>
+                  <p className="text-xs text-muted-foreground">Απαιτείται έγκυρο Chat ID.</p>
+                </div>
+                <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
+              </div>
+              <div className="space-y-1">
+                <Label>Telegram Chat ID</Label>
+                <Input
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  placeholder="π.χ. 123456789"
+                  className="max-w-md bg-background/40 border-border/60"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={handleSaveTelegram} disabled={savingTelegram}>
+                  {savingTelegram ? "Αποθήκευση..." : "Αποθήκευση"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -348,65 +371,6 @@ export default function Settings() {
               <div className="flex justify-end">
                 <Button type="button" onClick={handleSaveBookingSettings} disabled={savingBooking}>
                   {savingBooking ? "Αποθήκευση..." : "Αποθήκευση booking settings"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4 text-primary" />
-                Notifications (Telegram)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Enable Telegram notifications</p>
-                  <p className="text-xs text-muted-foreground">Ενεργοποίηση ειδοποιήσεων ανά admin panel.</p>
-                </div>
-                <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Telegram Chat ID</Label>
-                <Input
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="π.χ. 123456789 ή -100xxxxxxxxxx"
-                  className="max-w-md bg-background/40 border-border/60"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Αν δεν υπάρχει chat id, δεν αποστέλλεται κανένα μήνυμα.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <p className="text-sm font-medium">Notify on new appointment</p>
-                <Switch checked={telegramNewAppointmentEnabled} onCheckedChange={setTelegramNewAppointmentEnabled} />
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <p className="text-sm font-medium">Notify 30 minutes before appointment</p>
-                <Switch checked={telegramReminder30minEnabled} onCheckedChange={setTelegramReminder30minEnabled} />
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <p className="text-sm font-medium">Send daily summary at 08:00</p>
-                <Switch checked={telegramMorningSummaryEnabled} onCheckedChange={setTelegramMorningSummaryEnabled} />
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
-                <p className="text-sm font-medium">Send daily summary at 22:00</p>
-                <Switch checked={telegramNightSummaryEnabled} onCheckedChange={setTelegramNightSummaryEnabled} />
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="button" onClick={handleSaveTelegramSettings} disabled={savingNotifications}>
-                  {savingNotifications ? "Αποθήκευση..." : "Αποθήκευση ειδοποιήσεων"}
                 </Button>
               </div>
             </CardContent>

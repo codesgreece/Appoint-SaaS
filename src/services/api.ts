@@ -243,11 +243,8 @@ export async function fetchAppointmentById(id: string) {
   return data
 }
 
-/** Fire-and-forget Telegram notify (Edge Function). Safe to call after full appointment + services are saved. */
+/** Notify Telegram via Edge Function (server-side token). Safe to fire-and-forget after create. */
 export async function notifyNewAppointmentTelegram(appointmentId: string): Promise<void> {
-  const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
-  const fnUrl = `${base}/functions/v1/telegram-new-appointment`
-
   try {
     const {
       data: { session },
@@ -257,25 +254,13 @@ export async function notifyNewAppointmentTelegram(appointmentId: string): Promi
       const { data: refreshed } = await supabase.auth.refreshSession()
       accessToken = refreshed.session?.access_token
     }
+    if (!accessToken) return
 
-    console.log("[notifyNewAppointmentTelegram] about to invoke", { appointmentId, fnUrl, hasToken: Boolean(accessToken) })
-
-    if (!accessToken) {
-      console.error("[notifyNewAppointmentTelegram] no session access_token; edge function not called")
-      return
-    }
-
-    const { data, error } = await supabase.functions.invoke("telegram-new-appointment", {
+    await supabase.functions.invoke("telegram-new-appointment", {
       body: { appointment_id: appointmentId },
     })
-
-    if (error) {
-      console.error("[notifyNewAppointmentTelegram] invoke failed", { fnUrl, error })
-      return
-    }
-    console.log("[notifyNewAppointmentTelegram] ok", { fnUrl, data })
-  } catch (e) {
-    console.error("[notifyNewAppointmentTelegram] threw", { fnUrl, err: e })
+  } catch {
+    // Non-blocking; avoid surfacing Telegram failures to the user
   }
 }
 

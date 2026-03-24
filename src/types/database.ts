@@ -33,10 +33,6 @@ export interface Business {
   booking_theme: string | null
   telegram_enabled: boolean
   telegram_chat_id: string | null
-  telegram_morning_summary_enabled: boolean
-  telegram_night_summary_enabled: boolean
-  telegram_reminder_30min_enabled: boolean
-  telegram_new_appointment_enabled: boolean
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null
