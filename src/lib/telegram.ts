@@ -28,44 +28,33 @@ export async function parseFunctionsHttpError(err: unknown): Promise<string> {
 }
 
 /**
- * Φρέσκο JWT για Edge Functions. Το cached session συχνά έχει ληγμένο access token → «Invalid JWT» στο Edge.
- * Πρώτα `refreshSession()`· αν δεν επιστρέψει session, χρησιμοποιούμε μόνο token που ακόμα δεν έχει λήξει.
+ * Access token που έχει επαληθευτεί με τον Auth server. Το `getSession()` μόνο του μπορεί να επιστρέψει
+ * ληγμένο JWT → 401 στο Edge. Η σειρά: `refreshSession` (φρέσκο token) → `getUser()` (επαλήθευση) → `getSession()`.
  */
 async function getAccessTokenForFunctions(): Promise<{ token: string | null; error: Error | null }> {
-  const { data: fromRefresh, error: refErr } = await supabase.auth.refreshSession()
-  const t1 = fromRefresh.session?.access_token?.trim()
-  if (t1) return { token: t1, error: null }
+  await supabase.auth.refreshSession()
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser()
+  if (userErr || !userData.user) {
+    return {
+      token: null,
+      error: new Error(
+        userErr?.message?.includes("JWT") || userErr?.message?.includes("session")
+          ? "Η σύνδεση έληξε. Κάνε αποσύνδεση και ξανά είσοδο."
+          : userErr?.message ?? "Μη έγκυρη σύνδεση. Συνδέσου ξανά.",
+      ),
+    }
+  }
 
   const { data: { session }, error: sessionErr } = await supabase.auth.getSession()
   if (sessionErr) return { token: null, error: sessionErr as Error }
-  if (!session) {
-    return {
-      token: null,
-      error: new Error(refErr?.message ?? "Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά."),
-    }
-  }
 
-  const token = session.access_token?.trim()
+  const token = session?.access_token?.trim()
   if (!token) {
-    return {
-      token: null,
-      error: new Error(refErr?.message ?? "Δεν υπάρχει ενεργή σύνδεση. Συνδέσου ξανά."),
-    }
+    return { token: null, error: new Error("Δεν υπάρχει access token. Συνδέσου ξανά.") }
   }
 
-  const exp = session.expires_at
-  const nowSec = Math.floor(Date.now() / 1000)
-  const stillValid = typeof exp === "number" && exp > nowSec + 5
-  if (stillValid) {
-    return { token, error: null }
-  }
-
-  return {
-    token: null,
-    error: new Error(
-      "Η σύνδεση έληξε. Κάνε αποσύνδεση και ξανά είσοδο (ή δοκίμασε ξανά σε λίγο).",
-    ),
-  }
+  return { token, error: null }
 }
 
 /**
@@ -77,10 +66,13 @@ async function invokeEdgeFunction<T>(name: string, body?: Record<string, unknown
     return { data: null, error: tokenErr }
   }
 
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
   return supabase.functions.invoke(name, {
     body,
     headers: {
       Authorization: `Bearer ${token}`,
+      /** Ρητά apikey — μερικές κλήσεις functions απαιτούν και τα δύο headers για 200 στο gateway. */
+      ...(anonKey ? { apikey: anonKey } : {}),
     },
   }) as Promise<{ data: T | null; error: Error | null }>
 }
