@@ -21,21 +21,12 @@ function buildDateTimeLocal(dateIso: string, hhmm: string): Date {
   return new Date(`${dateIso}T${hhmm}:00`)
 }
 
-function formatGreekDate(dateIso: string): string {
-  try {
-    return new Date(`${dateIso}T12:00:00`).toLocaleDateString("el-GR")
-  } catch {
-    return dateIso
-  }
-}
-
 function toReadableTime(raw: string | null | undefined): string {
   return parseTimeHHMM(raw)
 }
 
 async function sendTelegramMessage(chatId: string, message: string): Promise<void> {
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim()
-  console.log("[telegram-debug] sendTelegramMessage: TELEGRAM_BOT_TOKEN present on server:", Boolean(token))
   if (!token) throw new Error("Missing TELEGRAM_BOT_TOKEN")
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
@@ -46,8 +37,6 @@ async function sendTelegramMessage(chatId: string, message: string): Promise<voi
     }),
   })
   const responseText = await res.text()
-  console.log("[telegram-debug] Telegram API sendMessage HTTP status:", res.status)
-  console.log("[telegram-debug] Telegram API sendMessage response body (raw):", responseText)
   if (!res.ok) {
     throw new Error(`Telegram send failed (${res.status}): ${responseText}`)
   }
@@ -61,7 +50,6 @@ type BusinessSettings = {
   telegram_morning_summary_enabled: boolean
   telegram_night_summary_enabled: boolean
   telegram_reminder_30min_enabled: boolean
-  telegram_new_appointment_enabled: boolean
 }
 
 type AppointmentRow = {
@@ -137,7 +125,7 @@ Deno.serve(async (req) => {
     const { data: businesses, error: businessErr } = await supabase
       .from("businesses")
       .select(
-        "id,name,telegram_enabled,telegram_chat_id,telegram_morning_summary_enabled,telegram_night_summary_enabled,telegram_reminder_30min_enabled,telegram_new_appointment_enabled",
+        "id,name,telegram_enabled,telegram_chat_id,telegram_morning_summary_enabled,telegram_night_summary_enabled,telegram_reminder_30min_enabled",
       )
       .eq("telegram_enabled", true)
 
@@ -147,105 +135,15 @@ Deno.serve(async (req) => {
     let skipped = 0
     const errors: string[] = []
     const bizRows = (businesses ?? []) as BusinessSettings[]
-    console.log("[telegram-debug] businesses with telegram_enabled=true:", bizRows.length)
 
     for (const biz of bizRows) {
       const chatId = (biz.telegram_chat_id ?? "").trim()
-      console.log("[telegram-debug] business row:", {
-        business_id: biz.id,
-        business_name: biz.name,
-        telegram_enabled: biz.telegram_enabled,
-        telegram_chat_id_loaded: chatId || "(empty)",
-        telegram_new_appointment_enabled: biz.telegram_new_appointment_enabled,
-      })
       if (!chatId) {
-        console.log("[telegram-debug] skip business: empty telegram_chat_id", { business_id: biz.id })
         skipped += 1
         continue
       }
 
       try {
-        if (biz.telegram_new_appointment_enabled) {
-          console.log("[telegram-debug] new_appointment: branch entered for business", biz.id)
-          const since = new Date(now.getTime() - 60 * 60 * 1000).toISOString()
-          console.log("[telegram-debug] new_appointment: querying appointments created since", since)
-          const { data: recentAppointments, error: appErr } = await supabase
-            .from("appointments_jobs")
-            .select("id,business_id,customer_id,assigned_user_id,service_id,scheduled_date,start_time,end_time,status,created_at")
-            .eq("business_id", biz.id)
-            .gte("created_at", since)
-            .order("created_at", { ascending: true })
-          if (appErr) throw appErr
-
-          const apps = (recentAppointments ?? []) as AppointmentRow[]
-          console.log("[telegram-debug] new_appointment: recent appointments in window count:", apps.length)
-          for (const a of apps) {
-            const logKey = `new_appointment:${a.id}`
-            const alreadySent = await hasLog(supabase, biz.id, logKey)
-            if (alreadySent) {
-              console.log("[telegram-debug] new_appointment: skip (already logged)", {
-                appointment_id: a.id,
-                logKey,
-              })
-              continue
-            }
-            console.log("[telegram-debug] new_appointment: processing candidate", {
-              appointment_id: a.id,
-              created_at: a.created_at,
-              logKey,
-            })
-
-            const [{ data: customer }, { data: service }, { data: assignedUser }] = await Promise.all([
-              supabase.from("customers").select("first_name,last_name").eq("id", a.customer_id).maybeSingle(),
-              a.service_id ? supabase.from("services").select("name").eq("id", a.service_id).maybeSingle() : Promise.resolve({ data: null }),
-              a.assigned_user_id
-                ? supabase.from("users").select("full_name").eq("id", a.assigned_user_id).maybeSingle()
-                : Promise.resolve({ data: null }),
-            ])
-
-            const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() : "—"
-            const message = [
-              "📅 Νέο ραντεβού",
-              `Πελάτης: ${customerName || "—"}`,
-              `Υπηρεσία: ${service?.name ?? "—"}`,
-              `Ημερομηνία: ${formatGreekDate(a.scheduled_date)}`,
-              `Ώρα: ${toReadableTime(a.start_time)}`,
-              assignedUser?.full_name ? `Υπεύθυνος: ${assignedUser.full_name}` : "",
-            ]
-              .filter(Boolean)
-              .join("\n")
-
-            console.log("[telegram-debug] new_appointment: calling sendTelegramMessage", {
-              chat_id: chatId,
-              appointment_id: a.id,
-            })
-            try {
-              await sendTelegramMessage(chatId, message)
-              console.log("[telegram-debug] new_appointment: sendTelegramMessage completed without throw", {
-                appointment_id: a.id,
-              })
-            } catch (sendErr) {
-              console.error("[telegram-debug] new_appointment: sendTelegramMessage threw", {
-                appointment_id: a.id,
-                error: sendErr instanceof Error ? sendErr.message : String(sendErr),
-                stack: sendErr instanceof Error ? sendErr.stack : undefined,
-              })
-              throw sendErr
-            }
-            await insertLog(supabase, {
-              businessId: biz.id,
-              appointmentId: a.id,
-              notificationType: "new_appointment",
-              notificationKey: logKey,
-            })
-            sent += 1
-          }
-        } else {
-          console.log("[telegram-debug] new_appointment: branch skipped (telegram_new_appointment_enabled is false)", {
-            business_id: biz.id,
-          })
-        }
-
         if (biz.telegram_reminder_30min_enabled) {
           const { data: todayAppointments, error: remindersErr } = await supabase
             .from("appointments_jobs")
@@ -368,21 +266,14 @@ Deno.serve(async (req) => {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error("[telegram-debug] per-business handler error", {
-          business_id: biz.id,
-          error: msg,
-          stack: err instanceof Error ? err.stack : undefined,
-        })
+        console.error("process-appointment-reminders per-business error:", biz.id, msg)
         errors.push(`${biz.id}: ${msg}`)
       }
     }
 
     return json({ success: true, sent, skipped, businesses: bizRows.length, errors }, 200)
   } catch (err) {
-    console.error("[telegram-debug] top-level handler error", {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    })
+    console.error("process-appointment-reminders error:", err)
     return json({ success: false, error: err instanceof Error ? err.message : "Error" }, 500)
   }
 })

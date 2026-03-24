@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { sendNewAppointmentTelegramIfConfigured } from "../_shared/telegramNewAppointment.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -189,6 +190,12 @@ Deno.serve(async (req) => {
         service_id: s.id,
       }))
       await supabase.from("appointment_job_services").insert(junction)
+
+      try {
+        await sendNewAppointmentTelegramIfConfigured(supabase, appointmentId)
+      } catch (telegramErr) {
+        console.error("[public-booking] telegram notify error:", telegramErr)
+      }
 
       return json({ success: true, appointment_id: appointmentId, status: requiresApproval ? "pending" : "confirmed" })
     }

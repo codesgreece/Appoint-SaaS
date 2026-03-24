@@ -1,0 +1,2 @@
+# Called from authenticated app after creating an appointment (JWT required).
+verify_jwt = true

@@ -243,6 +243,33 @@ export async function fetchAppointmentById(id: string) {
   return data
 }
 
+/** Fire-and-forget Telegram notify (Edge Function). Safe to call after full appointment + services are saved. */
+export async function notifyNewAppointmentTelegram(appointmentId: string): Promise<void> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+  const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? ""
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+    if (!supabaseUrl || !anonKey || !token) return
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/telegram-new-appointment`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ appointment_id: appointmentId }),
+    })
+    if (!res.ok) {
+      const t = await res.text()
+      console.warn("telegram-new-appointment:", res.status, t)
+    }
+  } catch (e) {
+    console.warn("telegram-new-appointment failed:", e)
+  }
+}
+
 export async function createAppointment(payload: Partial<AppointmentJob>) {
   const { data, error } = await supabase.from("appointments_jobs").insert(payload).select().single()
   if (error) throw error
