@@ -171,6 +171,8 @@ export interface AppointmentJob {
   creation_notes: string | null
   completion_notes: string | null
   recurrence_rule: string | null
+  /** Optional: where the visit takes place (on-site address etc.). */
+  location_address?: string | null
   parent_appointment_id: string | null
   public_booking_unread: boolean
   created_at: string

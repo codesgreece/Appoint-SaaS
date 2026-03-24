@@ -64,6 +64,7 @@ const schema = z.object({
   creation_notes: z.string().optional(),
   completion_notes: z.string().optional(),
   recurrence_rule: z.string().optional().nullable(),
+  location_address: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -232,6 +233,7 @@ export function AppointmentForm({
           creation_notes: initial.creation_notes ?? "",
           completion_notes: initial.completion_notes ?? "",
           recurrence_rule: initial.recurrence_rule ?? "",
+          location_address: initial.location_address ?? "",
         }
       : {
           title: "",
@@ -248,6 +250,7 @@ export function AppointmentForm({
           creation_notes: "",
           completion_notes: "",
           recurrence_rule: "",
+          location_address: "",
         }
   } catch (e) {
     console.error("AppointmentForm init error:", e)
@@ -267,6 +270,7 @@ export function AppointmentForm({
       creation_notes: "",
       completion_notes: "",
       recurrence_rule: "",
+      location_address: "",
     }
   }
 
@@ -1013,6 +1017,19 @@ export function AppointmentForm({
               <Label>Εκτίμηση κόστους (€)</Label>
               <Input type="number" step="0.01" {...register("cost_estimate")} />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="appointment-location-address">Διεύθυνση ραντεβού (προαιρετικό)</Label>
+            <Input
+              id="appointment-location-address"
+              {...register("location_address")}
+              placeholder="Οδός, αριθμός, περιοχή — τόπος επίσκεψης για αυτό το ραντεβού"
+              autoComplete="street-address"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Ξεχωριστά από τη διεύθυνση πελάτη· χρησιμοποιείται όταν η επίσκεψη γίνεται σε άλλο σημείο.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
