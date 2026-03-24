@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
@@ -34,13 +35,28 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MoreHorizontal, Building2 } from "lucide-react"
+import {
+  MoreHorizontal,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  CalendarClock,
+  Users,
+  UserPlus,
+  Gauge,
+  Sparkles,
+  AlertTriangle,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 interface BusinessRow {
   id: string
@@ -104,6 +120,47 @@ const PLAN_LABEL: Record<PlanKey, string> = {
   pro: "Pro",
   premium: "Premium",
   premium_plus: "Premium+ (custom)",
+}
+
+function getExpiryStatus(b: BusinessRow): { label: string; className: string } {
+  if (b.subscription_plan === "unsubscribed") {
+    return { label: "Χωρίς συνδρομή", className: "bg-slate-100 text-slate-700 border-slate-200" }
+  }
+  if (b.subscription_plan === "demo") {
+    return { label: "Demo (χωρίς λήξη)", className: "bg-emerald-100 text-emerald-700 border-emerald-200" }
+  }
+  if (!b.subscription_expires_at) {
+    return { label: "Χωρίς ημερομηνία λήξης", className: "bg-slate-100 text-slate-700 border-slate-200" }
+  }
+
+  const expiry = new Date(b.subscription_expires_at)
+  if (Number.isNaN(expiry.getTime())) {
+    return { label: "Μη έγκυρη ημερομηνία λήξης", className: "bg-slate-100 text-slate-700 border-slate-200" }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  expiry.setHours(0, 0, 0, 0)
+  const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
+
+  if (daysLeft < 0) {
+    return { label: "Έχει λήξει", className: "bg-red-100 text-red-700 border-red-200" }
+  }
+  if (daysLeft <= 15) {
+    return { label: `Λήγει σε ${daysLeft} ημέρες`, className: "bg-orange-100 text-orange-700 border-orange-200" }
+  }
+  return { label: `Ενεργό (${daysLeft} ημέρες)`, className: "bg-emerald-100 text-emerald-700 border-emerald-200" }
+}
+
+function getSubscriptionRecordStatusBadge(status: string | null): { label: string; className: string } {
+  const s = (status ?? "").toLowerCase()
+  if (s === "active") {
+    return { label: "Ενεργή συνδρομή", className: "bg-emerald-500/12 text-emerald-700 border-emerald-400/30" }
+  }
+  if (s === "none" || !status) {
+    return { label: "Χωρίς συνδρομή", className: "bg-muted text-muted-foreground border-border" }
+  }
+  return { label: status, className: "bg-muted text-foreground border-border" }
 }
 
 export default function PlatformBusinesses() {
@@ -636,13 +693,17 @@ export default function PlatformBusinesses() {
               <div className="md:hidden space-y-2">
                 {businesses.map((b) => {
                   const admin = adminByBusinessId[b.id]
+                  const expiryStatus = getExpiryStatus(b)
                   return (
                     <div key={b.id} className="rounded-lg border bg-card p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="text-sm font-medium">{b.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {b.subscription_plan ?? "—"} • {b.subscription_status ?? "—"}
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            <span>{b.subscription_plan ?? "—"} • {b.subscription_status ?? "—"}</span>
+                            <Badge variant="outline" className={expiryStatus.className}>
+                              {expiryStatus.label}
+                            </Badge>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             Admin: {admin?.username ?? "—"}
@@ -683,6 +744,7 @@ export default function PlatformBusinesses() {
                   <TableBody>
                     {businesses.map((b) => {
                       const admin = adminByBusinessId[b.id]
+                      const expiryStatus = getExpiryStatus(b)
                       return (
                         <TableRow key={b.id} className="odd:bg-muted/40">
                           <TableCell className="font-medium">{b.name}</TableCell>
@@ -690,7 +752,14 @@ export default function PlatformBusinesses() {
                           <TableCell>{b.email ?? "—"}</TableCell>
                           <TableCell className="font-mono text-sm">{admin?.username ?? "—"}</TableCell>
                           <TableCell>{b.subscription_plan ?? "—"}</TableCell>
-                          <TableCell>{b.subscription_status ?? "—"}</TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p>{b.subscription_status ?? "—"}</p>
+                              <Badge variant="outline" className={expiryStatus.className}>
+                                {expiryStatus.label}
+                              </Badge>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             U: {b.max_users ?? "—"} / C: {b.max_customers ?? "—"} / A: {b.max_appointments ?? "—"}
                           </TableCell>
@@ -865,152 +934,299 @@ export default function PlatformBusinesses() {
 
       {/* Business Details — Sheet */}
       <Sheet open={!!detailsBusinessId} onOpenChange={(open) => !open && setDetailsBusinessId(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Λεπτομέρειες επιχείρησης</SheetTitle>
-          </SheetHeader>
-          {detailsBusiness && (
-            <div className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">Επιχείρηση</h4>
-                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                  <dt className="text-muted-foreground">Όνομα</dt>
-                  <dd className="font-medium">{detailsBusiness.name}</dd>
-                  <dt className="text-muted-foreground">Τύπος</dt>
-                  <dd>{detailsBusiness.business_type ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Τηλέφωνο</dt>
-                  <dd>{detailsBusiness.phone ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd>{detailsBusiness.email ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Διεύθυνση</dt>
-                  <dd>{detailsBusiness.address ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Πλάνο</dt>
-                  <dd className="flex items-center gap-2">
-                    {user?.role === "super_admin" ? (
-                      <Select
-                        value={(detailsBusiness.subscription_plan as PlanKey) ?? "unsubscribed"}
-                        onValueChange={(v) => handleChangeBusinessPlan(detailsBusiness.id, v as PlanKey)}
-                      >
-                        <SelectTrigger className="h-8 w-full max-w-[220px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(PLAN_LABEL) as PlanKey[]).map((k) => (
-                            <SelectItem key={k} value={k}>
-                              {PLAN_LABEL[k]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span>{detailsBusiness.subscription_plan ?? "—"}</span>
-                    )}
-                  </dd>
-                  <dt className="text-muted-foreground">Κατάσταση</dt>
-                  <dd>{detailsBusiness.subscription_status ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Όρια</dt>
-                  <dd>U: {detailsBusiness.max_users ?? "—"} / C: {detailsBusiness.max_customers ?? "—"} / A: {detailsBusiness.max_appointments ?? "—"}</dd>
-                  <dt className="text-muted-foreground">Λήξη συνδρομής</dt>
-                  <dd className="flex flex-col gap-2">
-                    {detailsBusiness.subscription_plan === "demo"
-                      ? "Χωρίς λήξη"
-                      : detailsBusiness.subscription_expires_at
-                        ? new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR")
-                        : "—"}
-                    {user?.role === "super_admin" && detailsBusiness.subscription_plan !== "demo" && (
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <Input
-                          type="date"
-                          className="h-8 w-[160px]"
-                          value={detailsExpiryDate}
-                          onChange={(e) => setDetailsExpiryDate(e.target.value)}
-                        />
-                        <Button size="sm" variant="outline" onClick={handleUpdateExpiry} disabled={updatingExpiry || !detailsExpiryDate}>
-                          {updatingExpiry ? "Αποθήκευση..." : "Ενημέρωση λήξης"}
-                        </Button>
-                      </div>
-                    )}
-                  </dd>
-                  <dt className="text-muted-foreground">Δημιουργήθηκε</dt>
-                  <dd>{new Date(detailsBusiness.created_at).toLocaleString()}</dd>
-                </dl>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-muted-foreground">Χρήστες tenant</h4>
-                  <Button size="sm" onClick={() => setAddAdminOpen(true)}>Προσθήκη διαχειριστή</Button>
-                </div>
-                {detailsLoading ? (
-                  <Skeleton className="h-24 w-full" />
-                ) : detailsUsers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Δεν υπάρχουν χρήστες. Προσθέστε τον πρώτο διαχειριστή.</p>
-                ) : (
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Ονοματεπώνυμο</TableHead>
-                          <TableHead>Username</TableHead>
-                          <TableHead>Ρόλος</TableHead>
-                          <TableHead>Κατάσταση</TableHead>
-                          <TableHead>Δημιουργήθηκε</TableHead>
-                          <TableHead className="w-0" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detailsUsers.map((u) => (
-                          <TableRow key={u.id}>
-                            <TableCell>{u.full_name}</TableCell>
-                            <TableCell className="font-mono text-sm">{u.username ?? "—"}</TableCell>
-                            <TableCell>{u.role}</TableCell>
-                            <TableCell>{u.status}</TableCell>
-                            <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 mr-2"
-                                onClick={() => handleRepairUser(u.username)}
-                                disabled={!u.username}
-                              >
-                                Επιδιόρθωση σύνδεσης
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => handleDeleteUser(u.id)}
-                              >
-                                Διαγραφή
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Διαγραφή επιχείρησης (μη αναστρέψιμο)
-                  </p>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => handleDeleteBusiness(detailsBusiness.id, detailsBusiness.name)}
-                  >
-                    Διαγραφή επιχείρησης
-                  </Button>
-                </div>
-              </div>
-            </div>
+        <SheetContent
+          className={cn(
+            "flex h-full w-full flex-col gap-0 overflow-hidden p-0",
+            "border-l border-primary/15 bg-background shadow-[0_0_0_1px_rgba(0,0,0,0.03),-12px_0_40px_rgba(15,23,42,0.12)]",
+            "sm:max-w-xl md:max-w-[480px]",
           )}
+        >
+          {detailsBusiness && (() => {
+            const expiryBadge = getExpiryStatus(detailsBusiness)
+            const recordStatus = getSubscriptionRecordStatusBadge(detailsBusiness.subscription_status)
+            return (
+              <>
+                <div className="relative shrink-0 overflow-hidden border-b border-border/60 bg-gradient-to-br from-primary/[0.07] via-background to-muted/40 px-6 pb-5 pt-6">
+                  <div
+                    className="pointer-events-none absolute -right-16 -top-24 h-48 w-48 rounded-full bg-primary/10 blur-3xl"
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+                    aria-hidden
+                  />
+                  <SheetHeader className="relative space-y-4 text-left">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-inner ring-1 ring-primary/15">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <SheetTitle className="pr-8 text-left text-lg font-semibold leading-snug tracking-tight md:text-xl">
+                          {detailsBusiness.name}
+                        </SheetTitle>
+                        <SheetDescription className="text-left text-xs leading-relaxed text-muted-foreground">
+                          Καρτέλα tenant · διαχείριση πλατφόρμας
+                        </SheetDescription>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {detailsBusiness.business_type ? (
+                        <Badge variant="secondary" className="rounded-full border-0 bg-background/80 px-3 py-0.5 font-normal shadow-sm">
+                          {detailsBusiness.business_type}
+                        </Badge>
+                      ) : null}
+                      <Badge variant="outline" className={cn("rounded-full border px-3 py-0.5 font-medium", recordStatus.className)}>
+                        {recordStatus.label}
+                      </Badge>
+                      <Badge variant="outline" className={cn("rounded-full border px-3 py-0.5 font-medium", expiryBadge.className)}>
+                        {expiryBadge.label}
+                      </Badge>
+                    </div>
+                  </SheetHeader>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                  <Card className="border-border/50 bg-card/90 shadow-sm backdrop-blur-sm">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <Phone className="h-4 w-4 text-primary" />
+                        Στοιχεία επικοινωνίας
+                      </CardTitle>
+                      <CardDescription>Στοιχεία επιχείρησης στο σύστημα</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="flex gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
+                        <Phone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Τηλέφωνο</p>
+                          <p className="font-medium text-foreground">{detailsBusiness.phone ?? "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
+                        <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</p>
+                          <p className="break-all font-medium text-foreground">{detailsBusiness.email ?? "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2.5">
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Διεύθυνση</p>
+                          <p className="font-medium text-foreground">{detailsBusiness.address ?? "—"}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/50 bg-card/90 shadow-sm backdrop-blur-sm">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                        <CreditCard className="h-4 w-4 text-primary" />
+                        Συνδρομή & όρια
+                      </CardTitle>
+                      <CardDescription>Πλάνο, ημερομηνία λήξης και quotas</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Πλάνο</span>
+                        {user?.role === "super_admin" ? (
+                          <Select
+                            value={(detailsBusiness.subscription_plan as PlanKey) ?? "unsubscribed"}
+                            onValueChange={(v) => handleChangeBusinessPlan(detailsBusiness.id, v as PlanKey)}
+                          >
+                            <SelectTrigger className="h-10 w-full max-w-[280px] rounded-xl border-border/60 bg-background/80">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(PLAN_LABEL) as PlanKey[]).map((k) => (
+                                <SelectItem key={k} value={k}>
+                                  {PLAN_LABEL[k]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="font-medium">{detailsBusiness.subscription_plan ?? "—"}</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Χρήστες", value: detailsBusiness.max_users, icon: Users },
+                          { label: "Πελάτες", value: detailsBusiness.max_customers, icon: Sparkles },
+                          { label: "Ραντεβού", value: detailsBusiness.max_appointments, icon: Gauge },
+                        ].map(({ label, value, icon: Icon }) => (
+                          <div
+                            key={label}
+                            className="rounded-xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/10 px-2 py-3 text-center shadow-sm"
+                          >
+                            <Icon className="mx-auto mb-1 h-4 w-4 text-primary/80" />
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                            <p className="text-lg font-semibold tabular-nums text-foreground">{value ?? "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/50 via-background to-background p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <CalendarClock className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Λήξη συνδρομής</p>
+                            {detailsBusiness.subscription_plan === "demo" ? (
+                              <p className="text-sm font-medium">Demo — χωρίς ημερομηνία λήξης</p>
+                            ) : detailsBusiness.subscription_expires_at ? (
+                              <p className="text-lg font-semibold tabular-nums tracking-tight">
+                                {new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR", {
+                                  weekday: "long",
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Δεν έχει οριστεί ημερομηνία</p>
+                            )}
+                            <Badge variant="outline" className={cn("mt-1 w-fit border font-medium", expiryBadge.className)}>
+                              {expiryBadge.label}
+                            </Badge>
+                            {user?.role === "super_admin" && detailsBusiness.subscription_plan !== "demo" && (
+                              <div className="flex flex-wrap items-center gap-2 pt-2">
+                                <Input
+                                  type="date"
+                                  className="h-9 max-w-[180px] rounded-lg border-border/60 bg-background/90"
+                                  value={detailsExpiryDate}
+                                  onChange={(e) => setDetailsExpiryDate(e.target.value)}
+                                />
+                                <Button
+                                  size="sm"
+                                  className="rounded-lg"
+                                  variant="secondary"
+                                  onClick={handleUpdateExpiry}
+                                  disabled={updatingExpiry || !detailsExpiryDate}
+                                >
+                                  {updatingExpiry ? "Αποθήκευση..." : "Ενημέρωση λήξης"}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary/70" />
+                        Δημιουργήθηκε: {new Date(detailsBusiness.created_at).toLocaleString("el-GR")}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/50 bg-card/90 shadow-sm backdrop-blur-sm">
+                    <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                          <Users className="h-4 w-4 text-primary" />
+                          Χρήστες tenant
+                        </CardTitle>
+                        <CardDescription>Διαχειριστές και μέλη της επιχείρησης</CardDescription>
+                      </div>
+                      <Button size="sm" className="gap-1.5 rounded-full shadow-sm" onClick={() => setAddAdminOpen(true)}>
+                        <UserPlus className="h-4 w-4" />
+                        Προσθήκη
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {detailsLoading ? (
+                        <Skeleton className="h-28 w-full rounded-xl" />
+                      ) : detailsUsers.length === 0 ? (
+                        <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                          Δεν υπάρχουν χρήστες. Προσθέστε τον πρώτο διαχειριστή.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-border/50">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-border/50 hover:bg-transparent">
+                                <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ονοματεπώνυμο</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ρόλος</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Κατάσταση</TableHead>
+                                <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Δημιουργία</TableHead>
+                                <TableHead className="w-0" />
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {detailsUsers.map((u) => (
+                                <TableRow key={u.id} className="border-border/40">
+                                  <TableCell className="font-medium">{u.full_name}</TableCell>
+                                  <TableCell className="font-mono text-xs">{u.username ?? "—"}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="rounded-md font-normal">
+                                      {u.role}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm">{u.status}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {new Date(u.created_at).toLocaleDateString("el-GR")}
+                                  </TableCell>
+                                  <TableCell className="whitespace-nowrap">
+                                    <div className="flex flex-wrap justify-end gap-1.5">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 rounded-lg text-xs"
+                                        onClick={() => handleRepairUser(u.username)}
+                                        disabled={!u.username}
+                                      >
+                                        Επιδιόρθωση
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8 rounded-lg text-xs"
+                                        onClick={() => handleDeleteUser(u.id)}
+                                      >
+                                        Διαγραφή
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-destructive/25 bg-destructive/[0.04] shadow-sm backdrop-blur-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        Επικίνδυνη ζώνη
+                      </CardTitle>
+                      <CardDescription className="text-destructive/80">
+                        Η διαγραφή επιχείρησης είναι οριστική και αφαιρεί όλα τα δεδομένα.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="w-full rounded-xl shadow-sm sm:w-auto"
+                        onClick={() => handleDeleteBusiness(detailsBusiness.id, detailsBusiness.name)}
+                      >
+                        Διαγραφή επιχείρησης
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )
+          })()}
         </SheetContent>
       </Sheet>
 
