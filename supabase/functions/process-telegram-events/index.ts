@@ -11,6 +11,11 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders })
 }
 
+/** HTML για Telegram parse_mode — αποφυγή σπασίματος από ονόματα/κείμενα χρηστών */
+function escapeTgHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
 type BusinessRow = {
   id: string
   name: string
@@ -114,6 +119,12 @@ function hourInTimeZone(d: Date, timeZone: string): number {
     .formatToParts(d)
     .find((p) => p.type === "hour")?.value
   return Number(part ?? 0)
+}
+
+function addCalendarDaysYmd(ymd: string, days: number): string {
+  let d = ymd
+  for (let i = 0; i < days; i++) d = addOneCalendarDayYmd(d)
+  return d
 }
 
 /** Επόμενη ημερομηνία YYYY-MM-DD μετά το ymd (ημερολογιακά). */
@@ -246,8 +257,9 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
             }
           | null
         if (!a) throw new Error("Appointment not found")
-        const customerName = a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "—"
-        const staffName = a.assigned_user?.full_name ?? "—"
+        const customerName = escapeTgHtml(a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "—")
+        const staffName = escapeTgHtml(a.assigned_user?.full_name ?? "—")
+        const serviceName = escapeTgHtml(a.service?.name ?? "—")
 
         if (row.event_type === "appointment_created") {
           if (!isEnabledFor(delivery.business, "appointment_created")) {
@@ -261,9 +273,9 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
           text = [
             "<b>Νέο ραντεβού</b>",
             `Πελάτης: ${customerName}`,
-            `Ημερομηνία: ${a.scheduled_date}`,
-            `Ώρα: ${a.start_time} - ${a.end_time}`,
-            `Υπηρεσία: ${a.service?.name ?? "—"}`,
+            `Ημερομηνία: ${escapeTgHtml(a.scheduled_date)}`,
+            `Ώρα: ${escapeTgHtml(a.start_time)} - ${escapeTgHtml(a.end_time)}`,
+            `Υπηρεσία: ${serviceName}`,
             `Υπεύθυνος: ${staffName}`,
           ].join("\n")
           replyMarkup = appointmentActions(a.id)
@@ -276,11 +288,11 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
               .eq("id", row.id)
             continue
           }
-          const newStatus = toGreekStatus(String(payload.new_status ?? a.status))
+          const newStatus = escapeTgHtml(toGreekStatus(String(payload.new_status ?? a.status)))
           text = [
             "<b>Αλλαγή κατάστασης ραντεβού</b>",
             `Πελάτης: ${customerName}`,
-            `Ραντεβού: ${a.scheduled_date} ${a.start_time} - ${a.end_time}`,
+            `Ραντεβού: ${escapeTgHtml(a.scheduled_date)} ${escapeTgHtml(a.start_time)} - ${escapeTgHtml(a.end_time)}`,
             `Νέα κατάσταση: ${newStatus}`,
           ].join("\n")
         } else if (row.event_type === "appointment_rescheduled") {
@@ -295,8 +307,8 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
           text = [
             "<b>Επαναπρογραμματισμός ραντεβού</b>",
             `Πελάτης: ${customerName}`,
-            `Παλιά ώρα: ${String(payload.old_date ?? "—")} ${String(payload.old_start_time ?? "—")} - ${String(payload.old_end_time ?? "—")}`,
-            `Νέα ώρα: ${a.scheduled_date} ${a.start_time} - ${a.end_time}`,
+            `Παλιά ώρα: ${escapeTgHtml(String(payload.old_date ?? "—"))} ${escapeTgHtml(String(payload.old_start_time ?? "—"))} - ${escapeTgHtml(String(payload.old_end_time ?? "—"))}`,
+            `Νέα ώρα: ${escapeTgHtml(a.scheduled_date)} ${escapeTgHtml(a.start_time)} - ${escapeTgHtml(a.end_time)}`,
           ].join("\n")
           replyMarkup = appointmentActions(a.id)
         }
@@ -334,9 +346,9 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
         const oldPaid = Number(payload.old_paid_amount ?? 0)
         const newPaid = Number(payload.new_paid_amount ?? p.paid_amount ?? 0)
         const delta = Math.max(0, newPaid - oldPaid)
-        const customerName = p.appointment?.customer
-          ? `${p.appointment.customer.first_name} ${p.appointment.customer.last_name}`
-          : "—"
+        const customerName = escapeTgHtml(
+          p.appointment?.customer ? `${p.appointment.customer.first_name} ${p.appointment.customer.last_name}` : "—",
+        )
         text = [
           `<b>${delta > 0 && oldPaid > 0 ? "Μερική πληρωμή" : "Νέα πληρωμή"}</b>`,
           `Πελάτης: ${customerName}`,
@@ -364,8 +376,8 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
         text = [
           "<b>Νέο support incident</b>",
           `Τύπος: ${r.type === "issue" ? "Issue" : "Suggestion"}`,
-          `ID: ${r.id}`,
-          `Μήνυμα: ${r.message.slice(0, 220)}${r.message.length > 220 ? "..." : ""}`,
+          `ID: ${escapeTgHtml(r.id)}`,
+          `Μήνυμα: ${escapeTgHtml(r.message.slice(0, 220))}${r.message.length > 220 ? "..." : ""}`,
         ].join("\n")
       } else if (row.event_type === "support_reply" && supportRequestId) {
         if (!isEnabledFor(delivery.business, "support_reply")) {
@@ -388,8 +400,8 @@ async function processQueue(supabase: ReturnType<typeof createClient>, fallbackT
         if (!m) throw new Error("Support reply not found")
         text = [
           "<b>Απάντηση support</b>",
-          `Incident: ${supportRequestId}`,
-          `Μήνυμα: ${m.content.slice(0, 260)}${m.content.length > 260 ? "..." : ""}`,
+          `Incident: ${escapeTgHtml(supportRequestId)}`,
+          `Μήνυμα: ${escapeTgHtml(m.content.slice(0, 260))}${m.content.length > 260 ? "..." : ""}`,
         ].join("\n")
       } else {
         skipped += 1
@@ -455,10 +467,10 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
   const todayAthens = ymdInTimeZone(now, DIGEST_TZ)
   const tomorrowAthens = addOneCalendarDayYmd(todayAthens)
   const hourAthens = hourInTimeZone(now, DIGEST_TZ)
-  /** Πρωινό briefing ~08:00 τοπική ώρα (μία φορά την ημέρα μέσω digest log). */
+  /** Πρωινό briefing ~08:00 Europe/Athens (μία φορά την ημέρα μέσω digest log). */
   const shouldMorning = hourAthens === 8
-  /** Βραδινό summary μετά τις 23:00 τοπική ώρα — έσοδα ημέρας, ολοκληρωμένα σήμερα, κρατήσεις για αύριο. */
-  const shouldDaily = hourAthens >= 23
+  /** Βραδινό κλείσιμο μετά τις 22:00 — έσοδα, στατιστικά ημέρας, ανά υπεύθυνο. */
+  const shouldDaily = hourAthens >= 22
 
   const { data: businesses, error } = await supabase
     .from("businesses")
@@ -474,36 +486,99 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
     const token = (b.telegram_bot_token ?? "").trim() || fallbackToken
     if (!chatId || !token) continue
 
+    const activeBookingStatuses = ["pending", "confirmed", "in_progress", "rescheduled"] as const
+
     if (shouldDaily) {
       if (!isEnabledFor(b, "daily_summary")) {
         // no-op
       } else {
-      const didSend = await sendDigestIfMissing(supabase, b.id, "daily_summary", todayAthens, async () => {
-        const { start: dayStart, endExclusive: dayEnd } = localYmdBoundsUtcIso(todayAthens)
-        const [{ count: completedToday }, { data: paymentsToday }, { count: tomorrowBooked }] =
-          await Promise.all([
-            supabase.from("appointments_jobs").select("id", { count: "exact", head: true }).eq("business_id", b.id).eq("scheduled_date", todayAthens).eq("status", "completed"),
+        const didSend = await sendDigestIfMissing(supabase, b.id, "daily_summary", todayAthens, async () => {
+          const { start: dayStart, endExclusive: dayEnd } = localYmdBoundsUtcIso(todayAthens)
+          const bizLabel = escapeTgHtml(b.name ?? "Επιχείρηση")
+
+          const [{ data: paymentsToday }, { data: todayAppts }, { count: tomorrowBooked }] = await Promise.all([
             supabase.from("payments").select("paid_amount,amount").eq("business_id", b.id).gte("created_at", dayStart).lt("created_at", dayEnd),
+            supabase
+              .from("appointments_jobs")
+              .select("status, assigned_user_id, assigned_user:users(full_name)")
+              .eq("business_id", b.id)
+              .eq("scheduled_date", todayAthens),
             supabase
               .from("appointments_jobs")
               .select("id", { count: "exact", head: true })
               .eq("business_id", b.id)
               .eq("scheduled_date", tomorrowAthens)
-              .in("status", ["pending", "confirmed", "in_progress", "rescheduled"]),
+              .in("status", [...activeBookingStatuses]),
           ])
-        const revenue = ((paymentsToday ?? []) as { paid_amount?: number | null; amount?: number | null }[]).reduce(
-          (sum, x) => sum + Number(x.paid_amount ?? x.amount ?? 0),
-          0,
-        )
-        const text = [
-          `<b>Βραδινό summary (${todayAthens})</b>`,
-          `Συνολικά έσοδα ημέρας: €${amount(revenue)}`,
-          `Ολοκληρωμένα ραντεβού σήμερα: ${completedToday ?? 0}`,
-          `Ραντεβού κλεισμένα για αύριο (${tomorrowAthens}): ${tomorrowBooked ?? 0}`,
-        ].join("\n")
-        await sendTelegram(token, chatId, text)
-      })
-      if (didSend) digestSent += 1
+
+          const revenue = ((paymentsToday ?? []) as { paid_amount?: number | null; amount?: number | null }[]).reduce(
+            (sum, x) => sum + Number(x.paid_amount ?? x.amount ?? 0),
+            0,
+          )
+
+          type TodayRow = {
+            status: string
+            assigned_user_id: string | null
+            assigned_user: { full_name: string } | null
+          }
+          let completedAll = 0
+          let cancelledAll = 0
+          let noShowAll = 0
+          const perStaff = new Map<
+            string,
+            { label: string; completed: number; cancelled: number; no_show: number }
+          >()
+
+          for (const raw of (todayAppts ?? []) as TodayRow[]) {
+            const st = raw.status
+            if (st === "completed") completedAll += 1
+            else if (st === "cancelled") cancelledAll += 1
+            else if (st === "no_show") noShowAll += 1
+
+            const key = raw.assigned_user_id ?? "__unassigned__"
+            if (!perStaff.has(key)) {
+              const label =
+                raw.assigned_user_id == null
+                  ? "Χωρίς ανάθεση"
+                  : escapeTgHtml((raw.assigned_user?.full_name ?? "").trim() || "—")
+              perStaff.set(key, { label, completed: 0, cancelled: 0, no_show: 0 })
+            }
+            const entry = perStaff.get(key)!
+            if (st === "completed") entry.completed += 1
+            else if (st === "cancelled") entry.cancelled += 1
+            else if (st === "no_show") entry.no_show += 1
+          }
+
+          const staffLines = [...perStaff.values()]
+            .filter((s) => s.completed + s.cancelled + s.no_show > 0)
+            .map(
+              (s) =>
+                `• ${s.label}: ολοκλ. ${s.completed} · ακυρ. ${s.cancelled} · no-show ${s.no_show}`,
+            )
+
+          let text = [
+            `<b>Κλείσιμο ημέρας — ${escapeTgHtml(todayAthens)}</b>`,
+            `<b>${bizLabel}</b>`,
+            "",
+            `<b>Έσοδα ημέρας (καταχωρήσεις)</b>: €${amount(revenue)}`,
+            "",
+            `<b>Ραντεβού με ημερομηνία σήμερα</b>`,
+            `• Ολοκληρωμένα: ${completedAll}`,
+            `• Ακυρώσεις: ${cancelledAll}`,
+            `• No-show: ${noShowAll}`,
+            "",
+            `<b>Κρατήσεις για αύριο (${escapeTgHtml(tomorrowAthens)})</b>: ${tomorrowBooked ?? 0}`,
+            "",
+            `<b>Ανά υπεύθυνο (για σημερινά ραντεβού)</b>`,
+            staffLines.length > 0 ? staffLines.join("\n") : "• (Κανένα ολοκληρωμένο/ακυρωμένο/no-show σήμερα)",
+          ].join("\n")
+
+          if (text.length > 3800) {
+            text = text.slice(0, 3790) + "\n…"
+          }
+          await sendTelegram(token, chatId, text)
+        })
+        if (didSend) digestSent += 1
       }
     }
 
@@ -511,25 +586,72 @@ async function processDigestsAndLimits(supabase: ReturnType<typeof createClient>
       if (!isEnabledFor(b, "morning_briefing")) {
         // no-op
       } else {
-      const didSend = await sendDigestIfMissing(supabase, b.id, "morning_briefing", todayAthens, async () => {
-        const { data: rows } = await supabase
-          .from("appointments_jobs")
-          .select("start_time,end_time,title,assigned_user:users(full_name)")
-          .eq("business_id", b.id)
-          .eq("scheduled_date", todayAthens)
-          .in("status", ["pending", "confirmed", "in_progress", "rescheduled"])
-          .order("start_time", { ascending: true })
-          .limit(25)
+        const didSend = await sendDigestIfMissing(supabase, b.id, "morning_briefing", todayAthens, async () => {
+          const end14 = addCalendarDaysYmd(todayAthens, 14)
+          const bizLabel = escapeTgHtml(b.name ?? "Επιχείρηση")
 
-        const lines = ((rows ?? []) as { start_time: string; end_time: string; title: string; assigned_user: { full_name: string } | null }[]).map(
-          (r) => `• ${r.start_time}-${r.end_time} | ${r.title} | ${r.assigned_user?.full_name ?? "—"}`,
-        )
-        const text = ["<b>Πρωινό briefing</b>", `Σημερινά ραντεβού: ${lines.length}`]
-          .concat(lines.length > 0 ? lines : ["(Δεν υπάρχουν ραντεβού για σήμερα)"])
-          .join("\n")
-        await sendTelegram(token, chatId, text)
-      })
-      if (didSend) digestSent += 1
+          const [{ data: rows }, { data: spanRows }] = await Promise.all([
+            supabase
+              .from("appointments_jobs")
+              .select("start_time,end_time,title,assigned_user:users(full_name)")
+              .eq("business_id", b.id)
+              .eq("scheduled_date", todayAthens)
+              .in("status", [...activeBookingStatuses])
+              .order("start_time", { ascending: true })
+              .limit(30),
+            supabase
+              .from("appointments_jobs")
+              .select("scheduled_date")
+              .eq("business_id", b.id)
+              .gte("scheduled_date", todayAthens)
+              .lte("scheduled_date", end14)
+              .in("status", [...activeBookingStatuses]),
+          ])
+
+          const list = (rows ?? []) as {
+            start_time: string
+            end_time: string
+            title: string
+            assigned_user: { full_name: string } | null
+          }[]
+          const detailLines = list.map(
+            (r) =>
+              `• ${escapeTgHtml(r.start_time)}–${escapeTgHtml(r.end_time)} | ${escapeTgHtml(r.title || "—")} | ${escapeTgHtml(r.assigned_user?.full_name ?? "—")}`,
+          )
+
+          const byDay = new Map<string, number>()
+          for (const r of (spanRows ?? []) as { scheduled_date: string }[]) {
+            const sd = r.scheduled_date
+            byDay.set(sd, (byDay.get(sd) ?? 0) + 1)
+          }
+
+          const dayBreakdown: string[] = []
+          for (let i = 0; i <= 14; i++) {
+            const d = addCalendarDaysYmd(todayAthens, i)
+            const c = byDay.get(d) ?? 0
+            if (c > 0) {
+              const [y, m, dd] = d.split("-")
+              dayBreakdown.push(`• ${dd}/${m}/${y}: ${c}`)
+            }
+          }
+
+          let text = [
+            `<b>Πρωινή ενημέρωση — ${escapeTgHtml(todayAthens)}</b>`,
+            `<b>${bizLabel}</b>`,
+            "",
+            `<b>Σημερινά ραντεβού (ενεργά)</b>: ${list.length}`,
+            list.length > 0 ? detailLines.join("\n") : "(Δεν υπάρχουν ενεργά ραντεβού για σήμερα.)",
+            "",
+            `<b>Κρατήσεις ανά ημέρα</b> (επόμενες 14 ημέρες, ενεργά μόνο)`,
+            dayBreakdown.length > 0 ? dayBreakdown.join("\n") : "(Καμία ενεργή κράτηση στο παράθυρο.)",
+          ].join("\n")
+
+          if (text.length > 3800) {
+            text = text.slice(0, 3790) + "\n…"
+          }
+          await sendTelegram(token, chatId, text)
+        })
+        if (didSend) digestSent += 1
       }
     }
 

@@ -11,6 +11,10 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders })
 }
 
+function escapeTgHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
 type AppointmentRow = {
   id: string
   business_id: string
@@ -142,13 +146,13 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (existing?.id) continue
 
-      const customerName = row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "—"
-      const serviceName = row.service?.name ?? "—"
+      const customerName = escapeTgHtml(row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "—")
+      const serviceName = escapeTgHtml(row.service?.name ?? "—")
       const text = [
         "<b>Υπενθύμιση 30 λεπτά πριν</b>",
         `Πελάτης: ${customerName}`,
-        `Ημερομηνία: ${row.scheduled_date}`,
-        `Ώρα: ${row.start_time} - ${row.end_time}`,
+        `Ημερομηνία: ${escapeTgHtml(row.scheduled_date)}`,
+        `Ώρα: ${escapeTgHtml(row.start_time)} - ${escapeTgHtml(row.end_time)}`,
         `Υπηρεσία: ${serviceName}`,
       ].join("\n")
 

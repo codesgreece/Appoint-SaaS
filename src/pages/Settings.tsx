@@ -354,22 +354,72 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
-                <p className="text-sm font-medium">Επιλογή ειδοποιήσεων Telegram</p>
+              <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
+                <p className="font-medium text-foreground">Πρόγραμμα (Europe/Athens)</p>
+                <p className="mt-1">
+                  <strong className="text-foreground">08:00</strong> — πόσα ραντεβού έχεις σήμερα, λίστα ωρών, και αναλυτικά κλεισμένα
+                  ανά ημέρα (14 ημέρες).
+                </p>
+                <p className="mt-1">
+                  <strong className="text-foreground">από 22:00</strong> — κλείσιμο ημέρας: έσοδα, ολοκληρωμένα / ακυρώσεις / no-show,
+                  κρατήσεις για αύριο, και σύνοψη ανά υπεύθυνο προσωπικό.
+                </p>
+                <p className="mt-1.5 text-[11px]">
+                  Χρειάζεται προγραμματισμένη κλήση του Edge Function <code className="rounded bg-background/80 px-1">process-telegram-events</code>{" "}
+                  (π.χ. κάθε 5 λεπτά) με το secret του cron — αλλιώς τα πρωινά/βραδινά δεν στέλνονται.
+                </p>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-border/60 bg-background/40 p-3">
+                <p className="text-sm font-medium">Άμεσες ειδοποιήσεις</p>
                 {[
                   { key: "appointment_created", label: "Νέο ραντεβού" },
                   { key: "appointment_cancelled_or_no_show", label: "Ακύρωση / no-show" },
                   { key: "appointment_rescheduled", label: "Επαναπρογραμματισμός" },
-                  { key: "payment_recorded", label: "Πληρωμές (νέα/μερική)" },
-                  { key: "support_incident_new", label: "Νέο support incident" },
-                  { key: "support_reply", label: "Απάντηση support" },
-                  { key: "daily_summary", label: "Καθημερινό summary" },
-                  { key: "morning_briefing", label: "Πρωινό briefing" },
+                  { key: "payment_recorded", label: "Πληρωμές" },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between gap-3">
+                    <p className="text-sm">{item.label}</p>
+                    <Switch
+                      checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
+                      onCheckedChange={(checked) =>
+                        setTelegramPreferences((prev) => ({
+                          ...prev,
+                          [item.key]: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+
+                <p className="text-sm font-medium pt-2 border-t border-border/60">Ημερήσια μηνύματα στο Telegram</p>
+                {[
+                  { key: "morning_briefing", label: "Πρωινή ενημέρωση (~08:00)" },
+                  { key: "daily_summary", label: "Κλείσιμο ημέρας (μετά τις 22:00)" },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between gap-3">
+                    <p className="text-sm">{item.label}</p>
+                    <Switch
+                      checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
+                      onCheckedChange={(checked) =>
+                        setTelegramPreferences((prev) => ({
+                          ...prev,
+                          [item.key]: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+
+                <p className="text-sm font-medium pt-2 border-t border-border/60">Λοιπά</p>
+                {[
+                  { key: "support_incident_new", label: "Support — νέο αίτημα" },
+                  { key: "support_reply", label: "Support — απάντηση" },
                   { key: "plan_limits", label: "Όρια πλάνου" },
                   { key: "subscription_alerts", label: "Λήξη συνδρομής" },
                   { key: "reminder_30m", label: "Υπενθύμιση 30 λεπτά πριν" },
                 ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between">
+                  <div key={item.key} className="flex items-center justify-between gap-3">
                     <p className="text-sm">{item.label}</p>
                     <Switch
                       checked={telegramPreferences[item.key as keyof TelegramNotificationPreferences]}
