@@ -192,10 +192,21 @@ export default function Settings() {
 
   /** TEMP: debug Telegram — remove with edge function revert */
   async function handleTestTelegram() {
+    const appointmentId = window.prompt("Appointment ID (UUID) για debug test")?.trim()
+    if (!appointmentId) return
+
     const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "") ?? ""
     const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
     if (!base || !anon) {
       toast({ title: "Σφάλμα", description: "Λείπει VITE_SUPABASE_URL ή VITE_SUPABASE_ANON_KEY.", variant: "destructive" })
+      return
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) {
+      toast({ title: "Σφάλμα", description: "Χρειάζεσαι σύνδεση για το test.", variant: "destructive" })
       return
     }
     try {
@@ -203,11 +214,11 @@ export default function Settings() {
       const res = await fetch(`${base}/functions/v1/telegram-new-appointment`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${anon}`,
+          Authorization: `Bearer ${token}`,
           apikey: anon,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ appointment_id: appointmentId }),
       })
       const raw = await res.text()
       const preview = raw.length > 400 ? `${raw.slice(0, 400)}…` : raw
