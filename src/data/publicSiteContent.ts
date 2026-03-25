@@ -313,3 +313,33 @@ export const CLOSING_CTA = {
     "Ζητήστε από τον συνεργάτη σας ή τον διαχειριστή της πλατφόρμας να σας ενεργοποιήσει το πλάνο που ταιριάζει στο μέγεθός σας. Η ενεργοποίηση γίνεται από τον πάροχο — όχι από αυτή τη σελίδα.",
   anchor: "Δείτε ξανά τα πακέτα",
 }
+
+export interface CustomerReview {
+  name: string
+  businessType: string
+  comment: string
+  rating: 5
+}
+
+export const CUSTOMER_REVIEWS: CustomerReview[] = [
+  { name: "Μαρία Κ.", businessType: "Nail Artist", comment: "Μου οργάνωσε όλα τα ραντεβού, δεν χάνω πια πελάτισσες.", rating: 5 },
+  { name: "Γιάννης Π.", businessType: "Ψυκτικός", comment: "Ξέρω κάθε μέρα τι δουλειές έχω χωρίς χαρτιά και μπέρδεμα.", rating: 5 },
+  { name: "Ελένη Σ.", businessType: "Κομμώτρια", comment: "Πολύ εύκολο στη χρήση, με βοήθησε από την πρώτη μέρα.", rating: 5 },
+  { name: "Νίκος Δ.", businessType: "Ηλεκτρολόγος", comment: "Κρατάω ιστορικό πελατών και με ξαναπαίρνουν πιο συχνά.", rating: 5 },
+  { name: "Ανδρέας Μ.", businessType: "Barber", comment: "Έχω γεμάτο πρόγραμμα και καλύτερη οργάνωση.", rating: 5 },
+  { name: "Σοφία Λ.", businessType: "Αισθητικός", comment: "Βλέπω όλα τα ραντεβού μου σε δευτερόλεπτα.", rating: 5 },
+  { name: "Κώστας Ρ.", businessType: "Υδραυλικός", comment: "Τέλος τα χαρτάκια, όλα μέσα στην εφαρμογή.", rating: 5 },
+  { name: "Δήμητρα Τ.", businessType: "Nail Artist", comment: "Με βοήθησε να φαίνομαι πιο επαγγελματίας.", rating: 5 },
+  { name: "Πέτρος Κ.", businessType: "Barber", comment: "Γρήγορο και απλό, ακριβώς αυτό που ήθελα.", rating: 5 },
+  { name: "Άννα Β.", businessType: "Γιατρός", comment: "Κρατάω οργανωμένα όλα τα ραντεβού των ασθενών μου.", rating: 5 },
+  { name: "Μιχάλης Ζ.", businessType: "Τεχνικός", comment: "Ξέρω πάντα ποιος πελάτης χρειάζεται follow-up.", rating: 5 },
+  { name: "Χριστίνα Π.", businessType: "Κομμώτρια", comment: "Γεμίζω πιο εύκολα τα κενά στο πρόγραμμά μου.", rating: 5 },
+  { name: "Δημήτρης Σ.", businessType: "Ψυκτικός", comment: "Με βοήθησε να μην ξεχνάω service πελατών.", rating: 5 },
+  { name: "Κατερίνα Ν.", businessType: "Αισθητικός", comment: "Όλα σε ένα μέρος, πολύ πρακτικό.", rating: 5 },
+  { name: "Βασίλης Λ.", businessType: "Barber", comment: "Βλέπω εύκολα τη μέρα μου χωρίς άγχος.", rating: 5 },
+  { name: "Ιωάννα Κ.", businessType: "Γιατρός", comment: "Μου έδωσε καλύτερη οργάνωση στην καθημερινότητα.", rating: 5 },
+  { name: "Στέλιος Μ.", businessType: "Ηλεκτρολόγος", comment: "Ξέρω τι έχω να κάνω και πού να πάω κάθε μέρα.", rating: 5 },
+  { name: "Εύα Ρ.", businessType: "Nail Artist", comment: "Απλό, καθαρό και πολύ χρήσιμο.", rating: 5 },
+  { name: "Αλέξης Τ.", businessType: "Τεχνίτης", comment: "Κρατάω πελάτες και δουλειές χωρίς να ξεχνάω τίποτα.", rating: 5 },
+  { name: "Μαρίνα Δ.", businessType: "Κομμώτρια", comment: "Από τότε που το χρησιμοποιώ είμαι πιο οργανωμένη.", rating: 5 },
+]

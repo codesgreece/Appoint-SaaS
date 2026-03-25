@@ -23,6 +23,7 @@ import {
 } from "@/data/publicSiteContent"
 import { LiveViewersStrip } from "@/components/marketing/LiveViewersStrip"
 import { CountUpStatsSection } from "@/components/marketing/CountUpStatsSection"
+import { CustomerReviewsSection } from "@/components/marketing/CustomerReviewsSection"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -211,6 +212,7 @@ export default function PublicSite() {
       </section>
 
       <CountUpStatsSection />
+      <CustomerReviewsSection />
 
       {/* Personas */}
       <section id="personas" className="scroll-mt-24 border-b border-border/40 py-16 md:py-20">

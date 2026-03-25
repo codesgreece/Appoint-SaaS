@@ -142,3 +142,41 @@
     scrollbar-color: hsl(var(--muted-foreground)) transparent;
   }
 }
+
+@keyframes reviews-marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes reviews-marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.reviews-marquee {
+  overflow: hidden;
+  width: 100%;
+}
+
+.reviews-track {
+  display: flex;
+  gap: 12px;
+  width: max-content;
+  will-change: transform;
+}
+
+.reviews-track-left {
+  animation: reviews-marquee-left 42s linear infinite;
+}
+
+.reviews-track-right {
+  animation: reviews-marquee-right 46s linear infinite;
+}
