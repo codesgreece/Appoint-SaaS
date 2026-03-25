@@ -45,8 +45,8 @@ const businessNavItems = [
   { to: "/customers", icon: Users, label: "Πελάτες" },
   { to: "/services", icon: Briefcase, label: "Υπηρεσίες" },
   { to: "/appointments", icon: Calendar, label: "Ραντεβού" },
-  { to: "/route-order", icon: Route, label: "Ημερήσια Διαδρομή" },
-  { to: "/service-reminders", icon: Wrench, label: "Service Reminders" },
+  { to: "/route-order", icon: Route, label: "Ημερ. Διαδρομή" },
+  { to: "/service-reminders", icon: Wrench, label: "Υπενθυμίσεις" },
   { to: "/calendar", icon: CalendarDays, label: "Ημερολόγιο" },
   { to: "/shifts", icon: Clock3, label: "Βάρδιες" },
   { to: "/team", icon: UserCircle, label: "Ομάδα" },
@@ -279,7 +279,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "group relative flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs md:text-sm font-medium transition-colors transition-transform duration-150",
+                  "group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs md:text-sm font-medium transition-colors transition-transform duration-150",
                   isActive
                     ? "bg-gradient-to-r from-primary/15 via-primary/5 to-transparent text-foreground shadow-md ring-1 ring-primary/40"
                     : "text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-0.5"
@@ -299,7 +299,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                 </div>
-                <span className="min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-snug md:text-sm">
+                <span className="min-w-0 flex-1 whitespace-nowrap text-[13px] leading-snug md:text-sm">
                   {item.label}
                 </span>
                 {item.to === "/platform/tools" && openSupportCount != null && openSupportCount > 0 ? (
