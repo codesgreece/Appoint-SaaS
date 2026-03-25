@@ -171,45 +171,60 @@ export default function PublicBooking() {
           page: "from-rose-50 via-pink-50 to-fuchsia-100",
           card: "border-pink-200/70 bg-white/85 backdrop-blur",
           title: "text-fuchsia-700",
+          text: "text-fuchsia-950",
+          muted: "text-fuchsia-800/80",
           button: "bg-fuchsia-600 hover:bg-fuchsia-700 text-white",
           accent: "text-fuchsia-700",
           selected: "border-fuchsia-300 bg-fuchsia-50",
+          neutral: "border-fuchsia-200/70 bg-white/80 hover:bg-fuchsia-50/60",
         }
       case "salon_luxe":
         return {
           page: "from-violet-50 via-purple-50 to-indigo-100",
           card: "border-violet-200/70 bg-white/85 backdrop-blur",
           title: "text-violet-700",
+          text: "text-violet-950",
+          muted: "text-violet-900/75",
           button: "bg-violet-600 hover:bg-violet-700 text-white",
           accent: "text-violet-700",
           selected: "border-violet-300 bg-violet-50",
+          neutral: "border-violet-200/70 bg-white/80 hover:bg-violet-50/60",
         }
       case "craftsman":
         return {
           page: "from-amber-50 via-orange-50 to-yellow-100",
           card: "border-amber-300/70 bg-white/90 backdrop-blur",
           title: "text-amber-800",
+          text: "text-amber-950",
+          muted: "text-amber-900/80",
           button: "bg-amber-600 hover:bg-amber-700 text-white",
           accent: "text-amber-800",
           selected: "border-amber-300 bg-amber-50",
+          neutral: "border-amber-300/70 bg-white/80 hover:bg-amber-50/60",
         }
       case "medical":
         return {
           page: "from-cyan-50 via-sky-50 to-blue-100",
           card: "border-sky-200/70 bg-white/90 backdrop-blur",
           title: "text-sky-700",
+          text: "text-sky-950",
+          muted: "text-sky-900/75",
           button: "bg-sky-600 hover:bg-sky-700 text-white",
           accent: "text-sky-700",
           selected: "border-sky-300 bg-sky-50",
+          neutral: "border-sky-200/70 bg-white/80 hover:bg-sky-50/60",
         }
       default:
         return {
           page: "from-slate-50 via-white to-slate-100",
           card: "border-slate-200/70 bg-white/90 backdrop-blur",
           title: "text-foreground",
+          text: "text-slate-900",
+          muted: "text-slate-600",
           button: "bg-slate-900 hover:bg-slate-800 text-white",
           accent: "text-slate-700",
           selected: "border-slate-300 bg-slate-50",
+          neutral: "border-slate-300/70 bg-white/80 hover:bg-slate-50/60",
         }
     }
   }, [theme])
@@ -218,26 +233,26 @@ export default function PublicBooking() {
     <div className={`min-h-screen bg-gradient-to-b ${themeClasses.page} px-4 py-8`}>
       <div className="mx-auto max-w-5xl space-y-5">
         <Card className={`${themeClasses.card} shadow-[0_20px_60px_rgba(15,23,42,0.12)]`}>
-          <CardContent className="py-6">
+          <CardContent className={`py-6 ${themeClasses.text}`}>
             <div className="text-center space-y-3">
               <h1 className={`text-3xl md:text-4xl font-semibold tracking-tight ${themeClasses.title}`}>
                 {businessName || "Online Booking"}
               </h1>
-              <p className="mt-2 text-sm md:text-base text-muted-foreground">
+              <p className={`mt-2 text-sm md:text-base ${themeClasses.muted}`}>
                 Κλείσε το ραντεβού σου εύκολα online, σε λιγότερο από 1 λεπτό.
               </p>
               <div className="flex flex-wrap justify-center gap-2 pt-1">
                 {businessInfo.business_type ? (
-                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${themeClasses.neutral} ${themeClasses.muted}`}>
                     {businessInfo.business_type}
                   </span>
                 ) : null}
                 {businessInfo.phone ? (
-                  <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${themeClasses.neutral} ${themeClasses.muted}`}>
                     Τηλ: {businessInfo.phone}
                   </span>
                 ) : null}
-                <span className="inline-flex items-center rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${themeClasses.neutral} ${themeClasses.muted}`}>
                   SSL ασφαλής κράτηση
                 </span>
               </div>
@@ -248,15 +263,15 @@ export default function PublicBooking() {
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <Card className={`${themeClasses.card} shadow-[0_16px_40px_rgba(15,23,42,0.10)]`}>
             <CardHeader>
-              <CardTitle>Νέα κράτηση</CardTitle>
+              <CardTitle className={themeClasses.text}>Νέα κράτηση</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className={themeClasses.text}>
               {loading ? (
-                <p className="text-sm text-muted-foreground">Φόρτωση...</p>
+                <p className={`text-sm ${themeClasses.muted}`}>Φόρτωση...</p>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-2">
-                    <Label>1) Επιλογή υπηρεσιών</Label>
+                    <Label className={themeClasses.text}>1) Επιλογή υπηρεσιών</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {services.map((s) => {
                         const selected = selectedServiceIds.includes(s.id)
@@ -274,11 +289,11 @@ export default function PublicBooking() {
                               )
                             }
                             className={`rounded-xl border p-3 text-left transition-colors ${
-                              selected ? themeClasses.selected : "border-border/60 bg-background/70 hover:bg-background"
+                              selected ? themeClasses.selected : themeClasses.neutral
                             }`}
                           >
                             <p className="text-sm font-medium">{s.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className={`text-xs mt-1 ${themeClasses.muted}`}>
                               {s.duration_minutes ?? 0} λεπτά • €{servicePrice}
                             </p>
                           </button>
@@ -289,14 +304,14 @@ export default function PublicBooking() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>2) Ημερομηνία</Label>
+                      <Label className={themeClasses.text}>2) Ημερομηνία</Label>
                       <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>3) Διαθέσιμη ώρα</Label>
+                      <Label className={themeClasses.text}>3) Διαθέσιμη ώρα</Label>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-32 overflow-y-auto pr-1">
                         {slots.length === 0 ? (
-                          <p className="col-span-full text-xs text-muted-foreground">Δεν υπάρχουν διαθέσιμες ώρες.</p>
+                          <p className={`col-span-full text-xs ${themeClasses.muted}`}>Δεν υπάρχουν διαθέσιμες ώρες.</p>
                         ) : (
                           slots.map((s) => (
                             <button
@@ -306,7 +321,7 @@ export default function PublicBooking() {
                               className={`h-9 rounded-md border text-xs transition-colors ${
                                 startTime === s
                                   ? `${themeClasses.selected} ${themeClasses.accent}`
-                                  : "border-border/60 bg-background/70 hover:bg-background"
+                                  : themeClasses.neutral
                               }`}
                             >
                               {s.slice(0, 5)}
@@ -319,20 +334,20 @@ export default function PublicBooking() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>4) Όνομα</Label>
+                      <Label className={themeClasses.text}>4) Όνομα</Label>
                       <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
-                      <Label>Επώνυμο</Label>
+                      <Label className={themeClasses.text}>Επώνυμο</Label>
                       <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Τηλέφωνο</Label>
+                    <Label className={themeClasses.text}>Τηλέφωνο</Label>
                     <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>Σημειώσεις (προαιρετικά)</Label>
+                    <Label className={themeClasses.text}>Σημειώσεις (προαιρετικά)</Label>
                     <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
                   </div>
                   {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -340,7 +355,7 @@ export default function PublicBooking() {
                   <div className="flex justify-end">
                     <Button
                       type="submit"
-                      className={themeClasses.button}
+                      className={`${themeClasses.button} disabled:opacity-60 disabled:saturate-75`}
                       disabled={submitting || !startTime || selectedServiceIds.length === 0}
                     >
                       {submitting ? "Καταχώρηση..." : "Κλείσιμο ραντεβού"}
@@ -353,29 +368,29 @@ export default function PublicBooking() {
 
           <Card className={`${themeClasses.card} h-fit shadow-[0_16px_40px_rgba(15,23,42,0.10)]`}>
             <CardHeader>
-              <CardTitle>Σύνοψη κράτησης</CardTitle>
+              <CardTitle className={themeClasses.text}>Σύνοψη κράτησης</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+            <CardContent className={`space-y-3 text-sm ${themeClasses.text}`}>
               <div>
-                <p className="text-xs text-muted-foreground">Υπηρεσίες</p>
+                <p className={`text-xs ${themeClasses.muted}`}>Υπηρεσίες</p>
                 <p className="font-medium">
                   {selectedServices.length > 0 ? selectedServices.map((s) => s.name).join(", ") : "—"}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Ημερομηνία / Ώρα</p>
+                <p className={`text-xs ${themeClasses.muted}`}>Ημερομηνία / Ώρα</p>
                 <p className="font-medium">{date || "—"} {startTime ? `• ${startTime.slice(0, 5)}` : ""}</p>
               </div>
-              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                <p className="text-xs text-muted-foreground">Εκτίμηση κόστους</p>
+              <div className={`rounded-lg border p-3 ${themeClasses.neutral}`}>
+                <p className={`text-xs ${themeClasses.muted}`}>Εκτίμηση κόστους</p>
                 <p className={`text-xl font-semibold ${themeClasses.title}`}>€{totalEstimate.toFixed(2)}</p>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className={`text-xs ${themeClasses.muted}`}>
                 Η τελική επιβεβαίωση και το ποσό μπορεί να διαμορφωθούν από την επιχείρηση.
               </p>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3 space-y-1">
+              <div className={`rounded-lg border p-3 space-y-1 ${themeClasses.neutral}`}>
                 <p className="text-[11px] font-medium">Πολιτική κράτησης</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className={`text-[11px] ${themeClasses.muted}`}>
                   Σε περίπτωση αδυναμίας, ενημέρωσε έγκαιρα για αλλαγή/ακύρωση ραντεβού.
                 </p>
               </div>
