@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dialog"
 import { AlertCircle, ChevronDown, Clock } from "lucide-react"
 import { cn, formatDate } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 const statusOptions: AppointmentJobStatus[] = [
   "pending",
   "confirmed",
@@ -160,6 +162,13 @@ function toDateInputValue(d: string | Date | undefined | null): string {
   const date = typeof d === "string" ? new Date(d) : d
   if (isNaN(date.getTime())) return ""
   return date.toISOString().slice(0, 10)
+}
+
+function addMonthsToDate(isoDate: string, months: number): string {
+  const [y, m, d] = isoDate.split("-").map(Number)
+  const base = new Date(y, (m ?? 1) - 1, d ?? 1)
+  const target = new Date(base.getFullYear(), base.getMonth() + months, base.getDate())
+  return target.toISOString().slice(0, 10)
 }
 
 interface AppointmentFormProps {
@@ -388,6 +397,10 @@ export function AppointmentForm({
     initialDurationMinutes > 0 ? String(initialDurationMinutes) : selectedService?.duration_minutes != null ? String(selectedService.duration_minutes) : "",
   )
   const [extraChargesInput, setExtraChargesInput] = useState("")
+  const [needsServiceReminder, setNeedsServiceReminder] = useState(false)
+  const [reminderPresetMonths, setReminderPresetMonths] = useState<"3" | "6" | "12" | "custom">("6")
+  const [reminderCustomDate, setReminderCustomDate] = useState("")
+  const [reminderNotes, setReminderNotes] = useState("")
 
   useEffect(() => {
     if (!initial?.id) return
@@ -637,9 +650,11 @@ export function AppointmentForm({
         completion_notes: data.completion_notes || null,
         recurrence_rule: data.recurrence_rule || null,
       }
-      const { createAppointment, updateAppointment, replaceAppointmentServiceIds } = await import("@/services/api")
+      const { createAppointment, updateAppointment, replaceAppointmentServiceIds, createServiceReminder } = await import("@/services/api")
+      let savedAppointmentId: string
       if (initial?.id) {
         await updateAppointment(initial.id, payload)
+        savedAppointmentId = initial.id
         await replaceAppointmentServiceIds(initial.id, businessId, selectedServiceIds)
         const b = editBaselineRef.current
         if (b && businessId) {
@@ -695,6 +710,7 @@ export function AppointmentForm({
         }
       } else {
         const created = await createAppointment(payload)
+        savedAppointmentId = created.id
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
         try {
           const customer = customerOptions.find((c) => c.id === data.customer_id)
@@ -724,6 +740,32 @@ export function AppointmentForm({
         } catch {
           // Non-blocking
         }
+      }
+
+      if (data.status === "completed" && needsServiceReminder) {
+        const dueDate =
+          reminderPresetMonths === "custom"
+            ? reminderCustomDate
+            : addMonthsToDate(data.scheduled_date || new Date().toISOString().slice(0, 10), Number(reminderPresetMonths))
+
+        if (!dueDate) {
+          toast({
+            title: "Υπενθύμιση συντήρησης",
+            description: "Επίλεξε ημερομηνία για την υπενθύμιση.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        await createServiceReminder({
+          business_id: businessId,
+          customer_id: data.customer_id,
+          appointment_job_id: savedAppointmentId,
+          title: "Υπενθύμιση συντήρησης",
+          notes: reminderNotes.trim() || null,
+          due_date: dueDate,
+          status: "pending",
+        })
       }
       onSaved()
     } catch (err) {
@@ -1081,6 +1123,47 @@ export function AppointmentForm({
                 <div className="space-y-2">
                   <Label>Σημειώσεις ολοκλήρωσης</Label>
                   <Input {...register("completion_notes")} placeholder="Τι έγινε στο ραντεβού" />
+                </div>
+                <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Χρειάζεται επόμενο service</p>
+                      <p className="text-xs text-muted-foreground">Δημιούργησε υπενθύμιση συντήρησης για μελλοντική επικοινωνία.</p>
+                    </div>
+                    <Switch checked={needsServiceReminder} onCheckedChange={setNeedsServiceReminder} />
+                  </div>
+                  {needsServiceReminder && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant={reminderPresetMonths === "3" ? "default" : "outline"} onClick={() => setReminderPresetMonths("3")}>
+                          3 μήνες
+                        </Button>
+                        <Button type="button" size="sm" variant={reminderPresetMonths === "6" ? "default" : "outline"} onClick={() => setReminderPresetMonths("6")}>
+                          6 μήνες
+                        </Button>
+                        <Button type="button" size="sm" variant={reminderPresetMonths === "12" ? "default" : "outline"} onClick={() => setReminderPresetMonths("12")}>
+                          12 μήνες
+                        </Button>
+                        <Button type="button" size="sm" variant={reminderPresetMonths === "custom" ? "default" : "outline"} onClick={() => setReminderPresetMonths("custom")}>
+                          Προσαρμοσμένη
+                        </Button>
+                      </div>
+                      {reminderPresetMonths === "custom" && (
+                        <div className="space-y-1">
+                          <Label>Ημερομηνία υπενθύμισης</Label>
+                          <Input type="date" value={reminderCustomDate} onChange={(e) => setReminderCustomDate(e.target.value)} />
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <Label>Σημειώσεις υπενθύμισης (προαιρετικά)</Label>
+                        <Textarea
+                          value={reminderNotes}
+                          onChange={(e) => setReminderNotes(e.target.value)}
+                          placeholder="Υπενθύμισε μου ξανά για φίλτρα, έλεγχο συντήρησης κ.λπ."
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

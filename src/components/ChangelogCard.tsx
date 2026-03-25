@@ -6,6 +6,30 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 const FALLBACK_ENTRIES: ChangelogEntry[] = [
   {
+    id: 17,
+    created_at: new Date().toISOString(),
+    title: "Public Site: animated στατιστικά στην σελίδα /site",
+    description:
+      "Προστέθηκε premium section με count-up αριθμούς (IntersectionObserver + animation μόνο μία φορά): ενεργές επιχειρήσεις, κλεισμένα ραντεβού, πελάτες και συναλλαγές.",
+    visible: true,
+  },
+  {
+    id: 16,
+    created_at: new Date().toISOString(),
+    title: "Ημερήσια Διαδρομή: σειρά εργασιών & άνοιγμα σε Google Maps",
+    description:
+      "Νέα σελίδα «Ημερήσια Διαδρομή» με drag-and-drop για τα σημερινά ραντεβού, αποθήκευση σειράς (order_index) και κουμπί «Άνοιγμα διαδρομής» σε Google Maps.",
+    visible: true,
+  },
+  {
+    id: 15,
+    created_at: new Date().toISOString(),
+    title: "Υπενθυμίσεις Συντήρησης: δημιουργία, μεταφορά και dashboard widget",
+    description:
+      "Προστέθηκε πλήρες MVP για service reminders: δημιουργία από ολοκλήρωση ραντεβού, φίλτρα pending/completed/overdue, ενέργειες ολοκλήρωσης/ακύρωσης/μεταφοράς και κάρτα στο Dashboard.",
+    visible: true,
+  },
+  {
     id: 14,
     created_at: new Date().toISOString(),
     title: "Ημερολόγιο: προβολή ημέρας πριν από νέο ραντεβού",

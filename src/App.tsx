@@ -24,6 +24,7 @@ import Reports from "@/pages/Reports"
 import Settings from "@/pages/Settings"
 import Details from "@/pages/Details"
 import Support from "@/pages/Support"
+import ServiceReminders from "@/pages/ServiceReminders"
 import FAQ from "@/pages/FAQ"
 import Terms from "@/pages/Terms"
 import PrivacyPolicy from "@/pages/PrivacyPolicy"
@@ -34,6 +35,7 @@ import PlatformUsers from "@/pages/platform/Users"
 import PlatformTools from "@/pages/platform/Tools"
 import PublicBooking from "@/pages/PublicBooking"
 import PublicSite from "@/pages/PublicSite"
+import RouteOrder from "@/pages/RouteOrder"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
   return (
@@ -124,6 +126,14 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="/route-order"
+                  element={
+                    <TenantApp>
+                      <RouteOrder />
+                    </TenantApp>
+                  }
+                />
+                <Route
                   path="/calendar"
                   element={
                     <TenantApp>
@@ -176,6 +186,14 @@ export default function App() {
                   element={
                     <TenantApp>
                       <Support />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/service-reminders"
+                  element={
+                    <TenantApp>
+                      <ServiceReminders />
                     </TenantApp>
                   }
                 />

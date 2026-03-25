@@ -173,6 +173,8 @@ export interface AppointmentJob {
   recurrence_rule: string | null
   /** Optional: where the visit takes place (on-site address etc.). */
   location_address?: string | null
+  /** Optional manual sequence for daily route ordering. */
+  order_index?: number | null
   parent_appointment_id: string | null
   public_booking_unread: boolean
   created_at: string
@@ -206,6 +208,23 @@ export interface AppointmentJobService {
   appointment_job_id: string
   service_id: string
   created_at: string
+}
+
+export type ServiceReminderStatus = "pending" | "completed" | "cancelled"
+
+export interface ServiceReminder {
+  id: string
+  business_id: string
+  customer_id: string
+  appointment_job_id: string | null
+  title: string
+  notes: string | null
+  due_date: string
+  status: ServiceReminderStatus
+  last_contacted_at: string | null
+  rescheduled_count: number
+  created_at: string
+  updated_at: string
 }
 
 export interface Payment {
@@ -270,6 +289,7 @@ export type Database = {
       appointment_job_comments: { Row: AppointmentJobComment; Insert: Omit<AppointmentJobComment, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobComment> }
       appointment_job_audit_logs: { Row: AppointmentJobAuditLog; Insert: Omit<AppointmentJobAuditLog, "changed_at"> & { changed_at?: string }; Update: Partial<AppointmentJobAuditLog> }
       appointment_job_services: { Row: AppointmentJobService; Insert: Omit<AppointmentJobService, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobService> }
+      service_reminders: { Row: ServiceReminder; Insert: Omit<ServiceReminder, "created_at" | "updated_at" | "rescheduled_count"> & { created_at?: string; updated_at?: string; rescheduled_count?: number }; Update: Partial<ServiceReminder> }
       payments: { Row: Payment; Insert: Omit<Payment, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Payment> }
       attachments: { Row: Attachment; Insert: Omit<Attachment, "created_at"> & { created_at?: string }; Update: Partial<Attachment> }
       activity_logs: { Row: ActivityLog; Insert: Omit<ActivityLog, "created_at"> & { created_at?: string }; Update: Partial<ActivityLog> }

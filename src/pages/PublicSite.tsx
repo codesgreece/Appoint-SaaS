@@ -22,6 +22,7 @@ import {
   type PlanId,
 } from "@/data/publicSiteContent"
 import { LiveViewersStrip } from "@/components/marketing/LiveViewersStrip"
+import { CountUpStatsSection } from "@/components/marketing/CountUpStatsSection"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -208,6 +209,8 @@ export default function PublicSite() {
           </div>
         </div>
       </section>
+
+      <CountUpStatsSection />
 
       {/* Personas */}
       <section id="personas" className="scroll-mt-24 border-b border-border/40 py-16 md:py-20">

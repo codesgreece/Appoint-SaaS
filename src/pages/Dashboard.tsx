@@ -13,7 +13,7 @@ import {
   User as UserIcon,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchDashboardStats } from "@/services/api"
+import { fetchDashboardStats, fetchServiceReminders } from "@/services/api"
 import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -70,6 +70,8 @@ export default function Dashboard() {
     customers: 0,
     appointments: 0,
   })
+  const [upcomingServiceReminders, setUpcomingServiceReminders] = useState<{ id: string; customerName: string; dueDate: string }[]>([])
+  const [overdueServiceReminders, setOverdueServiceReminders] = useState(0)
 
   useEffect(() => {
     if (!businessId) return
@@ -77,6 +79,37 @@ export default function Dashboard() {
       .then(setStats)
       .catch(() => setStats(null))
       .finally(() => setLoading(false))
+  }, [businessId])
+
+  useEffect(() => {
+    if (!businessId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const rows = await fetchServiceReminders(businessId, { status: "pending" })
+        if (cancelled) return
+        const overdue = rows.filter((r) => r.due_date < today).length
+        const upcoming = rows
+          .filter((r) => r.due_date >= today)
+          .slice(0, 5)
+          .map((r) => ({
+            id: r.id,
+            customerName: r.customer ? `${r.customer.first_name} ${r.customer.last_name}` : "Πελάτης",
+            dueDate: r.due_date,
+          }))
+        setOverdueServiceReminders(overdue)
+        setUpcomingServiceReminders(upcoming)
+      } catch {
+        if (!cancelled) {
+          setOverdueServiceReminders(0)
+          setUpcomingServiceReminders([])
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [businessId])
 
   useEffect(() => {
@@ -334,6 +367,34 @@ export default function Dashboard() {
 
       <motion.div variants={item}>
         <ChangelogCard compact />
+      </motion.div>
+
+      <motion.div variants={item}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Υπενθυμίσεις Συντήρησης</CardTitle>
+            <CardDescription>
+              Επόμενες υπενθυμίσεις: {upcomingServiceReminders.length} • Εκπρόθεσμες: {overdueServiceReminders}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {upcomingServiceReminders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Δεν υπάρχουν upcoming service reminders.</p>
+            ) : (
+              upcomingServiceReminders.map((r) => (
+                <div key={r.id} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+                  <span className="text-sm">{r.customerName}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(r.dueDate).toLocaleDateString("el-GR")}</span>
+                </div>
+              ))
+            )}
+            <div className="pt-1">
+              <Button asChild size="sm" variant="outline">
+                <Link to="/service-reminders">Άνοιγμα υπενθυμίσεων</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       <motion.div variants={item}>

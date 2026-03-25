@@ -10,6 +10,7 @@ import type {
   PaymentStatus,
   StaffProfile,
   InAppNotification,
+  ServiceReminder,
 } from "@/types"
 
 const OUTSTANDING_NOTIFY_THRESHOLD_EUR = 150
@@ -63,6 +64,40 @@ export async function fetchDashboardStats(_businessId: string) {
     revenueMonth,
     outstandingBalances: outstanding,
   }
+}
+
+export async function fetchServiceReminders(
+  businessId: string,
+  filters?: { status?: "pending" | "completed" | "cancelled"; overdueOnly?: boolean },
+): Promise<(ServiceReminder & { customer: Customer | null; appointment_job: AppointmentJob | null })[]> {
+  let q = supabase
+    .from("service_reminders")
+    .select("*, customer:customers(*), appointment_job:appointments_jobs(*)")
+    .eq("business_id", businessId)
+    .order("due_date", { ascending: true })
+    .order("created_at", { ascending: false })
+
+  if (filters?.status) q = q.eq("status", filters.status)
+  if (filters?.overdueOnly) {
+    const today = new Date().toISOString().slice(0, 10)
+    q = q.eq("status", "pending").lt("due_date", today)
+  }
+
+  const { data, error } = await q
+  if (error) throw error
+  return (data ?? []) as (ServiceReminder & { customer: Customer | null; appointment_job: AppointmentJob | null })[]
+}
+
+export async function createServiceReminder(payload: Partial<ServiceReminder>): Promise<ServiceReminder> {
+  const { data, error } = await supabase.from("service_reminders").insert(payload).select().single()
+  if (error) throw error
+  return data as ServiceReminder
+}
+
+export async function updateServiceReminder(id: string, payload: Partial<ServiceReminder>): Promise<ServiceReminder> {
+  const { data, error } = await supabase.from("service_reminders").update(payload).eq("id", id).select().single()
+  if (error) throw error
+  return data as ServiceReminder
 }
 
 export async function fetchReportsSummary(businessId: string, params: { from: string; to: string }) {
