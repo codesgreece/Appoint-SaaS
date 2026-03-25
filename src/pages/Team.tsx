@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { formatDate } from "@/lib/utils"
+import Shifts from "@/pages/Shifts"
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
@@ -114,6 +115,7 @@ export default function Team() {
 
   const canAddMember = currentUser && ["admin", "super_admin"].includes(currentUser.role)
   const canManageMembers = Boolean(canAddMember)
+  const [subSection, setSubSection] = useState<"team" | "shifts">("team")
 
   useEffect(() => {
     if (!businessId) return
@@ -376,18 +378,39 @@ export default function Team() {
 
   return (
     <ErrorBoundary>
+      {subSection === "shifts" ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSubSection("team")}>
+              Ομάδα
+            </Button>
+            <Button size="sm" onClick={() => setSubSection("shifts")}>
+              Βάρδιες
+            </Button>
+          </div>
+          <Shifts />
+        </div>
+      ) : (
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ομάδα</h1>
             <p className="text-sm text-muted-foreground">Μέλη και ρόλοι</p>
           </div>
-          {canAddMember && (
-            <Button onClick={openDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Προσθήκη μέλους
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSubSection("team")}>
+              Ομάδα
             </Button>
-          )}
+            <Button variant="outline" size="sm" onClick={() => setSubSection("shifts")}>
+              Βάρδιες
+            </Button>
+            {canAddMember && (
+              <Button onClick={openDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Προσθήκη μέλους
+              </Button>
+            )}
+          </div>
         </div>
 
         <Card className="border-border/50 bg-card/50">
@@ -775,6 +798,7 @@ export default function Team() {
           </DialogContent>
         </Dialog>
       </div>
+      )}
     </ErrorBoundary>
   )
 }
