@@ -113,7 +113,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Έσοδα σήμερα</CardTitle>
@@ -182,7 +182,7 @@ export default function Reports() {
             ) : !summary ? (
               <p className="text-sm text-muted-foreground">Δεν υπάρχουν διαθέσιμα δεδομένα.</p>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {statusChips.map((chip) => (
                   <div key={chip.key} className="rounded-xl border border-border/60 bg-background/30 p-3">
                     <div className="flex items-center justify-between gap-2">
@@ -315,6 +315,25 @@ export default function Reports() {
           ) : !summary || summary.recentPayments.length === 0 ? (
             <p className="text-sm text-muted-foreground">Δεν υπάρχουν πρόσφατες πληρωμές στο επιλεγμένο εύρος.</p>
           ) : (
+            <>
+            <div className="space-y-2 md:hidden">
+              {summary.recentPayments.map((p: any) => (
+                <div key={`mobile-${p.id}`} className="rounded-lg border border-border/60 bg-background/30 p-3">
+                  <p className="text-sm font-medium">{p.appointment_job?.title ?? "Πληρωμή"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.appointment_job?.customer
+                      ? `${p.appointment_job.customer.first_name} ${p.appointment_job.customer.last_name}`
+                      : "—"}{" "}
+                    • {formatDate(p.created_at)}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span>Πληρωμένο: {formatCurrency(Number(p.paid_amount ?? 0))}</span>
+                    <span>Υπόλοιπο: {formatCurrency(Number(p.remaining_balance ?? 0))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-background/30">
@@ -345,6 +364,8 @@ export default function Reports() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

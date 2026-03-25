@@ -181,7 +181,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="appearance" className="space-y-4">
-        <TabsList className="bg-card/60 border border-border/60 backdrop-blur text-[11px]">
+        <TabsList className="w-full bg-card/60 border border-border/60 backdrop-blur text-[11px]">
           <TabsTrigger value="appearance">Εμφάνιση</TabsTrigger>
           <TabsTrigger value="booking">Public Booking</TabsTrigger>
           <TabsTrigger value="exports">Exports</TabsTrigger>
@@ -251,7 +251,7 @@ export default function Settings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Enable online booking</p>
                   <p className="text-xs text-muted-foreground">
@@ -266,7 +266,7 @@ export default function Settings() {
                   value={bookingSlug}
                   onChange={(e) => setBookingSlug(e.target.value)}
                   placeholder="π.χ. nansy-nails"
-                  className="max-w-md bg-background/40 border-border/60"
+                  className="w-full sm:max-w-md bg-background/40 border-border/60"
                 />
                 {bookingSlug.trim() ? (
                   <p className="text-xs text-muted-foreground">
@@ -282,13 +282,13 @@ export default function Settings() {
                     min={1}
                     value={bookingWindowDays}
                     onChange={(e) => setBookingWindowDays(Math.max(1, Number(e.target.value) || 1))}
-                    className="max-w-md bg-background/40 border-border/60"
+                    className="w-full sm:max-w-md bg-background/40 border-border/60"
                   />
                 </div>
                 <div className="space-y-1">
                   <Label>Theme</Label>
                   <Select value={bookingTheme} onValueChange={setBookingTheme}>
-                    <SelectTrigger className="max-w-md bg-background/40 border-border/60">
+                    <SelectTrigger className="w-full sm:max-w-md bg-background/40 border-border/60">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -301,7 +301,7 @@ export default function Settings() {
                   </Select>
                 </div>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Require approval</p>
                   <p className="text-xs text-muted-foreground">Νέες κρατήσεις ως pending για χειροκίνητη έγκριση.</p>

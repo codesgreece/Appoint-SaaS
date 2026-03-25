@@ -196,7 +196,7 @@ export default function PlatformTools() {
             <CardTitle className="text-base">Αναζήτηση επιχείρησης</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="flex-1 space-y-1">
                 <Label>Όνομα ή email επιχείρησης</Label>
                 <Input
@@ -205,7 +205,7 @@ export default function PlatformTools() {
                   onChange={(e) => setBusinessQuery(e.target.value)}
                 />
               </div>
-              <Button type="button" onClick={handleSearchBusiness} className="mt-6">
+              <Button type="button" onClick={handleSearchBusiness} className="sm:mt-6">
                 Αναζήτηση
               </Button>
             </div>
@@ -234,7 +234,7 @@ export default function PlatformTools() {
             <CardTitle className="text-base">Αναζήτηση χρηστών</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="flex-1 space-y-1">
                 <Label>Όνομα ή email χρήστη</Label>
                 <Input
@@ -243,7 +243,7 @@ export default function PlatformTools() {
                   onChange={(e) => setUserQuery(e.target.value)}
                 />
               </div>
-              <Button type="button" onClick={handleSearchUsers} className="mt-6">
+              <Button type="button" onClick={handleSearchUsers} className="sm:mt-6">
                 Αναζήτηση
               </Button>
             </div>
@@ -288,7 +288,7 @@ export default function PlatformTools() {
             <div className="space-y-2 max-h-96 overflow-auto">
               {supportRows.map((r) => (
                 <div key={r.id} className="rounded-md border border-border/50 bg-background/40 p-3">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">
                         {r.type === "issue" ? "Πρόβλημα" : "Πρόταση"} • {r.status}
@@ -299,7 +299,7 @@ export default function PlatformTools() {
                       <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2">
                         <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                           <div className="flex justify-end">
-                            <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
+                            <div className="max-w-[95%] sm:max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
                               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Admin</p>
                               <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
                             </div>
@@ -310,8 +310,8 @@ export default function PlatformTools() {
                               <div
                                 className={
                                   m.sender_role === "super_admin"
-                                    ? "max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2"
-                                    : "max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2"
+                                    ? "max-w-[95%] sm:max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2"
+                                    : "max-w-[95%] sm:max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2"
                                 }
                               >
                                 <p
@@ -330,7 +330,7 @@ export default function PlatformTools() {
 
                           {r.internal_notes?.trim() && (messagesByRequestId[r.id] ?? []).length === 0 ? (
                             <div className="flex justify-start">
-                              <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
+                              <div className="max-w-[95%] sm:max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
                                 <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Απάντηση από την υποστήριξη</p>
                                 <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
                               </div>
@@ -365,7 +365,7 @@ export default function PlatformTools() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-row gap-2 sm:flex-col">
                       <Button
                         size="sm"
                         variant="outline"

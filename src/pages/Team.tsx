@@ -397,7 +397,7 @@ export default function Team() {
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ομάδα</h1>
             <p className="text-sm text-muted-foreground">Μέλη και ρόλοι</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setSubSection("team")}>
               Ομάδα
             </Button>

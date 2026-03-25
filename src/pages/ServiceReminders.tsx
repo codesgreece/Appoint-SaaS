@@ -130,7 +130,7 @@ export default function ServiceReminders() {
           <p className="text-sm text-muted-foreground">Υπενθύμιση συντήρησης ανά πελάτη και επόμενο service.</p>
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "pending" | "completed" | "overdue")}>
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-full sm:w-[220px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -175,7 +175,7 @@ export default function ServiceReminders() {
                       <span className="text-xs text-muted-foreground">Μεταφορές: {row.rescheduled_count}</span>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     {row.status !== "completed" && (
                       <Button size="sm" onClick={() => void changeStatus(row, "completed")}>Ολοκληρώθηκε</Button>
                     )}

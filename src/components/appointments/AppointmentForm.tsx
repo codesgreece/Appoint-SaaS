@@ -1062,14 +1062,14 @@ export function AppointmentForm({
                 </Button>
               </div>
               {manualTimeMode ? (
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Έναρξη</span>
-                    <Input type="time" className="w-[8.5rem]" {...register("start_time")} />
+                    <Input type="time" className="w-full sm:w-[8.5rem]" {...register("start_time")} />
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Λήξη</span>
-                    <Input type="time" className="w-[8.5rem]" {...register("end_time")} />
+                    <Input type="time" className="w-full sm:w-[8.5rem]" {...register("end_time")} />
                   </div>
                 </div>
               ) : (
@@ -1080,7 +1080,7 @@ export function AppointmentForm({
                       {assignedUserIdRaw ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"}).
                     </p>
                     <div className="max-h-48 overflow-y-auto pr-1">
-                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
+                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
                         {availableStartSlots.map((slot) => {
                           const active = toTimeInputValue(watchedStartTime) === slot
                           return (

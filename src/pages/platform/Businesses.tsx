@@ -1166,7 +1166,7 @@ export default function PlatformBusinesses() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {[
                           { label: "Χρήστες", value: detailsBusiness.max_users, icon: Users },
                           { label: "Πελάτες", value: detailsBusiness.max_customers, icon: Sparkles },
@@ -1211,7 +1211,7 @@ export default function PlatformBusinesses() {
                               <div className="flex flex-wrap items-center gap-2 pt-2">
                                 <Input
                                   type="date"
-                                  className="h-9 max-w-[180px] rounded-lg border-border/60 bg-background/90"
+                                  className="h-9 w-full sm:max-w-[180px] rounded-lg border-border/60 bg-background/90"
                                   value={detailsExpiryDate}
                                   onChange={(e) => setDetailsExpiryDate(e.target.value)}
                                 />

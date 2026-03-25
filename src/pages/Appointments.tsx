@@ -397,7 +397,7 @@ export default function Appointments() {
               <h2 className="text-base font-semibold">Κενές ώρες</h2>
               <p className="text-xs text-muted-foreground">Διαθέσιμα κενά μεταξύ 09:00 και 18:00.</p>
             </div>
-            <Input type="date" value={gapDate} onChange={(e) => setGapDate(e.target.value)} className="w-[180px]" />
+            <Input type="date" value={gapDate} onChange={(e) => setGapDate(e.target.value)} className="w-full sm:w-[180px]" />
           </div>
         </CardHeader>
         <CardContent>

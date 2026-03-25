@@ -164,8 +164,29 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
             Σύρε οριζόντια για να δεις όλο το ημερολόγιο.
           </p>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <div className="min-w-[720px]">
+        <CardContent className="space-y-3">
+          <div className="md:hidden space-y-2">
+            {days.map((day) => {
+              const dayAppointments = getAppointmentsForDay(day)
+              if (dayAppointments.length === 0) return null
+              return (
+                <button
+                  key={`mobile-${day.toISOString()}`}
+                  type="button"
+                  className="w-full rounded-lg border border-border/60 bg-card/60 p-3 text-left"
+                  onClick={() => {
+                    setSelectedDate(day)
+                    setDayDialogOpen(true)
+                  }}
+                >
+                  <p className="text-sm font-medium">{format(day, "EEE dd/MM", { locale: el })}</p>
+                  <p className="text-xs text-muted-foreground">{dayAppointments.length} ραντεβού</p>
+                </button>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+          <div className="min-w-[680px]">
             <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground mb-1">
               {["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"].map((d) => (
                 <div key={d}>{d}</div>
@@ -256,6 +277,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                 )
               })}
             </div>
+          </div>
           </div>
         </CardContent>
       </Card>

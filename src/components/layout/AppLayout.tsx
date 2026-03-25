@@ -350,7 +350,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             )}
             {user?.role === "super_admin" && (
-              <div className="inline-flex items-center rounded-full border border-border/60 bg-card/80 px-1 py-0.5 text-[11px]">
+              <div className="inline-flex max-w-full items-center rounded-full border border-border/60 bg-card/80 px-1 py-0.5 text-[10px] sm:text-[11px]">
                 <button
                   type="button"
                   onClick={() => {
@@ -358,7 +358,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     if (location.pathname.startsWith("/platform")) navigate("/")
                   }}
                   className={cn(
-                    "px-3 py-1 rounded-full transition-colors",
+                    "px-2 sm:px-3 py-1 rounded-full transition-colors whitespace-nowrap",
                     mode === "business"
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -373,7 +373,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     if (!location.pathname.startsWith("/platform")) navigate("/platform/overview")
                   }}
                   className={cn(
-                    "px-3 py-1 rounded-full transition-colors",
+                    "px-2 sm:px-3 py-1 rounded-full transition-colors whitespace-nowrap",
                     mode === "platform"
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground",

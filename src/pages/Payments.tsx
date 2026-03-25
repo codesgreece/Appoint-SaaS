@@ -237,7 +237,36 @@ export default function Payments() {
               <p>Δεν υπάρχουν πληρωμές</p>
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="space-y-2 md:hidden">
+              {payments.map((p) => (
+                <div key={`mobile-${p.id}`} className="rounded-lg border border-border/60 bg-card/60 p-3">
+                  <p className="text-xs text-muted-foreground">{formatDate(p.created_at)}</p>
+                  <p className="font-medium">{p.appointment_job?.title ?? "—"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {p.appointment_job?.customer ? `${p.appointment_job.customer.first_name} ${p.appointment_job.customer.last_name}` : "—"}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span>{formatCurrency(Number(p.amount))}</span>
+                    <Badge variant={statusVariant(p.payment_status) as "completed" | "pending" | "destructive"}>
+                      {p.payment_status === "paid" ? "Πληρωμένο" : p.payment_status === "partial" ? "Μερικό" : "Απλήρωτο"}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex gap-1">
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog("edit", p)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog("add", p)}>
+                      <PlusCircle className="h-3 w-3" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openDialog("markPaid", p)}>
+                      <CheckCircle2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -309,6 +338,7 @@ export default function Payments() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
