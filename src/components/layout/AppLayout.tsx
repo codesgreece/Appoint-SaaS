@@ -48,13 +48,10 @@ const businessNavItems = [
   { to: "/route-order", icon: Route, label: "Ημερ. Διαδρομή" },
   { to: "/service-reminders", icon: Wrench, label: "Υπενθυμίσεις" },
   { to: "/calendar", icon: CalendarDays, label: "Ημερολόγιο" },
-  { to: "/shifts", icon: Clock3, label: "Βάρδιες" },
-  { to: "/team", icon: UserCircle, label: "Ομάδα" },
-  { to: "/payments", icon: CreditCard, label: "Πληρωμές" },
-  { to: "/reports", icon: BarChart3, label: "Αναφορές" },
-  { to: "/details", icon: FileText, label: "Στοιχεία" },
+  { to: "/team", icon: UserCircle, label: "Ομάδα & Βάρδιες" },
+  { to: "/reports", icon: BarChart3, label: "Αναφορές & Πληρωμές" },
   { to: "/support", icon: LifeBuoy, label: "Υποστήριξη" },
-  { to: "/settings", icon: Settings, label: "Ρυθμίσεις" },
+  { to: "/settings", icon: Settings, label: "Ρυθμίσεις & Στοιχεία" },
 ]
 
 const platformNavItems = [
