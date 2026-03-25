@@ -11,6 +11,7 @@ import type {
   StaffProfile,
   InAppNotification,
   ServiceReminder,
+  Shift,
 } from "@/types"
 
 const OUTSTANDING_NOTIFY_THRESHOLD_EUR = 150
@@ -84,8 +85,86 @@ export async function fetchServiceReminders(
   }
 
   const { data, error } = await q
-  if (error) throw error
+  if (error) {
+    // If migration is not yet applied in an environment, fail gracefully with empty list.
+    const code = (error as { code?: string }).code
+    const msg = (error as { message?: string }).message ?? ""
+    if (code === "42P01" || /service_reminders/i.test(msg)) return []
+    throw error
+  }
   return (data ?? []) as (ServiceReminder & { customer: Customer | null; appointment_job: AppointmentJob | null })[]
+}
+
+export async function fetchShiftsForRange(
+  businessId: string,
+  from: string,
+  to: string,
+): Promise<Shift[]> {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("business_id", businessId)
+    .gte("date", from)
+    .lte("date", to)
+    .order("date", { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Shift[]
+}
+
+export async function fetchShiftForUserDate(userId: string, date: string): Promise<Shift | null> {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("date", date)
+    .maybeSingle()
+  if (error || !data) return null
+  return data as Shift
+}
+
+export async function upsertShift(payload: {
+  business_id: string
+  user_id: string
+  date: string
+  status: "active" | "off"
+  start_time?: string | null
+  end_time?: string | null
+}): Promise<Shift> {
+  const row = {
+    business_id: payload.business_id,
+    user_id: payload.user_id,
+    date: payload.date,
+    status: payload.status,
+    start_time: payload.status === "off" ? null : payload.start_time ?? "09:00",
+    end_time: payload.status === "off" ? null : payload.end_time ?? "17:00",
+  }
+  const { data, error } = await supabase
+    .from("shifts")
+    .upsert(row, { onConflict: "business_id,user_id,date" })
+    .select("*")
+    .single()
+  if (error) throw error
+  return data as Shift
+}
+
+export async function fetchWorkingStaffToday(
+  businessId: string,
+  todayDate: string,
+): Promise<Array<{ user_id: string; full_name: string; start_time: string | null; end_time: string | null }>> {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("user_id, start_time, end_time, status, user:users(full_name)")
+    .eq("business_id", businessId)
+    .eq("date", todayDate)
+    .eq("status", "active")
+    .order("start_time", { ascending: true })
+  if (error) throw error
+  return ((data ?? []) as any[]).map((r) => ({
+    user_id: r.user_id as string,
+    full_name: (r.user?.full_name as string) ?? "Μέλος ομάδας",
+    start_time: (r.start_time as string | null) ?? null,
+    end_time: (r.end_time as string | null) ?? null,
+  }))
 }
 
 export async function createServiceReminder(payload: Partial<ServiceReminder>): Promise<ServiceReminder> {

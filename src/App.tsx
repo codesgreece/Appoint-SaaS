@@ -36,6 +36,7 @@ import PlatformTools from "@/pages/platform/Tools"
 import PublicBooking from "@/pages/PublicBooking"
 import PublicSite from "@/pages/PublicSite"
 import RouteOrder from "@/pages/RouteOrder"
+import Shifts from "@/pages/Shifts"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
   return (
@@ -130,6 +131,14 @@ export default function App() {
                   element={
                     <TenantApp>
                       <RouteOrder />
+                    </TenantApp>
+                  }
+                />
+                <Route
+                  path="/shifts"
+                  element={
+                    <TenantApp>
+                      <Shifts />
                     </TenantApp>
                   }
                 />

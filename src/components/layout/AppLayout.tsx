@@ -21,6 +21,7 @@ import {
   Monitor,
   Wrench,
   Route,
+  Clock3,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
@@ -47,6 +48,7 @@ const businessNavItems = [
   { to: "/route-order", icon: Route, label: "Ημερήσια Διαδρομή" },
   { to: "/service-reminders", icon: Wrench, label: "Service Reminders" },
   { to: "/calendar", icon: CalendarDays, label: "Ημερολόγιο" },
+  { to: "/shifts", icon: Clock3, label: "Βάρδιες" },
   { to: "/team", icon: UserCircle, label: "Ομάδα" },
   { to: "/payments", icon: CreditCard, label: "Πληρωμές" },
   { to: "/reports", icon: BarChart3, label: "Αναφορές" },

@@ -13,7 +13,8 @@ export interface ToastProps {
 }
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_REMOVE_DELAY = 400
+const TOAST_AUTO_DISMISS_DELAY = 3000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -116,8 +117,15 @@ export function toast({ ...props }: Omit<ToasterToast, "id">) {
     toast: {
       ...props,
       id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dismiss()
+      },
     },
   })
+
+  // Auto-hide all toast notifications after 3 seconds.
+  setTimeout(() => dismiss(), TOAST_AUTO_DISMISS_DELAY)
 
   return {
     id,

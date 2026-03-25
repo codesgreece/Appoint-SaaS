@@ -1,5 +1,6 @@
 export type UserRole = "super_admin" | "admin" | "employee" | "reception"
 export type UserStatus = "active" | "inactive" | "pending"
+export type ShiftStatus = "active" | "off"
 
 export type SupportRequestType = "suggestion" | "issue"
 export type SupportRequestStatus = "open" | "in_progress" | "resolved"
@@ -119,6 +120,18 @@ export interface StaffProfile {
   user_id: string
   phone: string | null
   availability: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Shift {
+  id: string
+  business_id: string
+  user_id: string
+  date: string
+  start_time: string | null
+  end_time: string | null
+  status: ShiftStatus
   created_at: string
   updated_at: string
 }
@@ -282,6 +295,7 @@ export type Database = {
     Tables: {
       businesses: { Row: Business; Insert: Omit<Business, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Business> }
       users: { Row: User; Insert: Omit<User, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<User> }
+      shifts: { Row: Shift; Insert: Omit<Shift, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Shift> }
       staff_profiles: { Row: StaffProfile; Insert: Omit<StaffProfile, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<StaffProfile> }
       customers: { Row: Customer; Insert: Omit<Customer, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Customer> }
       services: { Row: Service; Insert: Omit<Service, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Service> }

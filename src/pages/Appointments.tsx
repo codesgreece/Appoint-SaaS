@@ -91,6 +91,9 @@ export default function Appointments() {
   const [editing, setEditing] = useState<AppointmentRow | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [presetDate, setPresetDate] = useState<string | null>(null)
+  const [formInitial, setFormInitial] = useState<Partial<AppointmentJob> | null>(null)
+  const [gapDate, setGapDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
+  const [emptySlots, setEmptySlots] = useState<Array<{ start: string; end: string }>>([])
 
   useEffect(() => {
     if (!businessId) return
@@ -181,6 +184,50 @@ export default function Appointments() {
     }
   }, [openFromNotification, businessId, setSearchParams])
 
+  useEffect(() => {
+    if (!businessId || !gapDate) {
+      setEmptySlots([])
+      return
+    }
+
+    const toMinutes = (value: string) => {
+      const [hh, mm] = String(value ?? "00:00").slice(0, 5).split(":").map((n) => Number(n))
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0
+      return hh * 60 + mm
+    }
+    const toHHMM = (total: number) => {
+      const hh = Math.floor(total / 60)
+      const mm = total % 60
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+    }
+
+    ;(async () => {
+      try {
+        const dayAppointments = (await fetchAppointments(businessId, {
+          from: gapDate,
+          to: gapDate,
+        })) as AppointmentRow[]
+        const sorted = [...dayAppointments].sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)))
+        const WORK_START = 9 * 60
+        const WORK_END = 18 * 60
+        let cursor = WORK_START
+        const gaps: Array<{ start: string; end: string }> = []
+
+        for (const apt of sorted) {
+          const start = Math.max(WORK_START, toMinutes(apt.start_time))
+          const end = Math.min(WORK_END, toMinutes(apt.end_time))
+          if (end <= WORK_START || start >= WORK_END) continue
+          if (start > cursor) gaps.push({ start: toHHMM(cursor), end: toHHMM(start) })
+          cursor = Math.max(cursor, end)
+        }
+        if (cursor < WORK_END) gaps.push({ start: toHHMM(cursor), end: toHHMM(WORK_END) })
+        setEmptySlots(gaps)
+      } catch {
+        setEmptySlots([])
+      }
+    })()
+  }, [businessId, gapDate])
+
   const filtered = appointments.filter((a) => {
     const matchSearch =
       !search ||
@@ -193,6 +240,7 @@ export default function Appointments() {
     if (!businessId) return
     setDialogOpen(false)
     setEditing(null)
+    setFormInitial(null)
     setPresetDate(null)
     const today = new Date()
     const toIso = (d: Date) => d.toISOString().slice(0, 10)
@@ -266,6 +314,7 @@ export default function Appointments() {
     setDialogOpen(open)
     if (!open) {
       setEditing(null)
+      setFormInitial(null)
       setPresetDate(null)
     }
   }
@@ -291,7 +340,7 @@ export default function Appointments() {
           <div className="mt-3 h-px w-full max-w-xl bg-gradient-to-r from-primary/40 via-purple-500/20 to-transparent" />
         </div>
         <Button
-          onClick={() => { setEditing(null); setDialogOpen(true); }}
+          onClick={() => { setEditing(null); setFormInitial(null); setDialogOpen(true); }}
           className="bg-gradient-to-r from-primary to-purple-500 text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -340,6 +389,46 @@ export default function Appointments() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-border/60 bg-card/60">
+        <CardHeader className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Κενές ώρες</h2>
+              <p className="text-xs text-muted-foreground">Διαθέσιμα κενά μεταξύ 09:00 και 18:00.</p>
+            </div>
+            <Input type="date" value={gapDate} onChange={(e) => setGapDate(e.target.value)} className="w-[180px]" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {emptySlots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Δεν υπάρχουν κενές ώρες για τη συγκεκριμένη ημέρα.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {emptySlots.map((slot) => (
+                <Button
+                  key={`${slot.start}-${slot.end}`}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(null)
+                    setPresetDate(gapDate)
+                    setFormInitial({
+                      scheduled_date: gapDate,
+                      start_time: slot.start,
+                      end_time: slot.end,
+                      status: "pending",
+                    })
+                    setDialogOpen(true)
+                  }}
+                >
+                  {slot.start} - {slot.end}
+                </Button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
         <TabsList className="bg-card/40 border border-border/50 backdrop-blur">
@@ -403,7 +492,7 @@ export default function Appointments() {
                   <Calendar className="h-12 w-12 mb-4 opacity-50" />
                   <p className="font-medium text-foreground/80">Δεν βρέθηκαν ραντεβού</p>
                   <p className="text-sm">Δημιούργησε το πρώτο ραντεβού για να ξεκινήσεις.</p>
-                  <Button variant="outline" className="mt-4" onClick={() => setDialogOpen(true)}>
+                  <Button variant="outline" className="mt-4" onClick={() => { setEditing(null); setFormInitial(null); setDialogOpen(true) }}>
                     Προσθήκη ραντεβού
                   </Button>
                 </div>
@@ -533,6 +622,7 @@ export default function Appointments() {
             businessId={businessId}
             onCreateFromDate={(date) => {
               setEditing(null)
+              setFormInitial(null)
               setPresetDate(date)
               setDialogOpen(true)
             }}
@@ -546,24 +636,24 @@ export default function Appointments() {
             <DialogTitle>{editing ? "Επεξεργασία ραντεβού" : "Νέο ραντεβού"}</DialogTitle>
           </DialogHeader>
           <ErrorBoundary
-            onReset={() => { setDialogOpen(false); setEditing(null); setPresetDate(null); }}
+            onReset={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}
             fallback={
               <div className="py-4">
                 <p className="text-sm text-muted-foreground mb-4">Σφάλμα στη φόρμα. Κλείστε και δοκιμάστε ξανά.</p>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); setEditing(null); setPresetDate(null); }}>Κλείσιμο</Button>
+                <Button variant="outline" onClick={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}>Κλείσιμο</Button>
               </div>
             }
           >
             <AppointmentForm
-              key={editing?.id ?? presetDate ?? "new"}
-              initial={editing ?? undefined}
+              key={editing?.id ?? `${presetDate ?? "new"}-${formInitial?.start_time ?? "default"}`}
+              initial={(editing ?? formInitial ?? undefined) as any}
               presetDate={presetDate ?? undefined}
               customers={customers}
               team={team}
               services={services}
               businessId={businessId}
               onSaved={handleSaved}
-              onCancel={() => { setDialogOpen(false); setEditing(null); setPresetDate(null); }}
+              onCancel={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}
             />
           </ErrorBoundary>
         </DialogContent>

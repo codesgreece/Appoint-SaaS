@@ -13,7 +13,7 @@ import {
   User as UserIcon,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { fetchDashboardStats, fetchServiceReminders } from "@/services/api"
+import { fetchDashboardStats, fetchServiceReminders, fetchWorkingStaffToday } from "@/services/api"
 import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -72,6 +72,7 @@ export default function Dashboard() {
   })
   const [upcomingServiceReminders, setUpcomingServiceReminders] = useState<{ id: string; customerName: string; dueDate: string }[]>([])
   const [overdueServiceReminders, setOverdueServiceReminders] = useState(0)
+  const [workingToday, setWorkingToday] = useState<Array<{ user_id: string; full_name: string; start_time: string | null; end_time: string | null }>>([])
 
   useEffect(() => {
     if (!businessId) return
@@ -79,6 +80,23 @@ export default function Dashboard() {
       .then(setStats)
       .catch(() => setStats(null))
       .finally(() => setLoading(false))
+  }, [businessId])
+
+  useEffect(() => {
+    if (!businessId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const rows = await fetchWorkingStaffToday(businessId, today)
+        if (!cancelled) setWorkingToday(rows)
+      } catch {
+        if (!cancelled) setWorkingToday([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [businessId])
 
   useEffect(() => {
@@ -393,6 +411,29 @@ export default function Dashboard() {
                 <Link to="/service-reminders">Άνοιγμα υπενθυμίσεων</Link>
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div variants={item}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Ποιος δουλεύει σήμερα</CardTitle>
+            <CardDescription>{workingToday.length} μέλη σε βάρδια</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {workingToday.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Δεν έχουν οριστεί ενεργές βάρδιες για σήμερα.</p>
+            ) : (
+              workingToday.slice(0, 6).map((w) => (
+                <div key={w.user_id} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+                  <span className="text-sm">{w.full_name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {(w.start_time ?? "--:--").slice(0, 5)} - {(w.end_time ?? "--:--").slice(0, 5)}
+                  </span>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </motion.div>

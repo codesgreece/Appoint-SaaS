@@ -6,6 +6,22 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 const FALLBACK_ENTRIES: ChangelogEntry[] = [
   {
+    id: 19,
+    created_at: new Date().toISOString(),
+    title: "Ραντεβού: νέα ενότητα «Κενές ώρες»",
+    description:
+      "Προστέθηκε λίστα διαθέσιμων κενών για επιλεγμένη ημέρα (09:00–18:00), με γρήγορο κλικ για προ-συμπλήρωση νέου ραντεβού.",
+    visible: true,
+  },
+  {
+    id: 18,
+    created_at: new Date().toISOString(),
+    title: "Βάρδιες προσωπικού (Shift Management)",
+    description:
+      "Νέα εβδομαδιαία διαχείριση βαρδιών ανά μέλος ομάδας με δυνατότητα OFF ημέρας και έλεγχο ώστε τα ραντεβού να μην κλείνονται εκτός βάρδιας.",
+    visible: true,
+  },
+  {
     id: 17,
     created_at: new Date().toISOString(),
     title: "Public Site: animated στατιστικά στην σελίδα /site",

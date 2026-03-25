@@ -133,15 +133,17 @@ function generateAvailableStartTimes(
   durationMin: number,
   dayApps: AppointmentJob[],
   myAssigned: string | undefined | null,
+  windowStartMin = BUSINESS_DAY_START_MIN,
+  windowEndMin = BUSINESS_DAY_END_MIN,
   excludeAppointmentId?: string,
 ): string[] {
   const dur = Math.max(15, durationMin)
   const out: string[] = []
-  const lastStart = BUSINESS_DAY_END_MIN - dur
-  if (lastStart < BUSINESS_DAY_START_MIN) return out
-  for (let m = BUSINESS_DAY_START_MIN; m <= lastStart; m += SLOT_STEP_MIN) {
+  const lastStart = windowEndMin - dur
+  if (lastStart < windowStartMin) return out
+  for (let m = windowStartMin; m <= lastStart; m += SLOT_STEP_MIN) {
     const endM = m + dur
-    if (endM > BUSINESS_DAY_END_MIN) break
+    if (endM > windowEndMin) break
     if (!slotOverlapsExisting(m, endM, dayApps, myAssigned, excludeAppointmentId)) {
       out.push(minutesToHHMM(m))
     }
@@ -314,6 +316,7 @@ export function AppointmentForm({
   const scheduledDateWatch = watch("scheduled_date")
   const [dayAppointments, setDayAppointments] = useState<AppointmentJob[]>([])
   const [manualTimeMode, setManualTimeMode] = useState(false)
+  const [shiftsByUserId, setShiftsByUserId] = useState<Record<string, { status: "active" | "off"; start_time: string | null; end_time: string | null }>>({})
 
   const slotDurationMinutesForPicker = useMemo(() => {
     if (selectedServices.length === 0) return 60
@@ -322,13 +325,59 @@ export function AppointmentForm({
   }, [selectedServices])
 
   const availableStartSlots = useMemo(() => {
+    const selectedShift = assignedUserIdRaw ? shiftsByUserId[assignedUserIdRaw] : null
+    const windowStart = selectedShift?.status === "active" && selectedShift.start_time ? timeToMinutes(selectedShift.start_time.slice(0, 5)) : BUSINESS_DAY_START_MIN
+    const windowEnd = selectedShift?.status === "active" && selectedShift.end_time ? timeToMinutes(selectedShift.end_time.slice(0, 5)) : BUSINESS_DAY_END_MIN
     return generateAvailableStartTimes(
       slotDurationMinutesForPicker,
       dayAppointments,
       assignedUserIdRaw || undefined,
+      windowStart,
+      windowEnd,
       initial?.id,
     )
-  }, [slotDurationMinutesForPicker, dayAppointments, assignedUserIdRaw, initial?.id])
+  }, [slotDurationMinutesForPicker, dayAppointments, assignedUserIdRaw, initial?.id, shiftsByUserId])
+
+  useEffect(() => {
+    if (!businessId || !scheduledDateWatch || safeTeam.length === 0) {
+      setShiftsByUserId({})
+      return
+    }
+    let cancelled = false
+    import("@/services/api")
+      .then(({ fetchShiftsForRange }) => fetchShiftsForRange(businessId, scheduledDateWatch, scheduledDateWatch))
+      .then((rows) => {
+        if (cancelled) return
+        const map: Record<string, { status: "active" | "off"; start_time: string | null; end_time: string | null }> = {}
+        rows.forEach((r) => {
+          map[r.user_id] = {
+            status: r.status as "active" | "off",
+            start_time: r.start_time,
+            end_time: r.end_time,
+          }
+        })
+        setShiftsByUserId(map)
+      })
+      .catch(() => {
+        if (!cancelled) setShiftsByUserId({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [businessId, scheduledDateWatch, safeTeam.length])
+
+  useEffect(() => {
+    if (!assignedUserIdRaw) return
+    const selectedShift = shiftsByUserId[assignedUserIdRaw]
+    if (selectedShift?.status === "off") {
+      setValue("assigned_user_id", "")
+      toast({
+        title: "Μέλος εκτός βάρδιας",
+        description: "Το επιλεγμένο μέλος είναι OFF για τη συγκεκριμένη ημέρα.",
+        variant: "destructive",
+      })
+    }
+  }, [assignedUserIdRaw, shiftsByUserId, setValue, toast])
 
   useEffect(() => {
     if (!businessId || !scheduledDateWatch) {
@@ -533,6 +582,7 @@ export function AppointmentForm({
   const customerSelectValue = customerIdRaw || "none"
   const assignedUserSelectValue = assignedUserIdRaw || "unassigned"
   const serviceSelectValue = serviceIdRaw || "none"
+  const availableTeam = safeTeam.filter((u) => shiftsByUserId[u.id]?.status !== "off")
 
   async function onFormSubmit(data: FormValues) {
     try {
@@ -593,6 +643,27 @@ export function AppointmentForm({
 
       // Έλεγχος ωραρίου εργασίας υπεύθυνου (αν έχει οριστεί).
       if (data.assigned_user_id) {
+        const shift = shiftsByUserId[data.assigned_user_id]
+        if (shift?.status === "off") {
+          toast({
+            title: "Μέλος εκτός βάρδιας",
+            description: "Το μέλος που επέλεξες είναι OFF για αυτή την ημέρα.",
+            variant: "destructive",
+          })
+          return
+        }
+        if (shift?.status === "active" && shift.start_time && shift.end_time) {
+          const shiftStart = timeToMinutes(shift.start_time.slice(0, 5))
+          const shiftEnd = timeToMinutes(shift.end_time.slice(0, 5))
+          if (newStart < shiftStart || newEnd > shiftEnd) {
+            toast({
+              title: "Εκτός βάρδιας",
+              description: `Το ραντεβού είναι εκτός βάρδιας (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`,
+              variant: "destructive",
+            })
+            return
+          }
+        }
         const profile = await fetchStaffProfileForUser(data.assigned_user_id)
         const availability = profile?.availability as any | null
         const schedule = availability?.schedule as
@@ -897,7 +968,7 @@ export function AppointmentForm({
                 <SelectTrigger><SelectValue placeholder="Επιλέξτε" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">—</SelectItem>
-                  {safeTeam.map((u) => (
+                  {availableTeam.map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
                   ))}
                 </SelectContent>
