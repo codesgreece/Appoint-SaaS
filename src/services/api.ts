@@ -107,7 +107,12 @@ export async function fetchShiftsForRange(
     .gte("date", from)
     .lte("date", to)
     .order("date", { ascending: true })
-  if (error) throw error
+  if (error) {
+    const code = (error as { code?: string }).code
+    const msg = (error as { message?: string }).message ?? ""
+    if (code === "42P01" || /shifts/i.test(msg)) return []
+    throw error
+  }
   return (data ?? []) as Shift[]
 }
 
@@ -118,7 +123,13 @@ export async function fetchShiftForUserDate(userId: string, date: string): Promi
     .eq("user_id", userId)
     .eq("date", date)
     .maybeSingle()
-  if (error || !data) return null
+  if (error) {
+    const code = (error as { code?: string }).code
+    const msg = (error as { message?: string }).message ?? ""
+    if (code === "42P01" || /shifts/i.test(msg)) return null
+    return null
+  }
+  if (!data) return null
   return data as Shift
 }
 
@@ -158,7 +169,12 @@ export async function fetchWorkingStaffToday(
     .eq("date", todayDate)
     .eq("status", "active")
     .order("start_time", { ascending: true })
-  if (error) throw error
+  if (error) {
+    const code = (error as { code?: string }).code
+    const msg = (error as { message?: string }).message ?? ""
+    if (code === "42P01" || /shifts/i.test(msg)) return []
+    throw error
+  }
   return ((data ?? []) as any[]).map((r) => ({
     user_id: r.user_id as string,
     full_name: (r.user?.full_name as string) ?? "Μέλος ομάδας",

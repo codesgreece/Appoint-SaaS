@@ -251,7 +251,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-52 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
+          "fixed top-0 left-0 z-50 h-full w-64 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -299,7 +299,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                 </div>
-                <span className="flex-1 truncate text-[13px] md:text-sm">{item.label}</span>
+                <span className="flex-1 text-[13px] leading-snug md:text-sm">{item.label}</span>
                 {item.to === "/platform/tools" && openSupportCount != null && openSupportCount > 0 ? (
                   <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-2 text-[11px] font-semibold text-primary">
                     {openSupportCount}
@@ -336,7 +336,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 lg:pl-52">
+      <div className="flex-1 lg:pl-64">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/50 bg-background/70 px-3 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
