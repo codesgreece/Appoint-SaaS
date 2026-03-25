@@ -7,12 +7,10 @@ import {
   Calendar,
   CalendarDays,
   UserCircle,
-  CreditCard,
   BarChart3,
   Settings,
   Briefcase,
   LifeBuoy,
-  FileText,
   Menu,
   LogOut,
   Building2,
@@ -21,7 +19,6 @@ import {
   Monitor,
   Wrench,
   Route,
-  Clock3,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
