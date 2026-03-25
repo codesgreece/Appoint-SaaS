@@ -173,6 +173,13 @@ function addMonthsToDate(isoDate: string, months: number): string {
   return target.toISOString().slice(0, 10)
 }
 
+function localIsoDate(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 interface AppointmentFormProps {
   initial?: Partial<AppointmentJob> & {
     customer?: Customer
@@ -221,7 +228,7 @@ export function AppointmentForm({
     setCustomerOptions(Array.isArray(customers) ? customers : [])
   }, [customers])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localIsoDate(new Date())
   const defaultDate = presetDate ?? today
 
   let initError: string | null = null

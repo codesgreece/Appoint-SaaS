@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
-function toIso(d: Date) {
-  return d.toISOString().slice(0, 10)
+function toIsoLocal(d: Date) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 function mondayOf(date: Date): Date {
@@ -42,8 +45,8 @@ export default function Shifts() {
     if (!businessId) return
     setLoading(true)
     try {
-      const from = toIso(days[0])
-      const to = toIso(days[6])
+      const from = toIsoLocal(days[0])
+      const to = toIsoLocal(days[6])
       const [teamRows, shiftRows] = await Promise.all([
         fetchTeam(businessId),
         fetchShiftsForRange(businessId, from, to),
@@ -125,7 +128,7 @@ export default function Shifts() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Εβδομάδα {toIso(days[0])} - {toIso(days[6])}</CardTitle>
+          <CardTitle className="text-base">Εβδομάδα {toIsoLocal(days[0])} - {toIsoLocal(days[6])}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -137,7 +140,7 @@ export default function Shifts() {
                   <p className="mb-2 text-sm font-medium">{member.full_name}</p>
                   <div className="grid gap-2 md:grid-cols-7">
                     {days.map((day) => {
-                      const date = toIso(day)
+                      const date = toIsoLocal(day)
                       const key = `${member.id}_${date}`
                       const shift = shiftsByKey[key]
                       const isOff = (shift?.status ?? "active") === "off"
