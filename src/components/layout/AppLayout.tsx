@@ -251,7 +251,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-50 h-full w-64 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
+          "fixed top-0 left-0 z-50 h-full w-72 border-r border-border/60 bg-background/70 backdrop-blur-2xl transition-transform lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -279,7 +279,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs md:text-sm font-medium transition-colors transition-transform duration-150",
+                  "group relative flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs md:text-sm font-medium transition-colors transition-transform duration-150",
                   isActive
                     ? "bg-gradient-to-r from-primary/15 via-primary/5 to-transparent text-foreground shadow-md ring-1 ring-primary/40"
                     : "text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-0.5"
@@ -299,7 +299,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                 </div>
-                <span className="flex-1 text-[13px] leading-snug md:text-sm">{item.label}</span>
+                <span className="min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-snug md:text-sm">
+                  {item.label}
+                </span>
                 {item.to === "/platform/tools" && openSupportCount != null && openSupportCount > 0 ? (
                   <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-2 text-[11px] font-semibold text-primary">
                     {openSupportCount}
@@ -336,7 +338,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 lg:pl-64">
+      <div className="flex-1 lg:pl-72">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/50 bg-background/70 px-3 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
