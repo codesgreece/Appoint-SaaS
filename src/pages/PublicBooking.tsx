@@ -129,7 +129,7 @@ export default function PublicBooking() {
       setStartTime("")
       return
     }
-    callPublicBooking("get_slots", { date, service_ids: selectedServiceIds })
+    callPublicBooking("get_slots", { date, service_ids: selectedServiceIds, service_id: selectedServiceIds[0] })
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]))
   }, [date, selectedServiceIds, slug])
@@ -140,7 +140,7 @@ export default function PublicBooking() {
       setDate(new Date().toISOString().slice(0, 10))
       return
     }
-    callPublicBooking("get_available_dates", { service_ids: selectedServiceIds })
+    callPublicBooking("get_available_dates", { service_ids: selectedServiceIds, service_id: selectedServiceIds[0] })
       .then((data) => {
         const dates = data.dates ?? []
         setAvailableDates(dates)
@@ -322,11 +322,9 @@ export default function PublicBooking() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className={themeClasses.text}>2) Ημερομηνία</Label>
-                      {availableDates.length === 0 ? (
-                        <p className={`text-xs ${themeClasses.muted}`}>
-                          Επίλεξε υπηρεσία για να εμφανιστούν διαθέσιμες ημέρες.
-                        </p>
-                      ) : (
+                      {selectedServiceIds.length === 0 ? (
+                        <p className={`text-xs ${themeClasses.muted}`}>Επίλεξε υπηρεσία για να εμφανιστούν διαθέσιμες ημέρες.</p>
+                      ) : availableDates.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
                           {availableDates.map((d) => (
                             <button
@@ -342,6 +340,13 @@ export default function PublicBooking() {
                               {d}
                             </button>
                           ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                          <p className={`text-[11px] ${themeClasses.muted}`}>
+                            Δεν επέστρεψαν διαθέσιμες ημέρες από τον server. Επίλεξε ημερομηνία χειροκίνητα.
+                          </p>
                         </div>
                       )}
                     </div>
