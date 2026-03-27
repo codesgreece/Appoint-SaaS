@@ -377,7 +377,7 @@ type MemberScheduleBlockProps = {
   savingKey: string | null
   businessId: string | null
   locale: string
-  t: typeof copy.el
+  t: typeof copy.el | typeof copy.en
   saveShift: (userId: string, date: string, patch: { status?: "active" | "off"; start_time?: string; end_time?: string }) => void
   scheduleTimeSave: (userId: string, date: string, key: string) => void
 }
