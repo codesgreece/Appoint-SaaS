@@ -216,7 +216,7 @@ export default function Support() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div className="relative">
         <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
         <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur">
@@ -257,7 +257,7 @@ export default function Support() {
           </Card>
         </div>
 
-        <TabsList className="h-auto w-full justify-start overflow-x-auto whitespace-nowrap bg-card/60 border border-border/60 backdrop-blur text-[11px] p-1">
+        <TabsList className="h-auto w-full max-w-full justify-start overflow-x-auto whitespace-nowrap bg-card/60 border border-border/60 backdrop-blur text-[11px] p-1">
           <TabsTrigger value="support" className="gap-1.5">
             <History className="h-3.5 w-3.5" />
             Υποστήριξη
@@ -280,7 +280,7 @@ export default function Support() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="border-border/60 bg-card/60 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
               <CardHeader className="space-y-1">
-                <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                <CardTitle className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
                   <span className="inline-flex items-center gap-2">
                     <Lightbulb className="h-4 w-4 text-primary" />
                     <span>Πρόταση βελτίωσης</span>
@@ -296,11 +296,11 @@ export default function Support() {
                   value={suggestionText}
                   onChange={(e) => setSuggestionText(e.target.value)}
                   placeholder="Π.χ. Θα ήθελα πιο γρήγορο τρόπο για να κλείνω επαναλαμβανόμενα ραντεβού..."
-                  className="bg-background/60 border-border/60 focus-visible:ring-primary/30 min-h-[120px] text-sm"
+                  className="bg-background/60 border-border/60 focus-visible:ring-primary/30 min-h-[120px] text-base md:text-sm"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
                   <span className="pr-1">Οι προτάσεις σου μας βοηθούν να βελτιώνουμε την πλατφόρμα.</span>
-                  <Button type="button" size="sm" onClick={() => submit("suggestion")} disabled={sending !== null}>
+                  <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => submit("suggestion")} disabled={sending !== null}>
                     <Send className="mr-1.5 h-3.5 w-3.5" />
                     {sending === "suggestion" ? "Αποστολή..." : "Αποστολή"}
                   </Button>
@@ -310,7 +310,7 @@ export default function Support() {
 
             <Card className="border-border/60 bg-card/60 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
               <CardHeader className="space-y-1">
-                <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                <CardTitle className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
                   <span className="inline-flex items-center gap-2">
                     <Bug className="h-4 w-4 text-destructive" />
                     <span>Αναφορά προβλήματος</span>
@@ -326,7 +326,7 @@ export default function Support() {
                   value={issueText}
                   onChange={(e) => setIssueText(e.target.value)}
                   placeholder="Π.χ. Στη σελίδα Ραντεβού, όταν πατάω “Αποθήκευση” δεν κλείνει η φόρμα..."
-                  className="bg-background/60 border-border/60 focus-visible:ring-destructive/40 min-h-[120px] text-sm"
+                  className="bg-background/60 border-border/60 focus-visible:ring-destructive/40 min-h-[120px] text-base md:text-sm"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
                   <span className="pr-1">Πρόσθεσε όσο περισσότερες λεπτομέρειες μπορείς (βήματα, browser κ.λπ.).</span>
@@ -334,6 +334,7 @@ export default function Support() {
                     type="button"
                     variant="destructive"
                     size="sm"
+                    className="w-full sm:w-auto"
                     onClick={() => submit("issue")}
                     disabled={sending !== null}
                   >
@@ -412,12 +413,12 @@ export default function Support() {
                             {r.status}
                           </Badge>
                         </div>
-                        <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2">
+                        <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2 overflow-hidden">
                           <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                             <div className="flex justify-end">
                               <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
                                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Εσυ</p>
-                                <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{r.message}</p>
+                                <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug">{r.message}</p>
                               </div>
                             </div>
 
@@ -454,7 +455,7 @@ export default function Support() {
                                       >
                                         {m.sender_role === "super_admin" ? "Υποστήριξη" : "Εσυ"}
                                       </p>
-                                      <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug">{m.content}</p>
+                                      <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug">{m.content}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -465,7 +466,7 @@ export default function Support() {
                               <div className="flex justify-start">
                                 <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Απάντηση από την υποστήριξη</p>
-                                  <p className="mt-1 whitespace-pre-wrap text-[12px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
+                                  <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
                                 </div>
                               </div>
                             ) : null}
@@ -478,12 +479,13 @@ export default function Support() {
                               value={draftByRequestId[r.id] ?? ""}
                               onChange={(e) => setDraftByRequestId((prev) => ({ ...prev, [r.id]: e.target.value }))}
                               placeholder="Στείλε ένα μήνυμα..."
-                              className="bg-background/40 border-border/60 focus-visible:ring-primary/30 min-h-[80px] text-xs"
+                              className="bg-background/40 border-border/60 focus-visible:ring-primary/30 min-h-[92px] text-base md:text-sm"
                             />
                             <div className="flex justify-end">
                               <Button
                                 type="button"
                                 size="sm"
+                                className="w-full sm:w-auto"
                                 onClick={() => sendChatMessage(r.id)}
                                 disabled={chatSendingId === r.id}
                               >
