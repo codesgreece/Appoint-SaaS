@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout"
 import { PublicLegalShell } from "@/components/layout/PublicLegalShell"
 import { Toaster } from "@/components/ui/sonner"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { AutoTranslate } from "@/components/i18n/AutoTranslate"
 import { useAuth } from "@/contexts/AuthContext"
 
 import Login from "@/pages/Login"
@@ -65,209 +66,211 @@ export default function App() {
           <BrowserRouter>
             <AuthProvider>
               <WorkspaceProvider>
-                <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/book/:slug" element={<PublicBooking />} />
-                {/* Δημόσια παρουσίαση — ξεχωριστό URL, χωρίς panel (όπως /book/...) */}
-                <Route path="/site" element={<PublicSite />} />
-                <Route
-                  path="/"
-                  element={
-                    <TenantApp>
-                      <Home />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/subscribe"
-                  element={
-                    <ProtectedRoute>
-                      <Subscribe />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/terms"
-                  element={
-                    <PublicLegalShell>
-                      <Terms />
-                    </PublicLegalShell>
-                  }
-                />
-                <Route
-                  path="/privacy"
-                  element={
-                    <PublicLegalShell>
-                      <PrivacyPolicy />
-                    </PublicLegalShell>
-                  }
-                />
-                <Route path="/dashboard" element={<Navigate to="/" replace />} />
-                <Route
-                  path="/customers"
-                  element={
-                    <TenantApp>
-                      <Customers />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/services"
-                  element={
-                    <TenantApp>
-                      <Services />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/appointments"
-                  element={
-                    <TenantApp>
-                      <Appointments />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/route-order"
-                  element={
-                    <TenantApp>
-                      <RouteOrder />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/shifts"
-                  element={
-                    <TenantApp>
-                      <Shifts />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/calendar"
-                  element={
-                    <TenantApp>
-                      <Calendar />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/team"
-                  element={
-                    <TenantApp>
-                      <Team />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/payments"
-                  element={
-                    <TenantApp>
-                      <Payments />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <TenantApp>
-                      <Reports />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/details"
-                  element={
-                    <TenantApp>
-                      <Details />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <TenantApp>
-                      <Settings />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/support"
-                  element={
-                    <TenantApp>
-                      <Support />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/service-reminders"
-                  element={
-                    <TenantApp>
-                      <ServiceReminders />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/faq"
-                  element={
-                    <TenantApp>
-                      <FAQ />
-                    </TenantApp>
-                  }
-                />
-                <Route
-                  path="/platform/overview"
-                  element={
-                    <ProtectedRoute requiredRole="super_admin">
-                      <AppLayout>
-                        <PlatformOverview />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/businesses"
-                  element={
-                    <ProtectedRoute requiredRole="super_admin">
-                      <AppLayout>
-                        <PlatformBusinesses />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/plans"
-                  element={
-                    <ProtectedRoute requiredRole="super_admin">
-                      <AppLayout>
-                        <PlatformPlans />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/users"
-                  element={
-                    <ProtectedRoute requiredRole="super_admin">
-                      <AppLayout>
-                        <PlatformUsers />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/tools"
-                  element={
-                    <ProtectedRoute requiredRole="super_admin">
-                      <AppLayout>
-                        <PlatformTools />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <AutoTranslate>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/book/:slug" element={<PublicBooking />} />
+                    {/* Δημόσια παρουσίαση — ξεχωριστό URL, χωρίς panel (όπως /book/...) */}
+                    <Route path="/site" element={<PublicSite />} />
+                    <Route
+                      path="/"
+                      element={
+                        <TenantApp>
+                          <Home />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/subscribe"
+                      element={
+                        <ProtectedRoute>
+                          <Subscribe />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/terms"
+                      element={
+                        <PublicLegalShell>
+                          <Terms />
+                        </PublicLegalShell>
+                      }
+                    />
+                    <Route
+                      path="/privacy"
+                      element={
+                        <PublicLegalShell>
+                          <PrivacyPolicy />
+                        </PublicLegalShell>
+                      }
+                    />
+                    <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                    <Route
+                      path="/customers"
+                      element={
+                        <TenantApp>
+                          <Customers />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/services"
+                      element={
+                        <TenantApp>
+                          <Services />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/appointments"
+                      element={
+                        <TenantApp>
+                          <Appointments />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/route-order"
+                      element={
+                        <TenantApp>
+                          <RouteOrder />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/shifts"
+                      element={
+                        <TenantApp>
+                          <Shifts />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/calendar"
+                      element={
+                        <TenantApp>
+                          <Calendar />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/team"
+                      element={
+                        <TenantApp>
+                          <Team />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/payments"
+                      element={
+                        <TenantApp>
+                          <Payments />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/reports"
+                      element={
+                        <TenantApp>
+                          <Reports />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/details"
+                      element={
+                        <TenantApp>
+                          <Details />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <TenantApp>
+                          <Settings />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/support"
+                      element={
+                        <TenantApp>
+                          <Support />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/service-reminders"
+                      element={
+                        <TenantApp>
+                          <ServiceReminders />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/faq"
+                      element={
+                        <TenantApp>
+                          <FAQ />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/platform/overview"
+                      element={
+                        <ProtectedRoute requiredRole="super_admin">
+                          <AppLayout>
+                            <PlatformOverview />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/platform/businesses"
+                      element={
+                        <ProtectedRoute requiredRole="super_admin">
+                          <AppLayout>
+                            <PlatformBusinesses />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/platform/plans"
+                      element={
+                        <ProtectedRoute requiredRole="super_admin">
+                          <AppLayout>
+                            <PlatformPlans />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/platform/users"
+                      element={
+                        <ProtectedRoute requiredRole="super_admin">
+                          <AppLayout>
+                            <PlatformUsers />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/platform/tools"
+                      element={
+                        <ProtectedRoute requiredRole="super_admin">
+                          <AppLayout>
+                            <PlatformTools />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </AutoTranslate>
                 <Toaster />
               </WorkspaceProvider>
             </AuthProvider>
