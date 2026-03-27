@@ -119,16 +119,12 @@ function translateProps(props: Record<string, unknown>, language: "el" | "en"): 
 
 function translateNode(node: ReactNode, language: "el" | "en"): ReactNode {
   if (typeof node === "string") return translateText(node, language)
-  if (Array.isArray(node)) return node.map((n, i) => <AutoTranslateFragment key={i}>{translateNode(n, language)}</AutoTranslateFragment>)
+  if (Array.isArray(node)) return node.map((n) => translateNode(n, language))
   if (!isValidElement(node)) return node
 
   const translatedChildren = translateNode(node.props.children, language)
   const translatedProps = translateProps(node.props as Record<string, unknown>, language)
   return cloneElement(node, translatedProps, translatedChildren)
-}
-
-function AutoTranslateFragment({ children }: { children: ReactNode }) {
-  return <>{children}</>
 }
 
 export function AutoTranslate({ children }: { children: ReactNode }) {
