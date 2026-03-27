@@ -648,7 +648,7 @@ export default function Team() {
               {t.shiftsTab}
             </Button>
           </div>
-          <Shifts />
+          <Shifts embedded />
         </div>
       ) : (
       <div className="space-y-6">
