@@ -30,6 +30,7 @@ export default function Support() {
   const [messagesByRequestId, setMessagesByRequestId] = useState<Record<string, SupportRequestMessage[]>>({})
   const [draftByRequestId, setDraftByRequestId] = useState<Record<string, string>>({})
   const [chatSendingId, setChatSendingId] = useState<string | null>(null)
+  const [historyFilter, setHistoryFilter] = useState<"all" | "open" | "resolved">("all")
 
   useEffect(() => {
     if (!businessId) return
@@ -99,6 +100,10 @@ export default function Support() {
   }, [ticketFromQuery, loading, rows, setSearchParams])
 
   const openCount = useMemo(() => rows.filter((r) => r.status === "open").length, [rows])
+  const filteredRows = useMemo(() => {
+    if (historyFilter === "all") return rows
+    return rows.filter((r) => r.status === historyFilter)
+  }, [rows, historyFilter])
 
   async function refresh() {
     if (!businessId) return
@@ -252,7 +257,7 @@ export default function Support() {
           </Card>
         </div>
 
-        <TabsList className="bg-card/60 border border-border/60 backdrop-blur text-[11px]">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto whitespace-nowrap bg-card/60 border border-border/60 backdrop-blur text-[11px] p-1">
           <TabsTrigger value="support" className="gap-1.5">
             <History className="h-3.5 w-3.5" />
             Υποστήριξη
@@ -293,8 +298,8 @@ export default function Support() {
                   placeholder="Π.χ. Θα ήθελα πιο γρήγορο τρόπο για να κλείνω επαναλαμβανόμενα ραντεβού..."
                   className="bg-background/60 border-border/60 focus-visible:ring-primary/30 min-h-[120px] text-sm"
                 />
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Οι προτάσεις σου μας βοηθούν να βελτιώνουμε την πλατφόρμα.</span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
+                  <span className="pr-1">Οι προτάσεις σου μας βοηθούν να βελτιώνουμε την πλατφόρμα.</span>
                   <Button type="button" size="sm" onClick={() => submit("suggestion")} disabled={sending !== null}>
                     <Send className="mr-1.5 h-3.5 w-3.5" />
                     {sending === "suggestion" ? "Αποστολή..." : "Αποστολή"}
@@ -323,8 +328,8 @@ export default function Support() {
                   placeholder="Π.χ. Στη σελίδα Ραντεβού, όταν πατάω “Αποθήκευση” δεν κλείνει η φόρμα..."
                   className="bg-background/60 border-border/60 focus-visible:ring-destructive/40 min-h-[120px] text-sm"
                 />
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Πρόσθεσε όσο περισσότερες λεπτομέρειες μπορείς (βήματα, browser κ.λπ.).</span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
+                  <span className="pr-1">Πρόσθεσε όσο περισσότερες λεπτομέρειες μπορείς (βήματα, browser κ.λπ.).</span>
                   <Button
                     type="button"
                     variant="destructive"
@@ -341,37 +346,53 @@ export default function Support() {
           </div>
 
           <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
-            <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardHeader className="space-y-3">
               <div className="space-y-1">
                 <CardTitle className="text-sm">Ιστορικό αιτημάτων</CardTitle>
                 <p className="text-[11px] text-muted-foreground">Δες τις τελευταίες προτάσεις και αναφορές σου.</p>
               </div>
-              <Tabs defaultValue="all">
-                <TabsList className="bg-card/60 border border-border/60 backdrop-blur text-[11px]">
-                  <TabsTrigger value="all">Όλα</TabsTrigger>
-                  <TabsTrigger value="open">Ανοιχτά</TabsTrigger>
-                  <TabsTrigger value="resolved">Ολοκληρωμένα</TabsTrigger>
-                </TabsList>
-                <TabsContent value="all" />
-                <TabsContent value="open" />
-                <TabsContent value="resolved" />
-              </Tabs>
+              <div className="flex w-full flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={historyFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHistoryFilter("all")}
+                >
+                  Όλα
+                </Button>
+                <Button
+                  type="button"
+                  variant={historyFilter === "open" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHistoryFilter("open")}
+                >
+                  Ανοιχτά
+                </Button>
+                <Button
+                  type="button"
+                  variant={historyFilter === "resolved" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHistoryFilter("resolved")}
+                >
+                  Ολοκληρωμένα
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="text-sm">
               {loading ? (
                 <Skeleton className="h-40 w-full" />
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Δεν υπάρχουν αιτήματα ακόμα.</p>
               ) : (
                 <div className="space-y-2">
-                  {rows.map((r) => (
+                  {filteredRows.map((r) => (
                     <div
                       key={r.id}
                       id={`support-req-${r.id}`}
-                      className="rounded-xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs flex items-start justify-between gap-3"
+                      className="rounded-xl border border-border/60 bg-background/60 px-3 py-2.5 text-xs"
                     >
                       <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant={r.type === "issue" ? "destructive" : "secondary"}
                             className="border border-border/60 text-[11px]"
