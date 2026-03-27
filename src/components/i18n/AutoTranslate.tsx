@@ -80,6 +80,69 @@ const exactContainsMap: Array<[string, string]> = [
   ["Κυρ", "Sun"],
 ]
 
+const tokenMap: Array<[string, string]> = [
+  ["Υπηρεσίες", "Services"],
+  ["Υπηρεσία", "Service"],
+  ["Πελάτες", "Customers"],
+  ["Πελάτης", "Customer"],
+  ["Ραντεβού", "Appointments"],
+  ["Ραντεβο", "Appointment"],
+  ["Ημερολόγιο", "Calendar"],
+  ["Ημερήσια", "Daily"],
+  ["Διαδρομή", "Route"],
+  ["Υπενθυμίσεις", "Reminders"],
+  ["Συντήρησης", "Maintenance"],
+  ["Συντήρηση", "Maintenance"],
+  ["Ομάδα", "Team"],
+  ["Βάρδιες", "Shifts"],
+  ["Αναφορές", "Reports"],
+  ["Πληρωμές", "Payments"],
+  ["Ρυθμίσεις", "Settings"],
+  ["Υποστήριξη", "Support"],
+  ["Σύνολο", "Total"],
+  ["Όνομα", "Name"],
+  ["Διάρκεια", "Duration"],
+  ["Χρέωση", "Charge"],
+  ["Περιγραφή", "Description"],
+  ["Κατάσταση", "Status"],
+  ["Κόστος", "Cost"],
+  ["Ενέργειες", "Actions"],
+  ["Αναζήτηση", "Search"],
+  ["Σήμερα", "Today"],
+  ["Από", "From"],
+  ["Έως", "To"],
+  ["Ανοιχτά", "Open"],
+  ["Ανοιγμα", "Open"],
+  ["Άνοιγμα", "Open"],
+  ["Αποθήκευση", "Save"],
+  ["Νέα", "New"],
+  ["Νέος", "New"],
+  ["Νέο", "New"],
+  ["Προσθήκη", "Add"],
+  ["Διαγραφή", "Delete"],
+  ["Επεξεργασία", "Edit"],
+  ["Διαχειριστής", "Admin"],
+  ["Υπάλληλος", "Staff"],
+  ["Ρεσεψιόν", "Reception"],
+  ["Ενεργός", "Active"],
+  ["Ανενεργός", "Inactive"],
+  ["Ενεργά", "Active"],
+  ["Ανενεργά", "Inactive"],
+  ["Δεν υπάρχουν", "There are no"],
+  ["Δεν", "No"],
+  ["και", "and"],
+  ["για", "for"],
+  ["ανά", "per"],
+  ["μέλος", "member"],
+  ["μέλη", "members"],
+  ["επιχείρησης", "business"],
+  ["επιχείρηση", "business"],
+  ["ωραρίου", "hours"],
+  ["ώρες", "hours"],
+  ["ημέρες", "days"],
+  ["λεπτά", "minutes"],
+]
+
 function translateText(text: string, language: "el" | "en"): string {
   if (language === "el") return text
   if (!/[Α-Ωα-ωΆ-Ώά-ώ]/.test(text)) return text
@@ -87,6 +150,9 @@ function translateText(text: string, language: "el" | "en"): string {
 
   let next = text
   for (const [gr, en] of exactContainsMap) {
+    if (next.includes(gr)) next = next.split(gr).join(en)
+  }
+  for (const [gr, en] of tokenMap) {
     if (next.includes(gr)) next = next.split(gr).join(en)
   }
   return next
