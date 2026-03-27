@@ -27,6 +27,10 @@ export default function Settings() {
   const [bookingRequiresApproval, setBookingRequiresApproval] = useState(true)
   const [bookingWindowDays, setBookingWindowDays] = useState(30)
   const [bookingTheme, setBookingTheme] = useState("default")
+  const [bookingStartHour, setBookingStartHour] = useState(9)
+  const [bookingEndHour, setBookingEndHour] = useState(20)
+  const [bookingSlotIntervalMinutes, setBookingSlotIntervalMinutes] = useState(15)
+  const [bookingMinNoticeHours, setBookingMinNoticeHours] = useState(0)
   const [savingBooking, setSavingBooking] = useState(false)
 
   const selectedThemePreset = useMemo(() => `${theme}:${palette}`, [theme, palette])
@@ -60,6 +64,10 @@ export default function Settings() {
       setBookingRequiresApproval(Boolean((b as any).booking_requires_approval ?? true))
       setBookingWindowDays(Number((b as any).booking_window_days ?? 30))
       setBookingTheme(((b as any).booking_theme ?? "default").toString())
+      setBookingStartHour(Number((b as any).booking_start_hour ?? 9))
+      setBookingEndHour(Number((b as any).booking_end_hour ?? 20))
+      setBookingSlotIntervalMinutes(Number((b as any).booking_slot_interval_minutes ?? 15))
+      setBookingMinNoticeHours(Number((b as any).booking_min_notice_hours ?? 0))
     })
   }, [businessId])
 
@@ -141,6 +149,10 @@ export default function Settings() {
       toast({ title: "Σφάλμα", description: "Συμπλήρωσε έγκυρο booking slug.", variant: "destructive" })
       return
     }
+    if (bookingStartHour >= bookingEndHour) {
+      toast({ title: "Σφάλμα", description: "Η ώρα έναρξης πρέπει να είναι πριν τη λήξη.", variant: "destructive" })
+      return
+    }
     try {
       setSavingBooking(true)
       const { error } = await supabase
@@ -151,6 +163,12 @@ export default function Settings() {
           booking_requires_approval: bookingRequiresApproval,
           booking_window_days: Math.max(1, Number(bookingWindowDays || 1)),
           booking_theme: bookingTheme || "default",
+          booking_start_hour: Math.min(23, Math.max(0, Number(bookingStartHour || 0))),
+          booking_end_hour: Math.min(24, Math.max(1, Number(bookingEndHour || 1))),
+          booking_slot_interval_minutes: [5, 10, 15, 20, 30, 60].includes(Number(bookingSlotIntervalMinutes))
+            ? Number(bookingSlotIntervalMinutes)
+            : 15,
+          booking_min_notice_hours: Math.min(168, Math.max(0, Number(bookingMinNoticeHours || 0))),
         })
         .eq("id", businessId)
       if (error) throw error
@@ -299,6 +317,62 @@ export default function Settings() {
                       <SelectItem value="medical">Medical Clean (ιατροί/κλινικές)</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Έναρξη ωραρίου (0-23)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={bookingStartHour}
+                    onChange={(e) => setBookingStartHour(Math.min(23, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full sm:max-w-md bg-background/40 border-border/60"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Λήξη ωραρίου (1-24)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={bookingEndHour}
+                    onChange={(e) => setBookingEndHour(Math.min(24, Math.max(1, Number(e.target.value) || 1)))}
+                    className="w-full sm:max-w-md bg-background/40 border-border/60"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Βήμα slots (λεπτά)</Label>
+                  <Select
+                    value={String(bookingSlotIntervalMinutes)}
+                    onValueChange={(v) => setBookingSlotIntervalMinutes(Number(v))}
+                  >
+                    <SelectTrigger className="w-full sm:max-w-md bg-background/40 border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5'</SelectItem>
+                      <SelectItem value="10">10'</SelectItem>
+                      <SelectItem value="15">15'</SelectItem>
+                      <SelectItem value="20">20'</SelectItem>
+                      <SelectItem value="30">30'</SelectItem>
+                      <SelectItem value="60">60'</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Ελάχιστη προειδοποίηση (ώρες)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={168}
+                    value={bookingMinNoticeHours}
+                    onChange={(e) => setBookingMinNoticeHours(Math.min(168, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full sm:max-w-md bg-background/40 border-border/60"
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">

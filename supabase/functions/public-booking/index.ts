@@ -23,6 +23,16 @@ function toHHMM(total: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`
 }
 
+function dateWithMinutes(date: string, minutes: number): Date {
+  const hh = Math.floor(minutes / 60)
+  const mm = minutes % 60
+  return new Date(`${date}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`)
+}
+
+function isSameDate(a: Date, b: Date): boolean {
+  return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405)
@@ -39,7 +49,7 @@ Deno.serve(async (req) => {
 
     const { data: biz, error: bizErr } = await supabase
       .from("businesses")
-      .select("id,name,business_type,phone,logo_url,booking_enabled,booking_slug,booking_requires_approval,booking_window_days,booking_theme")
+      .select("id,name,business_type,phone,logo_url,booking_enabled,booking_slug,booking_requires_approval,booking_window_days,booking_theme,booking_start_hour,booking_end_hour,booking_slot_interval_minutes,booking_min_notice_hours")
       .ilike("booking_slug", slug)
       .maybeSingle()
     if (bizErr || !biz) return json({ success: false, error: "Business not found" }, 404)
@@ -51,8 +61,9 @@ Deno.serve(async (req) => {
     if (action === "get_config") {
       const { data: services } = await supabase
         .from("services")
-        .select("id,name,duration_minutes,price,billing_type,hourly_rate")
+        .select("id,name,duration_minutes,price,billing_type,hourly_rate,is_public_booking_visible")
         .eq("business_id", businessId)
+        .eq("is_public_booking_visible", true)
         .order("name")
       return json({
         success: true,
@@ -61,19 +72,44 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (action === "get_slots") {
-      const date = String(body.date ?? "")
-      const serviceId = String(body.service_id ?? "")
-      if (!date || !serviceId) return json({ success: false, error: "Missing date/service_id" }, 400)
+    const windowDays = Math.max(1, Number((biz as { booking_window_days?: number | null }).booking_window_days ?? 30))
+    const startHour = Math.min(23, Math.max(0, Number((biz as { booking_start_hour?: number | null }).booking_start_hour ?? 9)))
+    const endHour = Math.min(24, Math.max(1, Number((biz as { booking_end_hour?: number | null }).booking_end_hour ?? 20)))
+    const interval = Number((biz as { booking_slot_interval_minutes?: number | null }).booking_slot_interval_minutes ?? 15)
+    const slotStep = [5, 10, 15, 20, 30, 60].includes(interval) ? interval : 15
+    const minNoticeHours = Math.min(168, Math.max(0, Number((biz as { booking_min_notice_hours?: number | null }).booking_min_notice_hours ?? 0)))
+    const open = startHour * 60
+    const close = endHour * 60
 
-      const { data: service } = await supabase
+    async function resolveDuration(serviceIdsRaw: unknown, serviceIdRaw: unknown): Promise<number> {
+      const ids = Array.isArray(serviceIdsRaw)
+        ? serviceIdsRaw.map((x) => String(x)).filter(Boolean)
+        : String(serviceIdRaw ?? "")
+            .trim()
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+      const uniqueIds = Array.from(new Set(ids))
+      if (uniqueIds.length === 0) return 60
+      const { data: selected } = await supabase
         .from("services")
         .select("duration_minutes")
-        .eq("id", serviceId)
         .eq("business_id", businessId)
-        .maybeSingle()
-      const duration = Number((service as { duration_minutes?: number | null } | null)?.duration_minutes ?? 60)
-      const slotMinutes = Math.max(15, duration || 60)
+        .eq("is_public_booking_visible", true)
+        .in("id", uniqueIds)
+      const total = ((selected ?? []) as Array<{ duration_minutes?: number | null }>)
+        .reduce((sum, s) => sum + Number(s.duration_minutes ?? 0), 0)
+      return total > 0 ? total : 60
+    }
+
+    async function computeSlotsForDate(date: string, duration: number): Promise<string[]> {
+      const today = new Date()
+      const from = new Date(today)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(from)
+      to.setDate(to.getDate() + windowDays)
+      const targetDate = new Date(`${date}T00:00:00`)
+      if (targetDate < from || targetDate > to) return []
 
       const { data: appointments } = await supabase
         .from("appointments_jobs")
@@ -87,14 +123,40 @@ Deno.serve(async (req) => {
         end: toMinutes(a.end_time.slice(0, 5)),
       }))
 
-      const open = 9 * 60
-      const close = 20 * 60
       const slots: string[] = []
-      for (let t = open; t + slotMinutes <= close; t += 15) {
-        const overlap = busy.some((b) => t < b.end && t + slotMinutes > b.start)
+      const minStartAt = new Date(Date.now() + minNoticeHours * 60 * 60 * 1000)
+      for (let t = open; t + duration <= close; t += slotStep) {
+        if (isSameDate(targetDate, minStartAt)) {
+          const slotDate = dateWithMinutes(date, t)
+          if (slotDate < minStartAt) continue
+        }
+        const overlap = busy.some((b) => t < b.end && t + duration > b.start)
         if (!overlap) slots.push(toHHMM(t))
       }
+      return slots
+    }
+
+    if (action === "get_slots") {
+      const date = String(body.date ?? "")
+      if (!date) return json({ success: false, error: "Missing date" }, 400)
+      const duration = await resolveDuration(body.service_ids, body.service_id)
+      const slots = await computeSlotsForDate(date, duration)
       return json({ success: true, slots })
+    }
+
+    if (action === "get_available_dates") {
+      const duration = await resolveDuration(body.service_ids, body.service_id)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dates: string[] = []
+      for (let i = 0; i <= windowDays; i += 1) {
+        const d = new Date(today)
+        d.setDate(today.getDate() + i)
+        const date = d.toISOString().slice(0, 10)
+        const slots = await computeSlotsForDate(date, duration)
+        if (slots.length > 0) dates.push(date)
+      }
+      return json({ success: true, dates })
     }
 
     if (action === "create_booking") {
@@ -113,6 +175,7 @@ Deno.serve(async (req) => {
         .from("services")
         .select("id,name,duration_minutes,price,billing_type,hourly_rate")
         .eq("business_id", businessId)
+        .eq("is_public_booking_visible", true)
         .in("id", serviceIds)
       const selected = (services ?? []) as Array<{
         id: string
@@ -123,6 +186,9 @@ Deno.serve(async (req) => {
         hourly_rate: number | null
       }>
       if (selected.length === 0) return json({ success: false, error: "No valid services selected" }, 400)
+      if (selected.length !== Array.from(new Set(serviceIds)).length) {
+        return json({ success: false, error: "One or more selected services are not available for public booking" }, 400)
+      }
       const totalDuration = selected.reduce((sum, s) => sum + Number(s.duration_minutes ?? 0), 0) || 60
       const start = toMinutes(startTime.slice(0, 5))
       const end = start + totalDuration
@@ -160,6 +226,10 @@ Deno.serve(async (req) => {
       }
 
       const requiresApproval = Boolean((biz as { booking_requires_approval?: boolean }).booking_requires_approval)
+      const availableSlots = await computeSlotsForDate(date, totalDuration)
+      if (!availableSlots.includes(startTime)) {
+        return json({ success: false, error: "Η ώρα δεν είναι πλέον διαθέσιμη. Επίλεξε νέα ώρα." }, 409)
+      }
       const primaryService = selected[0]
       const { data: appointment, error: appErr } = await supabase
         .from("appointments_jobs")

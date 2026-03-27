@@ -47,6 +47,10 @@ export interface Business {
   booking_requires_approval: boolean
   booking_window_days: number | null
   booking_theme: string | null
+  booking_start_hour: number
+  booking_end_hour: number
+  booking_slot_interval_minutes: number
+  booking_min_notice_hours: number
   subscription_plan: string | null
   subscription_status: SubscriptionStatus | null
   subscription_started_at: string | null
@@ -163,6 +167,7 @@ export interface Service {
   price: number | null
   billing_type: ServiceBillingType
   hourly_rate: number | null
+  is_public_booking_visible: boolean
   created_at: string
   updated_at: string
 }

@@ -28,6 +28,7 @@ type PublicBookingApiOk = {
   business?: BusinessInfo & { name?: string }
   services?: BookingService[]
   slots?: string[]
+  dates?: string[]
   status?: string
 }
 
@@ -42,6 +43,7 @@ export default function PublicBooking() {
   const [services, setServices] = useState<BookingService[]>([])
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [availableDates, setAvailableDates] = useState<string[]>([])
   const [slots, setSlots] = useState<string[]>([])
   const [startTime, setStartTime] = useState("")
   const [firstName, setFirstName] = useState("")
@@ -127,10 +129,25 @@ export default function PublicBooking() {
       setStartTime("")
       return
     }
-    callPublicBooking("get_slots", { date, service_id: selectedServiceIds[0] })
+    callPublicBooking("get_slots", { date, service_ids: selectedServiceIds })
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]))
   }, [date, selectedServiceIds, slug])
+
+  useEffect(() => {
+    if (!slug.trim() || selectedServiceIds.length === 0) {
+      setAvailableDates([])
+      setDate(new Date().toISOString().slice(0, 10))
+      return
+    }
+    callPublicBooking("get_available_dates", { service_ids: selectedServiceIds })
+      .then((data) => {
+        const dates = data.dates ?? []
+        setAvailableDates(dates)
+        setDate((prev) => (dates.includes(prev) ? prev : (dates[0] ?? prev)))
+      })
+      .catch(() => setAvailableDates([]))
+  }, [selectedServiceIds, slug])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -305,7 +322,28 @@ export default function PublicBooking() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className={themeClasses.text}>2) Ημερομηνία</Label>
-                      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                      {availableDates.length === 0 ? (
+                        <p className={`text-xs ${themeClasses.muted}`}>
+                          Επίλεξε υπηρεσία για να εμφανιστούν διαθέσιμες ημέρες.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
+                          {availableDates.map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setDate(d)}
+                              className={`h-9 rounded-md border px-2 text-xs transition-colors ${
+                                date === d
+                                  ? `${themeClasses.selected} ${themeClasses.accent}`
+                                  : themeClasses.neutral
+                              }`}
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label className={themeClasses.text}>3) Διαθέσιμη ώρα</Label>

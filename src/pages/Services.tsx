@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 type FormState = {
   name: string
@@ -46,6 +47,7 @@ type FormState = {
   price: string
   billing_type: "fixed" | "hourly"
   hourly_rate: string
+  is_public_booking_visible: boolean
 }
 
 const emptyForm: FormState = {
@@ -55,6 +57,7 @@ const emptyForm: FormState = {
   price: "",
   billing_type: "fixed",
   hourly_rate: "",
+  is_public_booking_visible: true,
 }
 
 function parsePositiveNumber(raw: string): number | null {
@@ -159,6 +162,7 @@ export default function Services() {
       price: s.price != null ? String(s.price) : "",
       billing_type: s.billing_type ?? "fixed",
       hourly_rate: s.hourly_rate != null ? String(s.hourly_rate) : "",
+      is_public_booking_visible: Boolean(s.is_public_booking_visible ?? true),
     })
     setDialogOpen(true)
   }
@@ -199,6 +203,7 @@ export default function Services() {
         price: computedPrice,
         billing_type: form.billing_type,
         hourly_rate: form.billing_type === "hourly" ? hourlyRate : null,
+        is_public_booking_visible: form.is_public_booking_visible,
       }
       if (editing) {
         await updateService(editing.id, payload)
@@ -261,6 +266,7 @@ export default function Services() {
   const totalServices = rows.length
   const pricedServices = rows.filter((s) => s.price != null).length
   const hourlyServices = rows.filter((s) => s.billing_type === "hourly").length
+  const publicBookingVisibleServices = rows.filter((s) => s.is_public_booking_visible).length
 
   return (
     <div className="space-y-6">
@@ -284,7 +290,7 @@ export default function Services() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
@@ -315,6 +321,17 @@ export default function Services() {
             </div>
             <Badge variant="outline" className="text-xs border-blue-400/40 text-blue-500 bg-blue-500/5">
               Ωριαία
+            </Badge>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 bg-card/60">
+          <CardContent className="flex items-center justify-between py-3">
+            <div className="space-y-0.5">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Public booking</p>
+              <p className="text-xl font-semibold tracking-tight">{publicBookingVisibleServices}</p>
+            </div>
+            <Badge variant="outline" className="text-xs border-indigo-400/40 text-indigo-500 bg-indigo-500/5">
+              Ορατές
             </Badge>
           </CardContent>
         </Card>
@@ -362,6 +379,9 @@ export default function Services() {
                         <div className="text-sm font-medium">{s.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {s.duration_minutes != null ? `${s.duration_minutes}’` : "—"} • {formatServicePrice(s)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Public booking: {s.is_public_booking_visible ? "Ορατή" : "Κρυφή"}
                         </div>
                         {s.description ? (
                           <div className="text-xs text-muted-foreground">{s.description}</div>
@@ -492,6 +512,16 @@ export default function Services() {
             <div className="space-y-2">
               <Label>Περιγραφή</Label>
               <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Εμφάνιση στο Public Booking</p>
+                <p className="text-xs text-muted-foreground">Αν είναι κλειστό, η υπηρεσία δεν θα εμφανίζεται στη δημόσια φόρμα.</p>
+              </div>
+              <Switch
+                checked={form.is_public_booking_visible}
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, is_public_booking_visible: checked }))}
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Ακύρωση</Button>
