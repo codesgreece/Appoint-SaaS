@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/contexts/WorkspaceContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -37,27 +38,94 @@ import { cn } from "@/lib/utils"
 import { CommandPalette } from "@/components/CommandPalette"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
 
-const businessNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/customers", icon: Users, label: "Πελάτες" },
-  { to: "/services", icon: Briefcase, label: "Υπηρεσίες" },
-  { to: "/appointments", icon: Calendar, label: "Ραντεβού" },
-  { to: "/route-order", icon: Route, label: "Ημερ. Διαδρομή" },
-  { to: "/service-reminders", icon: Wrench, label: "Υπενθυμίσεις" },
-  { to: "/calendar", icon: CalendarDays, label: "Ημερολόγιο" },
-  { to: "/team", icon: UserCircle, label: "Ομάδα & Βάρδιες" },
-  { to: "/reports", icon: BarChart3, label: "Αναφορές & Πληρωμές" },
-  { to: "/support", icon: LifeBuoy, label: "Υποστήριξη" },
-  { to: "/settings", icon: Settings, label: "Ρυθμίσεις & Στοιχεία" },
-]
+const translations = {
+  el: {
+    navDashboard: "Dashboard",
+    navCustomers: "Πελάτες",
+    navServices: "Υπηρεσίες",
+    navAppointments: "Ραντεβού",
+    navRouteOrder: "Ημερ. Διαδρομή",
+    navReminders: "Υπενθυμίσεις",
+    navCalendar: "Ημερολόγιο",
+    navTeam: "Ομάδα & Βάρδιες",
+    navReports: "Αναφορές & Πληρωμές",
+    navSupport: "Υποστήριξη",
+    navSettings: "Ρυθμίσεις & Στοιχεία",
+    navPlatformOverview: "Επισκόπηση πλατφόρμας",
+    navPlatformBusinesses: "Επιχειρήσεις",
+    navPlatformPlans: "Πλάνα & Όρια",
+    navPlatformUsers: "Χρήστες πλατφόρμας",
+    navPlatformTools: "Εργαλεία υποστήριξης",
+    availableOn: "Διαθέσιμο σε",
+    business: "Επιχείρηση",
+    myBusiness: "Η επιχείρησή μου",
+    platformManagement: "Διαχείριση πλατφόρμας",
+    settings: "Ρυθμίσεις",
+    signOut: "Αποσύνδεση",
+    expiredTitle: "Η συνδρομή έχει λήξει",
+    expiredDescription: "Επικοινωνήστε με κάποιον διαχειριστή για την αγορά προγράμματος.",
+    remainingPrefix: "Υπολείπονται",
+    remainingSuffix: "ημέρες στη συνδρομή",
+    expiresOn: "λήξη",
+  },
+  en: {
+    navDashboard: "Dashboard",
+    navCustomers: "Customers",
+    navServices: "Services",
+    navAppointments: "Appointments",
+    navRouteOrder: "Daily Route",
+    navReminders: "Reminders",
+    navCalendar: "Calendar",
+    navTeam: "Team & Shifts",
+    navReports: "Reports & Payments",
+    navSupport: "Support",
+    navSettings: "Settings & Details",
+    navPlatformOverview: "Platform Overview",
+    navPlatformBusinesses: "Businesses",
+    navPlatformPlans: "Plans & Limits",
+    navPlatformUsers: "Platform Users",
+    navPlatformTools: "Support Tools",
+    availableOn: "Available on",
+    business: "Business",
+    myBusiness: "My Business",
+    platformManagement: "Platform Management",
+    settings: "Settings",
+    signOut: "Sign out",
+    expiredTitle: "Subscription expired",
+    expiredDescription: "Contact an administrator to purchase a plan.",
+    remainingPrefix: "Remaining",
+    remainingSuffix: "days in subscription",
+    expiresOn: "expires",
+  },
+} as const
 
-const platformNavItems = [
-  { to: "/platform/overview", icon: LayoutDashboard, label: "Επισκόπηση πλατφόρμας" },
-  { to: "/platform/businesses", icon: Users, label: "Επιχειρήσεις" },
-  { to: "/platform/plans", icon: BarChart3, label: "Πλάνα & Όρια" },
-  { to: "/platform/users", icon: UserCircle, label: "Χρήστες πλατφόρμας" },
-  { to: "/platform/tools", icon: Settings, label: "Εργαλεία υποστήριξης" },
-]
+function getBusinessNavItems(language: AppLanguage) {
+  const t = translations[language]
+  return [
+    { to: "/", icon: LayoutDashboard, label: t.navDashboard },
+    { to: "/customers", icon: Users, label: t.navCustomers },
+    { to: "/services", icon: Briefcase, label: t.navServices },
+    { to: "/appointments", icon: Calendar, label: t.navAppointments },
+    { to: "/route-order", icon: Route, label: t.navRouteOrder },
+    { to: "/service-reminders", icon: Wrench, label: t.navReminders },
+    { to: "/calendar", icon: CalendarDays, label: t.navCalendar },
+    { to: "/team", icon: UserCircle, label: t.navTeam },
+    { to: "/reports", icon: BarChart3, label: t.navReports },
+    { to: "/support", icon: LifeBuoy, label: t.navSupport },
+    { to: "/settings", icon: Settings, label: t.navSettings },
+  ]
+}
+
+function getPlatformNavItems(language: AppLanguage) {
+  const t = translations[language]
+  return [
+    { to: "/platform/overview", icon: LayoutDashboard, label: t.navPlatformOverview },
+    { to: "/platform/businesses", icon: Users, label: t.navPlatformBusinesses },
+    { to: "/platform/plans", icon: BarChart3, label: t.navPlatformPlans },
+    { to: "/platform/users", icon: UserCircle, label: t.navPlatformUsers },
+    { to: "/platform/tools", icon: Settings, label: t.navPlatformTools },
+  ]
+}
 
 function planLabelGr(plan: string | null): string {
   const m: Record<string, string> = {
@@ -81,6 +149,7 @@ function daysUntilSubscriptionEnd(iso: string | null): number | null {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { language, setLanguage } = useLanguage()
   const { user, signOut, businessName, businessId, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
   const { toast } = useToast()
   useTheme()
@@ -91,6 +160,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [openSupportCount, setOpenSupportCount] = useState<number | null>(null)
   const [publicBookingUnreadCount, setPublicBookingUnreadCount] = useState<number | null>(null)
   const [lastExpiredToastAt, setLastExpiredToastAt] = useState(0)
+  const t = translations[language]
+  const businessNavItems = getBusinessNavItems(language)
+  const platformNavItems = getPlatformNavItems(language)
 
   const isExpiredSubscription =
     user?.role !== "super_admin" &&
@@ -203,8 +275,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (now - lastExpiredToastAt < 1500) return
     setLastExpiredToastAt(now)
     toast({
-      title: "Η συνδρομή έχει λήξει",
-      description: "Επικοινωνήστε με κάποιον διαχειριστή για την αγορά προγράμματος.",
+      title: t.expiredTitle,
+      description: t.expiredDescription,
       variant: "destructive",
     })
   }
@@ -311,7 +383,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })}
           {(user?.role !== "super_admin" || mode === "business") && (
             <div className="mt-1 rounded-xl border border-border/60 bg-card/60 px-2.5 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Διαθέσιμο σε</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.availableOn}</p>
               <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3">
                 <span className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-border/60 bg-background/60 px-1.5 py-1 text-[10px] text-muted-foreground">
                   <Bot className="h-3 w-3" />
@@ -344,7 +416,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <Building2 className="h-3.5 w-3.5" />
                 </span>
                 <div className="leading-tight">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Επιχείρηση</p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.business}</p>
                   <p className="max-w-[180px] truncate font-semibold text-foreground">{businessName ?? "—"}</p>
                 </div>
               </div>
@@ -364,7 +436,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  Η επιχείρησή μου
+                  {t.myBusiness}
                 </button>
                 <button
                   type="button"
@@ -379,12 +451,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  Διαχείριση πλατφόρμας
+                  {t.platformManagement}
                 </button>
               </div>
             )}
           </div>
           <div className="flex items-center gap-1.5">
+            <div className="inline-flex items-center rounded-full border border-border/60 bg-card/80 p-0.5 text-[10px] sm:text-[11px]">
+              <button
+                type="button"
+                onClick={() => setLanguage("el")}
+                className={cn(
+                  "rounded-full px-2 py-1 transition-colors",
+                  language === "el" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                EL
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={cn(
+                  "rounded-full px-2 py-1 transition-colors",
+                  language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                EN
+              </button>
+            </div>
             <NotificationBell businessId={businessId} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -406,11 +500,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings">Ρυθμίσεις</Link>
+                  <Link to="/settings">{t.settings}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Αποσύνδεση
+                  {t.signOut}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -424,11 +518,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="border-b border-primary/25 bg-primary/10 px-3 py-2 text-center text-[11px] md:text-xs text-foreground">
               <span className="font-medium">{planLabelGr(tenantSubscriptionPlan)}</span>
               <span className="text-muted-foreground"> · </span>
-              Υπολείπονται{" "}
-              <strong>{daysUntilSubscriptionEnd(tenantSubscriptionExpiresAt) ?? 0}</strong> ημέρες στη συνδρομή
+              {t.remainingPrefix} <strong>{daysUntilSubscriptionEnd(tenantSubscriptionExpiresAt) ?? 0}</strong>{" "}
+              {t.remainingSuffix}
               <span className="text-muted-foreground hidden sm:inline">
                 {" "}
-                (λήξη {new Date(tenantSubscriptionExpiresAt).toLocaleDateString("el-GR")})
+                ({t.expiresOn} {new Date(tenantSubscriptionExpiresAt).toLocaleDateString(language === "el" ? "el-GR" : "en-GB")})
               </span>
             </div>
           )}

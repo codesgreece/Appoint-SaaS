@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext"
+import { LanguageProvider } from "@/contexts/LanguageContext"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { SubscriptionGate } from "@/components/SubscriptionGate"
@@ -60,10 +61,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="system" storageKey="appoint-saas-theme">
-        <BrowserRouter>
-          <AuthProvider>
-            <WorkspaceProvider>
-              <Routes>
+        <LanguageProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <WorkspaceProvider>
+                <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/book/:slug" element={<PublicBooking />} />
@@ -265,11 +267,12 @@ export default function App() {
                   }
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              <Toaster />
-            </WorkspaceProvider>
-          </AuthProvider>
-        </BrowserRouter>
+                </Routes>
+                <Toaster />
+              </WorkspaceProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </LanguageProvider>
       </ThemeProvider>
     </ErrorBoundary>
   )
