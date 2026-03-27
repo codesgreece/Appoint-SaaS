@@ -30,6 +30,7 @@ import {
   CartesianGrid,
 } from "recharts"
 import { ChangelogCard } from "@/components/ChangelogCard"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 const container = {
   hidden: { opacity: 0 },
@@ -51,15 +52,16 @@ function dashboardGreetingName(user: { username: string | null; full_name: strin
   return n || null
 }
 
-/** Τοπική ώρα: Καλημέρα (πρωί–μεσημέρι), Καλησπέρα (απόγευμα–νύχτα). */
-function timeOfDayGreetingGr(): "Καλημέρα" | "Καλησπέρα" {
+function timeOfDayGreeting(lang: "el" | "en"): string {
   const h = new Date().getHours()
-  if (h >= 5 && h < 15) return "Καλημέρα"
-  return "Καλησπέρα"
+  const morning = h >= 5 && h < 15
+  if (lang === "en") return morning ? "Good morning" : "Good evening"
+  return morning ? "Καλημέρα" : "Καλησπέρα"
 }
 
 export default function Dashboard() {
   const { businessId, user } = useAuth()
+  const { language } = useLanguage()
   const greetAs = dashboardGreetingName(user)
   const [stats, setStats] = useState<Awaited<ReturnType<typeof fetchDashboardStats>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -113,7 +115,7 @@ export default function Dashboard() {
           .slice(0, 5)
           .map((r) => ({
             id: r.id,
-            customerName: r.customer ? `${r.customer.first_name} ${r.customer.last_name}` : "Πελάτης",
+            customerName: r.customer ? `${r.customer.first_name} ${r.customer.last_name}` : language === "en" ? "Customer" : "Πελάτης",
             dueDate: r.due_date,
           }))
         setOverdueServiceReminders(overdue)
@@ -159,14 +161,14 @@ export default function Dashboard() {
 
   const setupItems = useMemo(() => {
     const items = [
-      { key: "services", label: "Πρόσθεσε υπηρεσίες", done: setupCounts.services > 0, countLabel: `${setupCounts.services}`, to: "/services", icon: Briefcase },
-      { key: "team", label: "Έλεγξε την ομάδα", done: setupCounts.team > 0, countLabel: `${setupCounts.team}`, to: "/team", icon: UsersIcon },
-      { key: "customers", label: "Πρόσθεσε πελάτες", done: setupCounts.customers > 0, countLabel: `${setupCounts.customers}`, to: "/customers", icon: UserIcon },
-      { key: "appointments", label: "Δημιούργησε ραντεβού", done: setupCounts.appointments > 0, countLabel: `${setupCounts.appointments}`, to: "/appointments", icon: Calendar },
+      { key: "services", label: language === "en" ? "Add services" : "Πρόσθεσε υπηρεσίες", done: setupCounts.services > 0, countLabel: `${setupCounts.services}`, to: "/services", icon: Briefcase },
+      { key: "team", label: language === "en" ? "Review team" : "Έλεγξε την ομάδα", done: setupCounts.team > 0, countLabel: `${setupCounts.team}`, to: "/team", icon: UsersIcon },
+      { key: "customers", label: language === "en" ? "Add customers" : "Πρόσθεσε πελάτες", done: setupCounts.customers > 0, countLabel: `${setupCounts.customers}`, to: "/customers", icon: UserIcon },
+      { key: "appointments", label: language === "en" ? "Create appointments" : "Δημιούργησε ραντεβού", done: setupCounts.appointments > 0, countLabel: `${setupCounts.appointments}`, to: "/appointments", icon: Calendar },
     ] as const
     const completed = items.filter((i) => i.done).length
     return { items, completed, total: items.length }
-  }, [setupCounts])
+  }, [setupCounts, language])
   const showQuickSetup = setupLoading || setupItems.completed < setupItems.total
 
   if (loading) {
@@ -178,11 +180,11 @@ export default function Dashboard() {
               <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">Dashboard</h1>
               {greetAs ? (
                 <span className="text-sm md:text-base font-medium text-muted-foreground">
-                  {timeOfDayGreetingGr()}, <span className="text-foreground">{greetAs}</span>
+                  {timeOfDayGreeting(language)}, <span className="text-foreground">{greetAs}</span>
                 </span>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">Επισκόπηση επιχείρησης</p>
+            <p className="text-sm text-muted-foreground">{language === "en" ? "Business overview" : "Επισκόπηση επιχείρησης"}</p>
           </div>
           <Skeleton className="h-9 w-32 rounded-full" />
         </div>
@@ -204,70 +206,70 @@ export default function Dashboard() {
 
   const cards = [
     {
-      title: "Ραντεβού σήμερα",
+      title: language === "en" ? "Today's appointments" : "Ραντεβού σήμερα",
       value: stats?.todayAppointments ?? 0,
       icon: Calendar,
       color: "text-primary",
-      badge: "+12% από χθες",
+      badge: language === "en" ? "+12% vs yesterday" : "+12% από χθες",
       badgeColor: "text-emerald-500 bg-emerald-500/10",
     },
     {
-      title: "Εκκρεμή εργασίες",
+      title: language === "en" ? "Pending jobs" : "Εκκρεμή εργασίες",
       value: stats?.pendingJobs ?? 0,
       icon: Clock,
       color: "text-orange-500",
-      badge: "Σε εκκρεμότητα",
+      badge: language === "en" ? "Pending" : "Σε εκκρεμότητα",
       badgeColor: "text-amber-500 bg-amber-500/10",
     },
     {
-      title: "Σε εξέλιξη",
+      title: language === "en" ? "In progress" : "Σε εξέλιξη",
       value: stats?.inProgressJobs ?? 0,
       icon: AlertCircle,
       color: "text-purple-500",
-      badge: "Ζωντανές εργασίες",
+      badge: language === "en" ? "Live jobs" : "Ζωντανές εργασίες",
       badgeColor: "text-purple-500 bg-purple-500/10",
     },
     {
-      title: "Ολοκληρωμένα σήμερα",
+      title: language === "en" ? "Completed today" : "Ολοκληρωμένα σήμερα",
       value: stats?.completedToday ?? 0,
       icon: CheckCircle2,
       color: "text-green-500",
-      badge: "Ολοκληρώθηκαν",
+      badge: language === "en" ? "Completed" : "Ολοκληρώθηκαν",
       badgeColor: "text-emerald-600 bg-emerald-600/10",
     },
     {
-      title: "Έσοδα σήμερα",
+      title: language === "en" ? "Revenue today" : "Έσοδα σήμερα",
       value: formatCurrency(stats?.revenueToday ?? 0),
       icon: Euro,
       color: "text-emerald-600",
-      badge: "Σημερινά έσοδα",
+      badge: language === "en" ? "Today's revenue" : "Σημερινά έσοδα",
       badgeColor: "text-emerald-500 bg-emerald-500/10",
     },
     {
-      title: "Έσοδα μήνα",
+      title: language === "en" ? "Monthly revenue" : "Έσοδα μήνα",
       value: formatCurrency(stats?.revenueMonth ?? 0),
       icon: TrendingUp,
       color: "text-blue-500",
-      badge: "Τρέχων μήνας",
+      badge: language === "en" ? "Current month" : "Τρέχων μήνας",
       badgeColor: "text-blue-500 bg-blue-500/10",
     },
     {
-      title: "Εκκρεμή υπόλοιπα",
+      title: language === "en" ? "Outstanding balances" : "Εκκρεμή υπόλοιπα",
       value: formatCurrency(stats?.outstandingBalances ?? 0),
       icon: Euro,
       color: "text-amber-600",
-      badge: "Υπόλοιπα",
+      badge: language === "en" ? "Balances" : "Υπόλοιπα",
       badgeColor: "text-amber-600 bg-amber-600/10",
     },
   ]
 
   const chartData = [
-    { name: "Δευ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.3) : 0 },
-    { name: "Τρι", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.5) : 0 },
-    { name: "Τετ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.8) : 0 },
-    { name: "Πεμ", value: stats?.revenueToday ?? 0 },
-    { name: "Παρ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 1.2) : 0 },
-    { name: "Σαβ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.6) : 0 },
+    { name: language === "en" ? "Mon" : "Δευ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.3) : 0 },
+    { name: language === "en" ? "Tue" : "Τρι", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.5) : 0 },
+    { name: language === "en" ? "Wed" : "Τετ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.8) : 0 },
+    { name: language === "en" ? "Thu" : "Πεμ", value: stats?.revenueToday ?? 0 },
+    { name: language === "en" ? "Fri" : "Παρ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 1.2) : 0 },
+    { name: language === "en" ? "Sat" : "Σαβ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.6) : 0 },
   ]
 
   return (
@@ -280,16 +282,18 @@ export default function Dashboard() {
             </h1>
             {greetAs ? (
               <span className="text-sm md:text-base font-medium text-muted-foreground">
-                {timeOfDayGreetingGr()}, <span className="text-foreground">{greetAs}</span>
+                {timeOfDayGreeting(language)}, <span className="text-foreground">{greetAs}</span>
               </span>
             ) : null}
           </div>
-          <p className="text-xs md:text-sm text-muted-foreground">Premium επισκόπηση της επιχείρησής σου.</p>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            {language === "en" ? "Premium overview of your business." : "Premium επισκόπηση της επιχείρησής σου."}
+          </p>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center rounded-full border border-border/60 bg-card/60 px-2.5 py-0.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2" />
-            Σε πραγματικό χρόνο
+            {language === "en" ? "Real-time" : "Σε πραγματικό χρόνο"}
           </span>
         </div>
       </div>
@@ -301,14 +305,16 @@ export default function Dashboard() {
               <CardTitle className="flex items-center justify-between gap-2 text-sm">
                 <span className="inline-flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-primary" />
-                  <span>Γρήγορο setup</span>
+                  <span>{language === "en" ? "Quick setup" : "Γρήγορο setup"}</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {setupItems.completed}/{setupItems.total} ολοκληρωμένα
+                  {setupItems.completed}/{setupItems.total} {language === "en" ? "completed" : "ολοκληρωμένα"}
                 </span>
               </CardTitle>
               <CardDescription className="text-[11px]">
-                Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα.
+                {language === "en"
+                  ? "Complete the basic steps to get full value from the platform."
+                  : "Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -336,12 +342,12 @@ export default function Dashboard() {
                           <div>
                             <div className="text-sm font-medium leading-snug">{it.label}</div>
                             <div className="text-[11px] text-muted-foreground">
-                              Σύνολο: {it.countLabel}
+                              {language === "en" ? "Total" : "Σύνολο"}: {it.countLabel}
                             </div>
                           </div>
                         </div>
                         <span className={it.done ? "text-[11px] text-emerald-600" : "text-[11px] text-muted-foreground"}>
-                          {it.done ? "ΟΚ" : "Εκκρεμεί"}
+                          {it.done ? "OK" : language === "en" ? "Pending" : "Εκκρεμεί"}
                         </span>
                       </div>
                     </Link>
@@ -350,10 +356,10 @@ export default function Dashboard() {
               )}
               <div className="flex flex-wrap gap-1.5 text-xs">
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/appointments">Νέο ραντεβού</Link>
+                  <Link to="/appointments">{language === "en" ? "New appointment" : "Νέο ραντεβού"}</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/services">Νέα υπηρεσία</Link>
+                  <Link to="/services">{language === "en" ? "New service" : "Νέα υπηρεσία"}</Link>
                 </Button>
               </div>
             </CardContent>
@@ -393,25 +399,28 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <Card>
           <CardHeader>
-            <CardTitle>Υπενθυμίσεις Συντήρησης</CardTitle>
+            <CardTitle>{language === "en" ? "Service Reminders" : "Υπενθυμίσεις Συντήρησης"}</CardTitle>
             <CardDescription>
-              Επόμενες υπενθυμίσεις: {upcomingServiceReminders.length} • Εκπρόθεσμες: {overdueServiceReminders}
+              {language === "en" ? "Upcoming reminders" : "Επόμενες υπενθυμίσεις"}: {upcomingServiceReminders.length} •{" "}
+              {language === "en" ? "Overdue" : "Εκπρόθεσμες"}: {overdueServiceReminders}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {upcomingServiceReminders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν upcoming service reminders.</p>
+              <p className="text-sm text-muted-foreground">
+                {language === "en" ? "No upcoming service reminders." : "Δεν υπάρχουν upcoming service reminders."}
+              </p>
             ) : (
               upcomingServiceReminders.map((r) => (
                 <div key={r.id} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                   <span className="text-sm">{r.customerName}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(r.dueDate).toLocaleDateString("el-GR")}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(r.dueDate).toLocaleDateString(language === "en" ? "en-GB" : "el-GR")}</span>
                 </div>
               ))
             )}
             <div className="pt-1">
               <Button asChild size="sm" variant="outline">
-                <Link to="/service-reminders">Άνοιγμα υπενθυμίσεων</Link>
+                <Link to="/service-reminders">{language === "en" ? "Open reminders" : "Άνοιγμα υπενθυμίσεων"}</Link>
               </Button>
             </div>
           </CardContent>
@@ -421,12 +430,16 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <Card>
           <CardHeader>
-            <CardTitle>Ποιος δουλεύει σήμερα</CardTitle>
-            <CardDescription>{workingToday.length} μέλη σε βάρδια</CardDescription>
+            <CardTitle>{language === "en" ? "Who's working today" : "Ποιος δουλεύει σήμερα"}</CardTitle>
+            <CardDescription>
+              {workingToday.length} {language === "en" ? "members on shift" : "μέλη σε βάρδια"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {workingToday.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν έχουν οριστεί ενεργές βάρδιες για σήμερα.</p>
+              <p className="text-sm text-muted-foreground">
+                {language === "en" ? "No active shifts are scheduled for today." : "Δεν έχουν οριστεί ενεργές βάρδιες για σήμερα."}
+              </p>
             ) : (
               workingToday.slice(0, 6).map((w) => (
                 <div key={w.user_id} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
@@ -444,8 +457,8 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <Card>
           <CardHeader>
-            <CardTitle>Έσοδα εβδομάδας</CardTitle>
-            <CardDescription>Προσομοίωση δεδομένων</CardDescription>
+            <CardTitle>{language === "en" ? "Weekly revenue" : "Έσοδα εβδομάδας"}</CardTitle>
+            <CardDescription>{language === "en" ? "Data simulation" : "Προσομοίωση δεδομένων"}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
@@ -456,7 +469,7 @@ export default function Dashboard() {
                   <YAxis className="text-xs" />
                   <Tooltip
                     contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                    formatter={(value: number) => [formatCurrency(value), "Έσοδα"]}
+                    formatter={(value: number) => [formatCurrency(value), language === "en" ? "Revenue" : "Έσοδα"]}
                   />
                   <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>

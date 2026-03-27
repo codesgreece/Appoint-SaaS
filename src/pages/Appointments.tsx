@@ -46,17 +46,31 @@ import { formatDate, formatCurrency } from "@/lib/utils"
 import { AppointmentForm } from "@/components/appointments/AppointmentForm"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { CalendarView } from "@/components/appointments/CalendarView"
+import { useLanguage } from "@/contexts/LanguageContext"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
-const STATUS_LABELS: Record<AppointmentJobStatus, string> = {
-  pending: "Εκκρεμεί",
-  confirmed: "Επιβεβαιωμένο",
-  in_progress: "Σε εξέλιξη",
-  completed: "Ολοκληρώθηκε",
-  cancelled: "Ακυρώθηκε",
-  no_show: "Δεν εμφανίστηκε",
-  rescheduled: "Επανεπιλογή",
+function getStatusLabels(language: "el" | "en"): Record<AppointmentJobStatus, string> {
+  if (language === "en") {
+    return {
+      pending: "Pending",
+      confirmed: "Confirmed",
+      in_progress: "In progress",
+      completed: "Completed",
+      cancelled: "Cancelled",
+      no_show: "No show",
+      rescheduled: "Rescheduled",
+    }
+  }
+  return {
+    pending: "Εκκρεμεί",
+    confirmed: "Επιβεβαιωμένο",
+    in_progress: "Σε εξέλιξη",
+    completed: "Ολοκληρώθηκε",
+    cancelled: "Ακυρώθηκε",
+    no_show: "Δεν εμφανίστηκε",
+    rescheduled: "Επανεπιλογή",
+  }
 }
 
 const STATUS_VARIANT: Record<AppointmentJobStatus, "pending" | "confirmed" | "inProgress" | "completed" | "cancelled" | "rescheduled"> = {
@@ -77,6 +91,8 @@ type AppointmentRow = AppointmentJob & {
 
 export default function Appointments() {
   const { businessId, user } = useAuth()
+  const { language } = useLanguage()
+  const STATUS_LABELS = getStatusLabels(language)
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [appointments, setAppointments] = useState<AppointmentRow[]>([])
@@ -126,7 +142,7 @@ export default function Appointments() {
         setTeam(tm)
         setServices(svc)
       })
-      .catch(() => toast({ title: "Σφάλμα", description: "Αποτυχία φόρτωσης", variant: "destructive" }))
+      .catch(() => toast({ title: language === "en" ? "Error" : "Σφάλμα", description: language === "en" ? "Failed to load data" : "Αποτυχία φόρτωσης", variant: "destructive" }))
       .finally(() => setLoading(false))
   }, [businessId, datePreset, statusFilter])
 
@@ -260,8 +276,8 @@ export default function Appointments() {
       status: statusFilter !== "all" ? statusFilter : undefined,
     })
       .then((data) => setAppointments(data as AppointmentRow[]))
-      .catch(() => toast({ title: "Σφάλμα", description: "Αποτυχία ανανέωσης λίστας", variant: "destructive" }))
-    toast({ title: "Αποθηκεύτηκε", description: "Το ραντεβού ενημερώθηκε." })
+      .catch(() => toast({ title: language === "en" ? "Error" : "Σφάλμα", description: language === "en" ? "Failed to refresh list" : "Αποτυχία ανανέωσης λίστας", variant: "destructive" }))
+    toast({ title: language === "en" ? "Saved" : "Αποθηκεύτηκε", description: language === "en" ? "Appointment updated." : "Το ραντεβού ενημερώθηκε." })
   }
 
   async function quickUpdateStatus(a: AppointmentRow, next: AppointmentJobStatus) {
@@ -273,13 +289,13 @@ export default function Appointments() {
 
       const cust = a.customer
         ? `${(a.customer as Customer).first_name ?? ""} ${(a.customer as Customer).last_name ?? ""}`.trim()
-        : "Πελάτης"
+        : language === "en" ? "Customer" : "Πελάτης"
       const dateLabel = formatDate(a.scheduled_date)
       const timeLabel = (a.start_time ?? "").slice(0, 5)
       if (next === "cancelled" && prevStatus !== "cancelled") {
         void notifyInAppQuiet(
           businessId,
-          `Ακύρωση ραντεβού: ${cust} — ${dateLabel} ${timeLabel}`,
+          `${language === "en" ? "Appointment cancellation" : "Ακύρωση ραντεβού"}: ${cust} — ${dateLabel} ${timeLabel}`,
           { notificationType: "appointment_cancelled", relatedAppointmentId: a.id },
         )
       } else if (next === "no_show" && prevStatus !== "no_show") {
@@ -290,23 +306,23 @@ export default function Appointments() {
         )
       }
 
-      toast({ title: "Ενημερώθηκε", description: "Η κατάσταση ενημερώθηκε." })
+      toast({ title: language === "en" ? "Updated" : "Ενημερώθηκε", description: language === "en" ? "Status updated." : "Η κατάσταση ενημερώθηκε." })
     } catch (e) {
-      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία ενημέρωσης", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: e instanceof Error ? e.message : language === "en" ? "Failed to update" : "Αποτυχία ενημέρωσης", variant: "destructive" })
     }
   }
 
   const canDeleteAppointment = user && (user.role === "admin" || user.role === "super_admin")
 
   async function handleDeleteAppointment(a: AppointmentRow) {
-    if (!confirm(`Διαγραφή ραντεβού «${a.title}» της ${a.scheduled_date};`)) return
+    if (!confirm(language === "en" ? `Delete appointment "${a.title}" on ${a.scheduled_date}?` : `Διαγραφή ραντεβού «${a.title}» της ${a.scheduled_date};`)) return
     if (!businessId) return
     try {
       await deleteAppointment(a.id)
       setAppointments((prev) => prev.filter((x) => x.id !== a.id))
-      toast({ title: "Διαγράφηκε", description: "Το ραντεβού διαγράφηκε." })
+      toast({ title: language === "en" ? "Deleted" : "Διαγράφηκε", description: language === "en" ? "Appointment deleted." : "Το ραντεβού διαγράφηκε." })
     } catch (e) {
-      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία διαγραφής", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: e instanceof Error ? e.message : language === "en" ? "Failed to delete" : "Αποτυχία διαγραφής", variant: "destructive" })
     }
   }
 
@@ -333,10 +349,14 @@ export default function Appointments() {
           <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
           <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
             <Calendar className="h-4 w-4 text-primary" />
-            Επιχείρηση • Ραντεβού
+            {language === "en" ? "Business • Appointments" : "Επιχείρηση • Ραντεβού"}
           </div>
-          <h1 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">Ραντεβού / Εργασίες</h1>
-          <p className="text-sm text-muted-foreground">Διαχείριση ραντεβού και work orders</p>
+          <h1 className="mt-2 text-2xl md:text-3xl font-semibold tracking-tight">
+            {language === "en" ? "Appointments / Jobs" : "Ραντεβού / Εργασίες"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {language === "en" ? "Manage appointments and work orders" : "Διαχείριση ραντεβού και work orders"}
+          </p>
           <div className="mt-3 h-px w-full max-w-xl bg-gradient-to-r from-primary/40 via-purple-500/20 to-transparent" />
         </div>
         <Button
@@ -344,7 +364,7 @@ export default function Appointments() {
           className="bg-gradient-to-r from-primary to-purple-500 text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Νέο ραντεβού
+          {language === "en" ? "New appointment" : "Νέο ραντεβού"}
         </Button>
       </div>
 
@@ -352,39 +372,39 @@ export default function Appointments() {
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Σήμερα</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Today" : "Σήμερα"}</p>
               <p className="text-xl font-semibold tracking-tight">{todayCount}</p>
             </div>
             <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
-              Ημέρα
+              {language === "en" ? "Day" : "Ημέρα"}
             </Badge>
           </CardContent>
         </Card>
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Ενεργά</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Active" : "Ενεργά"}</p>
               <p className="text-xl font-semibold tracking-tight">{pendingCount}</p>
             </div>
             <Badge variant="outline" className="text-xs border-amber-400/40 text-amber-500 bg-amber-500/5">
-              Εκκρεμή
+              {language === "en" ? "Pending" : "Εκκρεμή"}
             </Badge>
           </CardContent>
         </Card>
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Ολοκληρωμένα</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Completed" : "Ολοκληρωμένα"}</p>
               <p className="text-xl font-semibold tracking-tight">{completedCount}</p>
               {user?.business_limits?.max_appointments != null && (
                 <p className="text-[11px] text-muted-foreground">
                   {/* Δεν έχουμε εδώ συνολικό count όλων των ραντεβού, οπότε δείχνουμε μόνο το όριο */}
-                  Όριο πλάνου: {user.business_limits.max_appointments} ραντεβού
+                  {language === "en" ? "Plan limit" : "Όριο πλάνου"}: {user.business_limits.max_appointments} {language === "en" ? "appointments" : "ραντεβού"}
                 </p>
               )}
             </div>
             <Badge variant="outline" className="text-xs border-emerald-400/40 text-emerald-500 bg-emerald-500/5">
-              Σήμερα & παλαιότερα
+              {language === "en" ? "Today & older" : "Σήμερα & παλαιότερα"}
             </Badge>
           </CardContent>
         </Card>
@@ -394,15 +414,15 @@ export default function Appointments() {
         <CardHeader className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">Κενές ώρες</h2>
-              <p className="text-xs text-muted-foreground">Διαθέσιμα κενά μεταξύ 09:00 και 18:00.</p>
+              <h2 className="text-base font-semibold">{language === "en" ? "Empty slots" : "Κενές ώρες"}</h2>
+              <p className="text-xs text-muted-foreground">{language === "en" ? "Available gaps between 09:00 and 18:00." : "Διαθέσιμα κενά μεταξύ 09:00 και 18:00."}</p>
             </div>
             <Input type="date" value={gapDate} onChange={(e) => setGapDate(e.target.value)} className="w-full sm:w-[180px]" />
           </div>
         </CardHeader>
         <CardContent>
           {emptySlots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Δεν υπάρχουν κενές ώρες για τη συγκεκριμένη ημέρα.</p>
+            <p className="text-sm text-muted-foreground">{language === "en" ? "No empty slots for this day." : "Δεν υπάρχουν κενές ώρες για τη συγκεκριμένη ημέρα."}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {emptySlots.map((slot) => (
@@ -432,8 +452,8 @@ export default function Appointments() {
 
       <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
         <TabsList className="bg-card/40 border border-border/50 backdrop-blur">
-          <TabsTrigger value="list">Λίστα</TabsTrigger>
-          <TabsTrigger value="calendar">Ημερολόγιο</TabsTrigger>
+          <TabsTrigger value="list">{language === "en" ? "List" : "Λίστα"}</TabsTrigger>
+          <TabsTrigger value="calendar">{language === "en" ? "Calendar" : "Ημερολόγιο"}</TabsTrigger>
         </TabsList>
         <TabsContent value="list" className="mt-4">
           <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-sm">
@@ -441,16 +461,16 @@ export default function Appointments() {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-muted-foreground">
-                    Σύνολο: <span className="text-foreground font-medium">{filtered.length}</span>
+                    {language === "en" ? "Total" : "Σύνολο"}: <span className="text-foreground font-medium">{filtered.length}</span>
                   </div>
                   <Badge variant="secondary" className="border border-border/50 bg-background/40 backdrop-blur">
-                    {statusFilter === "all" ? "Όλες οι καταστάσεις" : `Κατάσταση: ${STATUS_LABELS[statusFilter as AppointmentJobStatus]}`}
+                    {statusFilter === "all" ? (language === "en" ? "All statuses" : "Όλες οι καταστάσεις") : `${language === "en" ? "Status" : "Κατάσταση"}: ${STATUS_LABELS[statusFilter as AppointmentJobStatus]}`}
                   </Badge>
                 </div>
                 <div className="relative max-w-sm flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Αναζήτηση (τίτλος, πελάτης)..."
+                    placeholder={language === "en" ? "Search (title, customer)..." : "Αναζήτηση (τίτλος, πελάτης)..."}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9 bg-background/40 border-border/50 focus-visible:ring-primary/30"
@@ -459,23 +479,23 @@ export default function Appointments() {
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                     <Filter className="h-4 w-4" />
-                    Φίλτρα:
+                    {language === "en" ? "Filters:" : "Φίλτρα:"}
                   </div>
                   <Button variant={datePreset === "all" ? "secondary" : "outline"} size="sm" onClick={() => setDatePreset("all")}>
-                    Όλα
+                    {language === "en" ? "All" : "Όλα"}
                   </Button>
                   <Button variant={datePreset === "today" ? "secondary" : "outline"} size="sm" onClick={() => setDatePreset("today")}>
-                    Σήμερα
+                    {language === "en" ? "Today" : "Σήμερα"}
                   </Button>
                   <Button variant={datePreset === "week" ? "secondary" : "outline"} size="sm" onClick={() => setDatePreset("week")}>
-                    7 ημέρες
+                    {language === "en" ? "7 days" : "7 ημέρες"}
                   </Button>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-full sm:w-[220px] bg-background/40 border-border/50">
-                      <SelectValue placeholder="Κατάσταση" />
+                      <SelectValue placeholder={language === "en" ? "Status" : "Κατάσταση"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Όλες οι καταστάσεις</SelectItem>
+                      <SelectItem value="all">{language === "en" ? "All statuses" : "Όλες οι καταστάσεις"}</SelectItem>
                       {(Object.keys(STATUS_LABELS) as AppointmentJobStatus[]).map((s) => (
                         <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
                       ))}
@@ -490,10 +510,10 @@ export default function Appointments() {
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                   <Calendar className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="font-medium text-foreground/80">Δεν βρέθηκαν ραντεβού</p>
-                  <p className="text-sm">Δημιούργησε το πρώτο ραντεβού για να ξεκινήσεις.</p>
+                  <p className="font-medium text-foreground/80">{language === "en" ? "No appointments found" : "Δεν βρέθηκαν ραντεβού"}</p>
+                  <p className="text-sm">{language === "en" ? "Create your first appointment to get started." : "Δημιούργησε το πρώτο ραντεβού για να ξεκινήσεις."}</p>
                   <Button variant="outline" className="mt-4" onClick={() => { setEditing(null); setFormInitial(null); setDialogOpen(true) }}>
-                    Προσθήκη ραντεβού
+                    {language === "en" ? "Add appointment" : "Προσθήκη ραντεβού"}
                   </Button>
                 </div>
               ) : (
@@ -520,21 +540,21 @@ export default function Appointments() {
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => { setEditing(a); setDialogOpen(true); }}>
-                              Επεξεργασία
+                              {language === "en" ? "Edit" : "Επεξεργασία"}
                             </Button>
                             {a.status !== "confirmed" && (
                               <Button variant="outline" size="sm" onClick={() => quickUpdateStatus(a, "confirmed")}>
-                                Επιβεβαίωση
+                                {language === "en" ? "Confirm" : "Επιβεβαίωση"}
                               </Button>
                             )}
                             {a.status !== "completed" && (
                               <Button size="sm" onClick={() => { setEditing({ ...a, status: "completed" }); setDialogOpen(true) }}>
-                                Ολοκλήρωση
+                                {language === "en" ? "Complete" : "Ολοκλήρωση"}
                               </Button>
                             )}
                             {canDeleteAppointment && (
                               <Button variant="destructive" size="sm" onClick={() => handleDeleteAppointment(a)}>
-                                Διαγραφή
+                                {language === "en" ? "Delete" : "Διαγραφή"}
                               </Button>
                             )}
                           </div>
@@ -548,15 +568,15 @@ export default function Appointments() {
                     <Table>
                       <TableHeader className="sticky top-0 bg-background/40 backdrop-blur z-10">
                         <TableRow>
-                          <TableHead>Ημ/νία</TableHead>
-                          <TableHead>Ώρα</TableHead>
-                          <TableHead>Τίτλος</TableHead>
-                          <TableHead>Πελάτης</TableHead>
-                          <TableHead>Υπηρεσία</TableHead>
-                          <TableHead>Υπεύθυνος</TableHead>
-                          <TableHead>Κατάσταση</TableHead>
-                          <TableHead>Κόστος</TableHead>
-                          <TableHead>Ενέργειες</TableHead>
+                          <TableHead>{language === "en" ? "Date" : "Ημ/νία"}</TableHead>
+                          <TableHead>{language === "en" ? "Time" : "Ώρα"}</TableHead>
+                          <TableHead>{language === "en" ? "Title" : "Τίτλος"}</TableHead>
+                          <TableHead>{language === "en" ? "Customer" : "Πελάτης"}</TableHead>
+                          <TableHead>{language === "en" ? "Service" : "Υπηρεσία"}</TableHead>
+                          <TableHead>{language === "en" ? "Assigned" : "Υπεύθυνος"}</TableHead>
+                          <TableHead>{language === "en" ? "Status" : "Κατάσταση"}</TableHead>
+                          <TableHead>{language === "en" ? "Cost" : "Κόστος"}</TableHead>
+                          <TableHead>{language === "en" ? "Actions" : "Ενέργειες"}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -588,21 +608,21 @@ export default function Appointments() {
                             <TableCell>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Button variant="outline" size="sm" onClick={() => { setEditing(a); setDialogOpen(true); }}>
-                                  Επεξεργασία
+                                  {language === "en" ? "Edit" : "Επεξεργασία"}
                                 </Button>
                                 {a.status !== "confirmed" && (
                                   <Button variant="outline" size="sm" onClick={() => quickUpdateStatus(a, "confirmed")}>
-                                    Επιβεβαίωση
+                                    {language === "en" ? "Confirm" : "Επιβεβαίωση"}
                                   </Button>
                                 )}
                                 {a.status !== "completed" && (
                                   <Button size="sm" onClick={() => { setEditing({ ...a, status: "completed" }); setDialogOpen(true) }}>
-                                    Ολοκλήρωση
+                                    {language === "en" ? "Complete" : "Ολοκλήρωση"}
                                   </Button>
                                 )}
                                 {canDeleteAppointment && (
                                   <Button variant="destructive" size="sm" onClick={() => handleDeleteAppointment(a)}>
-                                    Διαγραφή
+                                    {language === "en" ? "Delete" : "Διαγραφή"}
                                   </Button>
                                 )}
                               </div>
@@ -633,14 +653,14 @@ export default function Appointments() {
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Επεξεργασία ραντεβού" : "Νέο ραντεβού"}</DialogTitle>
+            <DialogTitle>{editing ? (language === "en" ? "Edit appointment" : "Επεξεργασία ραντεβού") : (language === "en" ? "New appointment" : "Νέο ραντεβού")}</DialogTitle>
           </DialogHeader>
           <ErrorBoundary
             onReset={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}
             fallback={
               <div className="py-4">
-                <p className="text-sm text-muted-foreground mb-4">Σφάλμα στη φόρμα. Κλείστε και δοκιμάστε ξανά.</p>
-                <Button variant="outline" onClick={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}>Κλείσιμο</Button>
+                <p className="text-sm text-muted-foreground mb-4">{language === "en" ? "Form error. Close and try again." : "Σφάλμα στη φόρμα. Κλείστε και δοκιμάστε ξανά."}</p>
+                <Button variant="outline" onClick={() => { setDialogOpen(false); setEditing(null); setFormInitial(null); setPresetDate(null); }}>{language === "en" ? "Close" : "Κλείσιμο"}</Button>
               </div>
             }
           >

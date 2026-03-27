@@ -47,9 +47,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 export default function Customers() {
   const { businessId, user } = useAuth()
+  const { language } = useLanguage()
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -66,7 +68,7 @@ export default function Customers() {
     if (!businessId) return
     fetchCustomers(businessId)
       .then(setCustomers)
-      .catch(() => toast({ title: "Σφάλμα", description: "Αποτυχία φόρτωσης πελατών", variant: "destructive" }))
+      .catch(() => toast({ title: language === "en" ? "Error" : "Σφάλμα", description: language === "en" ? "Failed to load customers" : "Αποτυχία φόρτωσης πελατών", variant: "destructive" }))
       .finally(() => setLoading(false))
   }, [businessId])
 
@@ -125,17 +127,17 @@ export default function Customers() {
         await updateCustomer(editing.id, payload)
         setCustomers((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...payload } : c)))
         const label = `${payload.first_name ?? editing.first_name} ${payload.last_name ?? editing.last_name}`.trim()
-        await notifyInAppQuiet(businessId, `Ενημέρωση στοιχείων πελάτη: ${label}`, {
+        await notifyInAppQuiet(businessId, `${language === "en" ? "Customer details updated" : "Ενημέρωση στοιχείων πελάτη"}: ${label}`, {
           notificationType: "customer_updated",
           relatedCustomerId: editing.id,
         })
-        toast({ title: "Ενημερώθηκε", description: "Ο πελάτης ενημερώθηκε." })
+        toast({ title: language === "en" ? "Updated" : "Ενημερώθηκε", description: language === "en" ? "Customer updated." : "Ο πελάτης ενημερώθηκε." })
       } else {
         const biz = await fetchBusiness(businessId)
         if (biz?.max_customers != null && customers.length >= biz.max_customers) {
           toast({
-            title: "Όριο πελατών πλάνου",
-            description: "Έχεις φτάσει το μέγιστο πλήθος πελατών για το τρέχον πλάνο επιχείρησης.",
+            title: language === "en" ? "Plan customer limit" : "Όριο πελατών πλάνου",
+            description: language === "en" ? "You reached the maximum customers for the current plan." : "Έχεις φτάσει το μέγιστο πλήθος πελατών για το τρέχον πλάνο επιχείρησης.",
             variant: "destructive",
           })
           return
@@ -144,24 +146,24 @@ export default function Customers() {
         setCustomers((prev) => [created, ...prev])
         await notifyInAppQuiet(
           businessId,
-          `Νέος πελάτης (λίστα): ${created.first_name} ${created.last_name}`.trim(),
+          `${language === "en" ? "New customer (list)" : "Νέος πελάτης (λίστα)"}: ${created.first_name} ${created.last_name}`.trim(),
           {
             notificationType: "customer_created",
             relatedCustomerId: created.id,
             metadata: { source: "customers_page" },
           },
         )
-        toast({ title: "Προστέθηκε", description: "Νέος πελάτης προστέθηκε." })
+        toast({ title: language === "en" ? "Added" : "Προστέθηκε", description: language === "en" ? "New customer added." : "Νέος πελάτης προστέθηκε." })
       }
       setDialogOpen(false)
       setEditing(null)
     } catch (e) {
-      toast({ title: "Σφάλμα", description: (e as Error).message, variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: (e as Error).message, variant: "destructive" })
     }
   }
 
   async function handleDelete(c: Customer) {
-    if (!confirm(`Διαγραφή πελάτη ${c.first_name} ${c.last_name}; Θα διαγραφούν και όλα τα ραντεβού του.`)) return
+    if (!confirm(language === "en" ? `Delete customer ${c.first_name} ${c.last_name}? All appointments will also be deleted.` : `Διαγραφή πελάτη ${c.first_name} ${c.last_name}; Θα διαγραφούν και όλα τα ραντεβού του.`)) return
     if (!businessId) return
     try {
       const appointments = await fetchAppointments(businessId, { customerId: c.id })
@@ -170,9 +172,9 @@ export default function Customers() {
       }
       await deleteCustomer(c.id)
       setCustomers((prev) => prev.filter((x) => x.id !== c.id))
-      toast({ title: "Διαγράφηκε", description: "Ο πελάτης και τα ραντεβού του διαγράφηκαν." })
+      toast({ title: language === "en" ? "Deleted" : "Διαγράφηκε", description: language === "en" ? "Customer and appointments deleted." : "Ο πελάτης και τα ραντεβού του διαγράφηκαν." })
     } catch (e) {
-      toast({ title: "Σφάλμα", description: (e as Error).message, variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: (e as Error).message, variant: "destructive" })
     }
   }
 
@@ -201,8 +203,8 @@ export default function Customers() {
       setHistoryAppointments(data as any[])
     } catch (e) {
       toast({
-        title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία φόρτωσης ιστορικού",
+        title: language === "en" ? "Error" : "Σφάλμα",
+        description: e instanceof Error ? e.message : language === "en" ? "Failed to load history" : "Αποτυχία φόρτωσης ιστορικού",
         variant: "destructive",
       })
     } finally {
@@ -217,10 +219,10 @@ export default function Customers() {
           <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
           <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
             <User className="h-4 w-4 text-primary" />
-            Επιχείρηση • Πελάτες
+            {language === "en" ? "Business • Customers" : "Επιχείρηση • Πελάτες"}
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Πελάτες</h1>
-          <p className="text-muted-foreground">Διαχείριση πελατών</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">{language === "en" ? "Customers" : "Πελάτες"}</h1>
+          <p className="text-muted-foreground">{language === "en" ? "Customer management" : "Διαχείριση πελατών"}</p>
           <div className="mt-3 h-px w-full max-w-xl bg-gradient-to-r from-primary/40 via-purple-500/20 to-transparent" />
         </div>
         <Button
@@ -231,7 +233,7 @@ export default function Customers() {
           className="bg-gradient-to-r from-primary to-purple-500 text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Νέος πελάτης
+          {language === "en" ? "New customer" : "Νέος πελάτης"}
         </Button>
       </div>
 
@@ -239,38 +241,38 @@ export default function Customers() {
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Σύνολο πελατών</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Total customers" : "Σύνολο πελατών"}</p>
               <p className="text-xl font-semibold tracking-tight">{totalCustomers}</p>
               {user?.business_limits?.max_customers != null && (
                 <p className="text-[11px] text-muted-foreground">
-                  {totalCustomers}/{user.business_limits.max_customers} του πλάνου
+                  {totalCustomers}/{user.business_limits.max_customers} {language === "en" ? "of plan" : "του πλάνου"}
                 </p>
               )}
             </div>
             <Badge variant="outline" className="text-xs border-primary/30 text-primary bg-primary/5">
-              Όλοι
+              {language === "en" ? "All" : "Όλοι"}
             </Badge>
           </CardContent>
         </Card>
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Με email</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "With email" : "Με email"}</p>
               <p className="text-xl font-semibold tracking-tight">{withEmail}</p>
             </div>
             <Badge variant="outline" className="text-xs border-emerald-400/40 text-emerald-500 bg-emerald-500/5">
-              Επικοινωνία
+              {language === "en" ? "Contact" : "Επικοινωνία"}
             </Badge>
           </CardContent>
         </Card>
         <Card className="border-border/60 bg-card/60">
           <CardContent className="flex items-center justify-between py-3">
             <div className="space-y-0.5">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Με τηλέφωνο</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "With phone" : "Με τηλέφωνο"}</p>
               <p className="text-xl font-semibold tracking-tight">{withPhone}</p>
             </div>
             <Badge variant="outline" className="text-xs border-blue-400/40 text-blue-500 bg-blue-500/5">
-              Κλήση / SMS
+              {language === "en" ? "Call / SMS" : "Κλήση / SMS"}
             </Badge>
           </CardContent>
         </Card>
@@ -280,16 +282,16 @@ export default function Customers() {
         <CardHeader className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-              Λίστα πελατών
+              {language === "en" ? "Customer list" : "Λίστα πελατών"}
             </CardTitle>
             <Badge variant="secondary" className="border border-border/50 bg-background/40 backdrop-blur">
-              {filtered.length} πελάτες
+              {filtered.length} {language === "en" ? "customers" : "πελάτες"}
             </Badge>
           </div>
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Αναζήτηση (όνομα, email, τηλ.)..."
+              placeholder={language === "en" ? "Search (name, email, phone)..." : "Αναζήτηση (όνομα, email, τηλ.)..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-background/40 border-border/50 focus-visible:ring-primary/30"
@@ -302,10 +304,10 @@ export default function Customers() {
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <User className="h-12 w-12 mb-4 opacity-50" />
-              <p className="font-medium text-foreground/80">Δεν βρέθηκαν πελάτες</p>
-              <p className="text-sm">Πρόσθεσε τον πρώτο πελάτη για να ξεκινήσεις.</p>
+              <p className="font-medium text-foreground/80">{language === "en" ? "No customers found" : "Δεν βρέθηκαν πελάτες"}</p>
+              <p className="text-sm">{language === "en" ? "Add your first customer to get started." : "Πρόσθεσε τον πρώτο πελάτη για να ξεκινήσεις."}</p>
               <Button variant="outline" className="mt-4" onClick={() => setDialogOpen(true)}>
-                Προσθήκη πελάτη
+                {language === "en" ? "Add customer" : "Προσθήκη πελάτη"}
               </Button>
             </div>
           ) : (
@@ -339,17 +341,17 @@ export default function Customers() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">Ενέργειες</Button>
+                          <Button variant="outline" size="sm">{language === "en" ? "Actions" : "Ενέργειες"}</Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openHistoryForCustomer(c)}>
-                            Ιστορικό
+                            {language === "en" ? "History" : "Ιστορικό"}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setEditing(c); setDialogOpen(true) }}>
-                            Επεξεργασία
+                            {language === "en" ? "Edit" : "Επεξεργασία"}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(c)}>
-                            Διαγραφή
+                            {language === "en" ? "Delete" : "Διαγραφή"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -362,12 +364,12 @@ export default function Customers() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-background/40 backdrop-blur z-10">
                     <TableRow>
-                      <TableHead>Όνομα</TableHead>
-                      <TableHead>Τηλ.</TableHead>
+                      <TableHead>{language === "en" ? "Name" : "Όνομα"}</TableHead>
+                      <TableHead>{language === "en" ? "Phone" : "Τηλ."}</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>Περιοχή</TableHead>
+                      <TableHead>{language === "en" ? "Area" : "Περιοχή"}</TableHead>
                       <TableHead>Tags</TableHead>
-                      <TableHead>Ημ/νία</TableHead>
+                      <TableHead>{language === "en" ? "Date" : "Ημ/νία"}</TableHead>
                       <TableHead className="w-[60px]" />
                     </TableRow>
                   </TableHeader>
@@ -406,7 +408,7 @@ export default function Customers() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Ενέργειες">
+                              <Button variant="ghost" size="icon" aria-label={language === "en" ? "Actions" : "Ενέργειες"}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -417,13 +419,13 @@ export default function Customers() {
                                   setDialogOpen(true)
                                 }}
                               >
-                                Επεξεργασία
+                                {language === "en" ? "Edit" : "Επεξεργασία"}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openHistoryForCustomer(c)}>
-                                Ιστορικό
+                                {language === "en" ? "History" : "Ιστορικό"}
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(c)}>
-                                Διαγραφή
+                                {language === "en" ? "Delete" : "Διαγραφή"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -441,7 +443,7 @@ export default function Customers() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Επεξεργασία πελάτη" : "Νέος πελάτης"}</DialogTitle>
+            <DialogTitle>{editing ? (language === "en" ? "Edit customer" : "Επεξεργασία πελάτη") : (language === "en" ? "New customer" : "Νέος πελάτης")}</DialogTitle>
           </DialogHeader>
           <CustomerForm
             initial={editing ?? undefined}
@@ -457,7 +459,7 @@ export default function Customers() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Ιστορικό πελάτη</DialogTitle>
+            <DialogTitle>{language === "en" ? "Customer history" : "Ιστορικό πελάτη"}</DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4">
@@ -476,9 +478,9 @@ export default function Customers() {
                   </div>
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
-                  <p>Πελάτης από: {formatDate(selectedCustomer.created_at)}</p>
+                  <p>{language === "en" ? "Customer since" : "Πελάτης από"}: {formatDate(selectedCustomer.created_at)}</p>
                   {historyLastVisit && (
-                    <p>Τελευταία επίσκεψη: {formatDate(historyLastVisit)}</p>
+                    <p>{language === "en" ? "Last visit" : "Τελευταία επίσκεψη"}: {formatDate(historyLastVisit)}</p>
                   )}
                 </div>
               </div>
@@ -487,7 +489,7 @@ export default function Customers() {
                 <Card className="border-border/60 bg-card/60">
                   <CardContent className="flex items-center justify-between py-3">
                     <div className="space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Σύνολο ραντεβού</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Total appointments" : "Σύνολο ραντεβού"}</p>
                       <p className="text-xl font-semibold tracking-tight">{historyAppointments.length}</p>
                     </div>
                     <Calendar className="h-4 w-4 text-primary" />
@@ -496,7 +498,7 @@ export default function Customers() {
                 <Card className="border-border/60 bg-card/60">
                   <CardContent className="flex items-center justify-between py-3">
                     <div className="space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Σύνολο (πληρωμές / χρέωση)</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Total (payments / charge)" : "Σύνολο (πληρωμές / χρέωση)"}</p>
                       <p className="text-xl font-semibold tracking-tight">
                         {formatCurrency(historyTotalSpent)}
                       </p>
@@ -507,7 +509,7 @@ export default function Customers() {
                 <Card className="border-border/60 bg-card/60">
                   <CardContent className="flex items-center justify-between py-3">
                     <div className="space-y-0.5">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Μέση αξία / ραντεβού</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{language === "en" ? "Average value / appointment" : "Μέση αξία / ραντεβού"}</p>
                       <p className="text-xl font-semibold tracking-tight">
                         {historyAppointments.length ? formatCurrency(historyTotalSpent / historyAppointments.length) : "—"}
                       </p>
@@ -521,7 +523,7 @@ export default function Customers() {
                   <Skeleton className="h-40 w-full" />
                 ) : historyAppointments.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground text-sm">
-                    Δεν υπάρχουν ραντεβού για αυτόν τον πελάτη.
+                    {language === "en" ? "No appointments for this customer." : "Δεν υπάρχουν ραντεβού για αυτόν τον πελάτη."}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -541,7 +543,7 @@ export default function Customers() {
                           </div>
                           <p className="text-sm font-medium truncate max-w-[220px]">{a.title}</p>
                           <p className="text-[11px] text-muted-foreground">
-                            Υπηρεσία: {a.service?.name ?? "—"}
+                            {language === "en" ? "Service" : "Υπηρεσία"}: {a.service?.name ?? "—"}
                           </p>
                         </div>
                         <div className="text-right space-y-0.5 shrink-0 min-w-[120px]">
@@ -553,13 +555,13 @@ export default function Customers() {
                           <p className="text-[10px] leading-tight text-muted-foreground">
                             {sumPaidAmountForAppointment(a) > 0
                               ? sumRemainingForAppointment(a) > 0
-                                ? `Πληρωμή · υπόλ. ${formatCurrency(sumRemainingForAppointment(a))}`
-                                : "Πληρωμή"
+                                ? `${language === "en" ? "Payment · rem." : "Πληρωμή · υπόλ."} ${formatCurrency(sumRemainingForAppointment(a))}`
+                                : language === "en" ? "Payment" : "Πληρωμή"
                               : getAppointmentValueForTotals(a) > 0
                                 ? a.final_cost != null
-                                  ? "Τελική χρέωση"
-                                  : "Εκτίμηση τιμής"
-                                : "Χωρίς ποσό"}
+                                  ? language === "en" ? "Final charge" : "Τελική χρέωση"
+                                  : language === "en" ? "Estimated price" : "Εκτίμηση τιμής"
+                                : language === "en" ? "No amount" : "Χωρίς ποσό"}
                           </p>
                           <p className="text-[11px] text-muted-foreground capitalize">{a.status}</p>
                         </div>
