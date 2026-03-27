@@ -167,6 +167,7 @@ export default function Dashboard() {
     const completed = items.filter((i) => i.done).length
     return { items, completed, total: items.length }
   }, [setupCounts])
+  const showQuickSetup = setupLoading || setupItems.completed < setupItems.total
 
   if (loading) {
     return (
@@ -293,70 +294,72 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <motion.div variants={item}>
-        <Card className="border-border/60 bg-card/60">
-          <CardHeader className="space-y-1 pb-3">
-            <CardTitle className="flex items-center justify-between gap-2 text-sm">
-              <span className="inline-flex items-center gap-2">
-                <ListChecks className="h-5 w-5 text-primary" />
-                <span>Γρήγορο setup</span>
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {setupItems.completed}/{setupItems.total} ολοκληρωμένα
-              </span>
-            </CardTitle>
-            <CardDescription className="text-[11px]">
-              Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-primary via-primary/80 to-emerald-500 transition-all"
-                style={{ width: `${(setupItems.completed / Math.max(1, setupItems.total)) * 100}%` }}
-              />
-            </div>
-            {setupLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {setupItems.items.map((it) => (
-                  <Link
-                    key={it.key}
-                    to={it.to}
-                    className="rounded-lg border border-border/60 bg-card/80 px-3 py-2.5 hover:bg-accent/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <it.icon className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium leading-snug">{it.label}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            Σύνολο: {it.countLabel}
+      {showQuickSetup ? (
+        <motion.div variants={item}>
+          <Card className="border-border/60 bg-card/60">
+            <CardHeader className="space-y-1 pb-3">
+              <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                <span className="inline-flex items-center gap-2">
+                  <ListChecks className="h-5 w-5 text-primary" />
+                  <span>Γρήγορο setup</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {setupItems.completed}/{setupItems.total} ολοκληρωμένα
+                </span>
+              </CardTitle>
+              <CardDescription className="text-[11px]">
+                Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary via-primary/80 to-emerald-500 transition-all"
+                  style={{ width: `${(setupItems.completed / Math.max(1, setupItems.total)) * 100}%` }}
+                />
+              </div>
+              {setupLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {setupItems.items.map((it) => (
+                    <Link
+                      key={it.key}
+                      to={it.to}
+                      className="rounded-lg border border-border/60 bg-card/80 px-3 py-2.5 hover:bg-accent/40 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <it.icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium leading-snug">{it.label}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              Σύνολο: {it.countLabel}
+                            </div>
                           </div>
                         </div>
+                        <span className={it.done ? "text-[11px] text-emerald-600" : "text-[11px] text-muted-foreground"}>
+                          {it.done ? "ΟΚ" : "Εκκρεμεί"}
+                        </span>
                       </div>
-                      <span className={it.done ? "text-[11px] text-emerald-600" : "text-[11px] text-muted-foreground"}>
-                        {it.done ? "ΟΚ" : "Εκκρεμεί"}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/appointments">Νέο ραντεβού</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/services">Νέα υπηρεσία</Link>
+                </Button>
               </div>
-            )}
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/appointments">Νέο ραντεβού</Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/services">Νέα υπηρεσία</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
 
       <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
