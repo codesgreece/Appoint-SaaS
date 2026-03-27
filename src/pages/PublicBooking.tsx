@@ -195,9 +195,9 @@ export default function PublicBooking() {
           accent: "text-fuchsia-700",
           selected: "border-fuchsia-300 bg-fuchsia-50",
           neutral: "border-fuchsia-200/70 bg-white/80 hover:bg-fuchsia-50/60",
-          orbA: "from-fuchsia-400/35 to-rose-300/10",
-          orbB: "from-pink-300/30 to-fuchsia-200/5",
-          mesh: "from-white/55 via-fuchsia-100/25 to-transparent",
+          orbA: "from-fuchsia-500/60 to-rose-400/15",
+          orbB: "from-pink-400/55 to-fuchsia-300/10",
+          mesh: "from-white/65 via-fuchsia-200/35 to-transparent",
         }
       case "salon_luxe":
         return {
@@ -210,9 +210,9 @@ export default function PublicBooking() {
           accent: "text-violet-700",
           selected: "border-violet-300 bg-violet-50",
           neutral: "border-violet-200/70 bg-white/80 hover:bg-violet-50/60",
-          orbA: "from-violet-500/30 to-indigo-300/10",
-          orbB: "from-purple-300/30 to-violet-200/5",
-          mesh: "from-white/55 via-violet-100/30 to-transparent",
+          orbA: "from-violet-600/55 to-indigo-400/15",
+          orbB: "from-purple-400/50 to-violet-300/10",
+          mesh: "from-white/65 via-violet-200/35 to-transparent",
         }
       case "craftsman":
         return {
@@ -225,9 +225,9 @@ export default function PublicBooking() {
           accent: "text-amber-800",
           selected: "border-amber-300 bg-amber-50",
           neutral: "border-amber-300/70 bg-white/80 hover:bg-amber-50/60",
-          orbA: "from-orange-500/28 to-amber-300/10",
-          orbB: "from-yellow-300/28 to-orange-200/5",
-          mesh: "from-white/55 via-amber-100/30 to-transparent",
+          orbA: "from-orange-600/52 to-amber-400/15",
+          orbB: "from-yellow-400/50 to-orange-300/10",
+          mesh: "from-white/65 via-amber-200/35 to-transparent",
         }
       case "medical":
         return {
@@ -240,9 +240,9 @@ export default function PublicBooking() {
           accent: "text-sky-700",
           selected: "border-sky-300 bg-sky-50",
           neutral: "border-sky-200/70 bg-white/80 hover:bg-sky-50/60",
-          orbA: "from-cyan-500/30 to-blue-300/10",
-          orbB: "from-sky-300/25 to-cyan-200/5",
-          mesh: "from-white/55 via-cyan-100/30 to-transparent",
+          orbA: "from-cyan-600/55 to-blue-400/15",
+          orbB: "from-sky-400/45 to-cyan-300/10",
+          mesh: "from-white/65 via-cyan-200/35 to-transparent",
         }
       default:
         return {
@@ -255,9 +255,9 @@ export default function PublicBooking() {
           accent: "text-slate-700",
           selected: "border-slate-300 bg-slate-50",
           neutral: "border-slate-300/70 bg-white/80 hover:bg-slate-50/60",
-          orbA: "from-slate-500/25 to-slate-300/10",
-          orbB: "from-slate-300/20 to-slate-200/5",
-          mesh: "from-white/55 via-slate-100/30 to-transparent",
+          orbA: "from-slate-700/40 to-slate-400/15",
+          orbB: "from-slate-400/35 to-slate-300/10",
+          mesh: "from-white/65 via-slate-200/35 to-transparent",
         }
     }
   }, [theme])
@@ -265,13 +265,14 @@ export default function PublicBooking() {
   return (
     <div className={`relative isolate min-h-screen overflow-hidden bg-gradient-to-b ${themeClasses.page} px-4 py-8`}>
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className={`absolute -top-24 -left-16 h-72 w-72 rounded-full bg-gradient-to-br ${themeClasses.orbA} blur-3xl`} />
-        <div className={`absolute top-1/3 -right-20 h-80 w-80 rounded-full bg-gradient-to-br ${themeClasses.orbB} blur-3xl`} />
-        <div className={`absolute -bottom-24 left-1/4 h-72 w-72 rounded-full bg-gradient-to-tr ${themeClasses.orbB} blur-3xl`} />
+        <div className={`absolute -top-28 -left-24 h-96 w-96 rounded-full bg-gradient-to-br ${themeClasses.orbA} blur-3xl animate-pulse`} />
+        <div className={`absolute top-1/4 -right-28 h-[26rem] w-[26rem] rounded-full bg-gradient-to-br ${themeClasses.orbB} blur-3xl animate-pulse`} />
+        <div className={`absolute -bottom-24 left-1/4 h-80 w-80 rounded-full bg-gradient-to-tr ${themeClasses.orbB} blur-3xl animate-pulse`} />
+        <div className={`absolute bottom-12 right-1/3 h-52 w-52 rounded-full bg-gradient-to-tr ${themeClasses.orbA} blur-2xl`} />
         <div className={`absolute inset-0 bg-gradient-to-br ${themeClasses.mesh}`} />
       </div>
       <div className="mx-auto max-w-5xl space-y-5 [perspective:1200px]">
-        <Card className={`${themeClasses.card} shadow-[0_20px_60px_rgba(15,23,42,0.12)]`}>
+        <Card className={`${themeClasses.card} shadow-[0_30px_80px_rgba(15,23,42,0.2)] ring-1 ring-white/40`}>
           <CardContent className={`py-6 ${themeClasses.text}`}>
             <div className="text-center space-y-3">
               <h1 className={`text-3xl md:text-4xl font-semibold tracking-tight ${themeClasses.title}`}>
@@ -300,7 +301,7 @@ export default function PublicBooking() {
         </Card>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <Card className={`${themeClasses.card} shadow-[0_25px_55px_rgba(15,23,42,0.16)] ring-1 ring-white/30`}>
+          <Card className={`${themeClasses.card} shadow-[0_34px_85px_rgba(15,23,42,0.24)] ring-1 ring-white/45`}>
             <CardHeader>
               <CardTitle className={themeClasses.text}>Νέα κράτηση</CardTitle>
             </CardHeader>
@@ -431,7 +432,7 @@ export default function PublicBooking() {
             </CardContent>
           </Card>
 
-          <Card className={`${themeClasses.card} h-fit shadow-[0_25px_55px_rgba(15,23,42,0.16)] ring-1 ring-white/30`}>
+          <Card className={`${themeClasses.card} h-fit shadow-[0_34px_85px_rgba(15,23,42,0.24)] ring-1 ring-white/45`}>
             <CardHeader>
               <CardTitle className={themeClasses.text}>Σύνοψη κράτησης</CardTitle>
             </CardHeader>
