@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { useToast } from "@/hooks/use-toast"
 import { fetchServiceReminders, updateServiceReminder } from "@/services/api"
 import type { AppointmentJob, Customer, ServiceReminder } from "@/types"
@@ -18,6 +19,75 @@ type ReminderRow = ServiceReminder & {
   appointment_job: AppointmentJob | null
 }
 
+const remindersI18n = {
+  el: {
+    loadError: "Αποτυχία φόρτωσης υπενθυμίσεων.",
+    statusDone: "Ολοκληρώθηκε",
+    statusCancelled: "Ακυρώθηκε",
+    reminderUpdateError: "Δεν ενημερώθηκε η υπενθύμιση.",
+    rescheduleTitle: "Μεταφορά υπενθύμισης",
+    chooseDateError: "Επίλεξε προσαρμοσμένη ημερομηνία.",
+    remindAgainTitle: "Υπενθύμισε μου ξανά",
+    rescheduleSuccess: "Η υπενθύμιση μεταφέρθηκε σε νέα ημερομηνία.",
+    rescheduleError: "Δεν έγινε μεταφορά υπενθύμισης.",
+    pageTitle: "Υπενθυμίσεις Συντήρησης",
+    pageSubtitle: "Υπενθύμιση συντήρησης ανά πελάτη και επόμενο service.",
+    filterPending: "Εκκρεμείς",
+    filterCompleted: "Ολοκληρωμένες",
+    filterOverdue: "Εκπρόθεσμες",
+    listTitle: "Λίστα υπενθυμίσεων",
+    loading: "Φόρτωση...",
+    empty: "Δεν υπάρχουν υπενθυμίσεις για το φίλτρο που επέλεξες.",
+    customerFallback: "Πελάτης",
+    linkedAppointment: "Συνδεδεμένο ραντεβού",
+    open: "Άνοιγμα",
+    badgeOverdue: "Εκπρόθεσμη",
+    badgePending: "Εκκρεμεί",
+    moves: "Μεταφορές",
+    actionComplete: "Ολοκληρώθηκε",
+    actionReschedule: "Μεταφορά υπενθύμισης",
+    actionNotInterested: "Ο πελάτης δεν ενδιαφέρεται τώρα",
+    actionCancel: "Ακυρώθηκε",
+    custom: "Προσαρμοσμένη",
+    remindAgainPlaceholder: "Υπενθύμισε μου ξανά...",
+    cancel: "Ακύρωση",
+    remindAgainBtn: "Υπενθύμισε μου ξανά",
+  },
+  en: {
+    loadError: "Failed to load reminders.",
+    statusDone: "Completed",
+    statusCancelled: "Cancelled",
+    reminderUpdateError: "Reminder was not updated.",
+    rescheduleTitle: "Reschedule reminder",
+    chooseDateError: "Select a custom date.",
+    remindAgainTitle: "Remind me again",
+    rescheduleSuccess: "Reminder moved to a new date.",
+    rescheduleError: "Could not reschedule reminder.",
+    pageTitle: "Service Reminders",
+    pageSubtitle: "Maintenance reminders per customer and next service.",
+    filterPending: "Pending",
+    filterCompleted: "Completed",
+    filterOverdue: "Overdue",
+    listTitle: "Reminders list",
+    loading: "Loading...",
+    empty: "There are no reminders for the selected filter.",
+    customerFallback: "Customer",
+    linkedAppointment: "Linked appointment",
+    open: "Open",
+    badgeOverdue: "Overdue",
+    badgePending: "Pending",
+    moves: "Reschedules",
+    actionComplete: "Completed",
+    actionReschedule: "Reschedule reminder",
+    actionNotInterested: "Customer not interested now",
+    actionCancel: "Cancelled",
+    custom: "Custom",
+    remindAgainPlaceholder: "Remind me again...",
+    cancel: "Cancel",
+    remindAgainBtn: "Remind me again",
+  },
+} as const
+
 function addMonthsToDate(isoDate: string, months: number): string {
   const [y, m, d] = isoDate.split("-").map(Number)
   const base = new Date(y, (m ?? 1) - 1, d ?? 1)
@@ -27,6 +97,8 @@ function addMonthsToDate(isoDate: string, months: number): string {
 
 export default function ServiceReminders() {
   const { businessId } = useAuth()
+  const { language } = useLanguage()
+  const t = remindersI18n[language]
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<ReminderRow[]>([])
@@ -44,7 +116,7 @@ export default function ServiceReminders() {
       const data = await fetchServiceReminders(businessId)
       setRows(data as ReminderRow[])
     } catch {
-      toast({ title: "Σφάλμα", description: "Αποτυχία φόρτωσης υπενθυμίσεων.", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.loadError, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -66,9 +138,9 @@ export default function ServiceReminders() {
     try {
       await updateServiceReminder(row.id, { status })
       setRows((prev) => prev.map((x) => (x.id === row.id ? { ...x, status } : x)))
-      toast({ title: status === "completed" ? "Ολοκληρώθηκε" : "Ακυρώθηκε" })
+      toast({ title: status === "completed" ? t.statusDone : t.statusCancelled })
     } catch {
-      toast({ title: "Σφάλμα", description: "Δεν ενημερώθηκε η υπενθύμιση.", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.reminderUpdateError, variant: "destructive" })
     }
   }
 
@@ -87,7 +159,7 @@ export default function ServiceReminders() {
         ? rescheduleCustomDate
         : addMonthsToDate(activeReminder.due_date, Number(reschedulePreset))
     if (!dueDate) {
-      toast({ title: "Μεταφορά υπενθύμισης", description: "Επίλεξε προσαρμοσμένη ημερομηνία.", variant: "destructive" })
+      toast({ title: t.rescheduleTitle, description: t.chooseDateError, variant: "destructive" })
       return
     }
     try {
@@ -116,9 +188,9 @@ export default function ServiceReminders() {
       )
       setRescheduleOpen(false)
       setActiveReminder(null)
-      toast({ title: "Υπενθύμισε μου ξανά", description: "Η υπενθύμιση μεταφέρθηκε σε νέα ημερομηνία." })
+      toast({ title: t.remindAgainTitle, description: t.rescheduleSuccess })
     } catch {
-      toast({ title: "Σφάλμα", description: "Δεν έγινε μεταφορά υπενθύμισης.", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.rescheduleError, variant: "destructive" })
     }
   }
 
@@ -126,30 +198,30 @@ export default function ServiceReminders() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Υπενθυμίσεις Συντήρησης</h1>
-          <p className="text-sm text-muted-foreground">Υπενθύμιση συντήρησης ανά πελάτη και επόμενο service.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.pageTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.pageSubtitle}</p>
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "pending" | "completed" | "overdue")}>
           <SelectTrigger className="w-full sm:w-[220px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending">Εκκρεμείς</SelectItem>
-            <SelectItem value="completed">Ολοκληρωμένες</SelectItem>
-            <SelectItem value="overdue">Εκπρόθεσμες</SelectItem>
+            <SelectItem value="pending">{t.filterPending}</SelectItem>
+            <SelectItem value="completed">{t.filterCompleted}</SelectItem>
+            <SelectItem value="overdue">{t.filterOverdue}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Λίστα υπενθυμίσεων</CardTitle>
+          <CardTitle className="text-base">{t.listTitle}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Φόρτωση...</p>
+            <p className="text-sm text-muted-foreground">{t.loading}</p>
           ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Δεν υπάρχουν υπενθυμίσεις για το φίλτρο που επέλεξες.</p>
+            <p className="text-sm text-muted-foreground">{t.empty}</p>
           ) : (
             filtered.map((row) => {
               const isOverdue = row.status === "pending" && row.due_date < today
@@ -159,34 +231,34 @@ export default function ServiceReminders() {
                     <div className="space-y-1">
                       <p className="font-medium">{row.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "Πελάτης"} • {formatDate(row.due_date)}
+                        {row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : t.customerFallback} • {formatDate(row.due_date)}
                       </p>
                       {row.notes ? <p className="text-sm">{row.notes}</p> : null}
                       {row.appointment_job_id ? (
                         <p className="text-xs text-muted-foreground">
-                          Συνδεδεμένο ραντεβού: <Link to={`/appointments?open=${row.appointment_job_id}`} className="underline">{row.appointment_job?.title ?? "Άνοιγμα"}</Link>
+                          {t.linkedAppointment}: <Link to={`/appointments?open=${row.appointment_job_id}`} className="underline">{row.appointment_job?.title ?? t.open}</Link>
                         </p>
                       ) : null}
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={row.status === "completed" ? "completed" : row.status === "cancelled" ? "cancelled" : "pending"}>
-                        {row.status === "completed" ? "Ολοκληρώθηκε" : row.status === "cancelled" ? "Ακυρώθηκε" : isOverdue ? "Εκπρόθεσμη" : "Εκκρεμεί"}
+                        {row.status === "completed" ? t.statusDone : row.status === "cancelled" ? t.statusCancelled : isOverdue ? t.badgeOverdue : t.badgePending}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">Μεταφορές: {row.rescheduled_count}</span>
+                      <span className="text-xs text-muted-foreground">{t.moves}: {row.rescheduled_count}</span>
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     {row.status !== "completed" && (
-                      <Button size="sm" onClick={() => void changeStatus(row, "completed")}>Ολοκληρώθηκε</Button>
+                      <Button size="sm" onClick={() => void changeStatus(row, "completed")}>{t.actionComplete}</Button>
                     )}
                     {row.status !== "cancelled" && (
-                      <Button size="sm" variant="outline" onClick={() => openReschedule(row)}>Μεταφορά υπενθύμισης</Button>
+                      <Button size="sm" variant="outline" onClick={() => openReschedule(row)}>{t.actionReschedule}</Button>
                     )}
                     {row.status !== "cancelled" && (
-                      <Button size="sm" variant="outline" onClick={() => openReschedule(row)}>Ο πελάτης δεν ενδιαφέρεται τώρα</Button>
+                      <Button size="sm" variant="outline" onClick={() => openReschedule(row)}>{t.actionNotInterested}</Button>
                     )}
                     {row.status !== "cancelled" && (
-                      <Button size="sm" variant="destructive" onClick={() => void changeStatus(row, "cancelled")}>Ακυρώθηκε</Button>
+                      <Button size="sm" variant="destructive" onClick={() => void changeStatus(row, "cancelled")}>{t.actionCancel}</Button>
                     )}
                   </div>
                 </div>
@@ -199,14 +271,14 @@ export default function ServiceReminders() {
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Μεταφορά υπενθύμισης</DialogTitle>
+            <DialogTitle>{t.rescheduleTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant={reschedulePreset === "3" ? "default" : "outline"} onClick={() => setReschedulePreset("3")}>+3 μήνες</Button>
               <Button type="button" size="sm" variant={reschedulePreset === "6" ? "default" : "outline"} onClick={() => setReschedulePreset("6")}>+6 μήνες</Button>
               <Button type="button" size="sm" variant={reschedulePreset === "12" ? "default" : "outline"} onClick={() => setReschedulePreset("12")}>+12 μήνες</Button>
-              <Button type="button" size="sm" variant={reschedulePreset === "custom" ? "default" : "outline"} onClick={() => setReschedulePreset("custom")}>Προσαρμοσμένη</Button>
+              <Button type="button" size="sm" variant={reschedulePreset === "custom" ? "default" : "outline"} onClick={() => setReschedulePreset("custom")}>{t.custom}</Button>
             </div>
             {reschedulePreset === "custom" && (
               <div className="space-y-1">
@@ -214,11 +286,11 @@ export default function ServiceReminders() {
               </div>
             )}
             <div className="space-y-1">
-              <Textarea value={rescheduleNotes} onChange={(e) => setRescheduleNotes(e.target.value)} placeholder="Υπενθύμισε μου ξανά..." />
+              <Textarea value={rescheduleNotes} onChange={(e) => setRescheduleNotes(e.target.value)} placeholder={t.remindAgainPlaceholder} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setRescheduleOpen(false)}>Ακύρωση</Button>
-              <Button type="button" onClick={() => void submitReschedule()}>Υπενθύμισε μου ξανά</Button>
+              <Button type="button" variant="outline" onClick={() => setRescheduleOpen(false)}>{t.cancel}</Button>
+              <Button type="button" onClick={() => void submitReschedule()}>{t.remindAgainBtn}</Button>
             </div>
           </div>
         </DialogContent>

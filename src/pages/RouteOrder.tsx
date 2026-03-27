@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { useToast } from "@/hooks/use-toast"
 import { fetchAppointments, updateAppointment } from "@/services/api"
 import type { AppointmentJob, Customer } from "@/types"
@@ -30,8 +31,51 @@ function sortForRoute(list: RouteAppointment[]): RouteAppointment[] {
   })
 }
 
+const routeOrderI18n = {
+  el: {
+    loadError: "Αποτυχία φόρτωσης ημερήσιας διαδρομής.",
+    saved: "Αποθηκεύτηκε",
+    orderUpdated: "Η σειρά εργασιών ενημερώθηκε.",
+    saveFailed: "Δεν αποθηκεύτηκε η σειρά.",
+    openRouteTitle: "Άνοιγμα διαδρομής",
+    needTwoAddresses: "Χρειάζονται τουλάχιστον 2 έγκυρες διευθύνσεις.",
+    title: "Ημερήσια Διαδρομή",
+    subtitle: (dateLabel: string) => `Σειρά Εργασιών για ${dateLabel}.`,
+    openRoute: "Άνοιγμα διαδρομής",
+    saving: "Αποθήκευση...",
+    saveOrder: "Αποθήκευση σειράς",
+    todayAppointments: "Σημερινά ραντεβού",
+    dragHint: "Κάνε drag-and-drop για να ορίσεις τη σειρά εκτέλεσης.",
+    loading: "Φόρτωση...",
+    empty: "Δεν υπάρχουν ραντεβού για σήμερα.",
+    customerFallback: "Πελάτης",
+    noAddress: "Χωρίς διεύθυνση",
+  },
+  en: {
+    loadError: "Failed to load daily route.",
+    saved: "Saved",
+    orderUpdated: "Job order updated.",
+    saveFailed: "Could not save order.",
+    openRouteTitle: "Open route",
+    needTwoAddresses: "At least 2 valid addresses are required.",
+    title: "Daily route",
+    subtitle: (dateLabel: string) => `Job order for ${dateLabel}.`,
+    openRoute: "Open route",
+    saving: "Saving...",
+    saveOrder: "Save order",
+    todayAppointments: "Today's appointments",
+    dragHint: "Drag and drop to set the execution order.",
+    loading: "Loading...",
+    empty: "There are no appointments for today.",
+    customerFallback: "Customer",
+    noAddress: "No address",
+  },
+} as const
+
 export default function RouteOrder() {
   const { businessId } = useAuth()
+  const { language } = useLanguage()
+  const t = routeOrderI18n[language]
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -40,6 +84,13 @@ export default function RouteOrder() {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
+  const dateLabel = useMemo(() => {
+    if (language === "en") {
+      return new Intl.DateTimeFormat("en-GB", { dateStyle: "short" }).format(new Date(`${today}T12:00:00`))
+    }
+    return formatDate(today)
+  }, [today, language])
+
   async function loadTodayAppointments() {
     if (!businessId) return
     setLoading(true)
@@ -47,7 +98,7 @@ export default function RouteOrder() {
       const data = await fetchAppointments(businessId, { from: today, to: today })
       setItems(sortForRoute(data as RouteAppointment[]))
     } catch {
-      toast({ title: "Σφάλμα", description: "Αποτυχία φόρτωσης ημερήσιας διαδρομής.", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.loadError, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -89,9 +140,9 @@ export default function RouteOrder() {
         ),
       )
       setItems((prev) => prev.map((x, i) => ({ ...x, order_index: i + 1 })))
-      toast({ title: "Αποθηκεύτηκε", description: "Η σειρά εργασιών ενημερώθηκε." })
+      toast({ title: t.saved, description: t.orderUpdated })
     } catch {
-      toast({ title: "Σφάλμα", description: "Δεν αποθηκεύτηκε η σειρά.", variant: "destructive" })
+      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.saveFailed, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -104,8 +155,8 @@ export default function RouteOrder() {
       .filter(Boolean)
     if (addresses.length < 2) {
       toast({
-        title: "Άνοιγμα διαδρομής",
-        description: "Χρειάζονται τουλάχιστον 2 έγκυρες διευθύνσεις.",
+        title: t.openRouteTitle,
+        description: t.needTwoAddresses,
         variant: "destructive",
       })
       return
@@ -119,36 +170,34 @@ export default function RouteOrder() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ημερήσια Διαδρομή</h1>
-          <p className="text-sm text-muted-foreground">
-            Σειρά Εργασιών για {formatDate(today)}.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.subtitle(dateLabel)}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={openRouteInMaps}>
-            Άνοιγμα διαδρομής
+            {t.openRoute}
           </Button>
           <Button onClick={() => void persistOrder()} disabled={saving || items.length === 0}>
-            {saving ? "Αποθήκευση..." : "Αποθήκευση σειράς"}
+            {saving ? t.saving : t.saveOrder}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Σημερινά ραντεβού</CardTitle>
-          <CardDescription>Κάνε drag-and-drop για να ορίσεις τη σειρά εκτέλεσης.</CardDescription>
+          <CardTitle className="text-base">{t.todayAppointments}</CardTitle>
+          <CardDescription>{t.dragHint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Φόρτωση...</p>
+            <p className="text-sm text-muted-foreground">{t.loading}</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Δεν υπάρχουν ραντεβού για σήμερα.</p>
+            <p className="text-sm text-muted-foreground">{t.empty}</p>
           ) : (
             items.map((item, idx) => {
               const customerName = item.customer
                 ? `${item.customer.first_name} ${item.customer.last_name}`.trim()
-                : "Πελάτης"
+                : t.customerFallback
               return (
                 <div
                   key={item.id}
@@ -164,7 +213,7 @@ export default function RouteOrder() {
                       <p className="text-sm text-muted-foreground">
                         {item.title} • {formatTime(item.start_time)} - {formatTime(item.end_time)}
                       </p>
-                      <p className="text-sm">{item.location_address?.trim() || "Χωρίς διεύθυνση"}</p>
+                      <p className="text-sm">{item.location_address?.trim() || t.noAddress}</p>
                     </div>
                     <Badge variant="outline">#{idx + 1}</Badge>
                   </div>

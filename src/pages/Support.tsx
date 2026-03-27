@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Lightbulb, Bug, Send, History, HelpCircle, FileText, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import type { SupportRequest, SupportRequestMessage } from "@/types"
@@ -18,8 +19,103 @@ import FAQ from "@/pages/FAQ"
 import Terms from "@/pages/Terms"
 import PrivacyPolicy from "@/pages/PrivacyPolicy"
 
+const supportI18n = {
+  el: {
+    error: "Σφάλμα",
+    sent: "Εστάλη",
+    sendFailed: "Αποτυχία αποστολής",
+    writeBeforeSend: "Γράψτε το μήνυμα πριν την αποστολή.",
+    writeChatBeforeSend: "Γράψτε ένα μήνυμα πριν την αποστολή.",
+    notifSuggestion: "Νέο αίτημα υποστήριξης (πρόταση)",
+    notifIssue: "Νέο αίτημα υποστήριξης (πρόβλημα)",
+    suggestionSaved: "Η πρόταση καταχωρήθηκε.",
+    issueSaved: "Το πρόβλημα καταχωρήθηκε.",
+    chatSaved: "Το μήνυμα καταχωρήθηκε.",
+    businessFallback: "Επιχείρηση",
+    support: "Υποστήριξη",
+    pageTitle: "Υποστήριξη",
+    openRequests: "ανοιχτά αιτήματα",
+    pageSubtitle: "Premium support για την επιχείρησή σου - στείλε πρόταση ή αναφορά προβλήματος.",
+    supportRequests: "Support requests",
+    open: "Ανοιχτά",
+    knowledgeBase: "Knowledge base",
+    faqLegal: "FAQ + Νομικά",
+    terms: "Όροι Χρήσης",
+    privacy: "Πολιτική Απορρήτου",
+    suggestionTitle: "Πρόταση βελτίωσης",
+    issueTitle: "Αναφορά προβλήματος",
+    issueBadge: "Bugs / Σφάλματα",
+    message: "Μήνυμα",
+    suggestionPlaceholder: "Π.χ. Θα ήθελα πιο γρήγορο τρόπο για να κλείνω επαναλαμβανόμενα ραντεβού...",
+    issuePlaceholder: "Π.χ. Στη σελίδα Ραντεβού, όταν πατάω \"Αποθήκευση\" δεν κλείνει η φόρμα...",
+    suggestionHint: "Οι προτάσεις σου μας βοηθούν να βελτιώνουμε την πλατφόρμα.",
+    issueHint: "Πρόσθεσε όσο περισσότερες λεπτομέρειες μπορείς (βήματα, browser κ.λπ.).",
+    send: "Αποστολή",
+    sending: "Αποστολή...",
+    historyTitle: "Ιστορικό αιτημάτων",
+    historyHint: "Δες τις τελευταίες προτάσεις και αναφορές σου.",
+    all: "Όλα",
+    resolved: "Ολοκληρωμένα",
+    noRequests: "Δεν υπάρχουν αιτήματα ακόμα.",
+    problem: "Πρόβλημα",
+    suggestion: "Πρόταση",
+    unread: "Μη αναγνωσμένα",
+    you: "Εσύ",
+    supportAgent: "Υποστήριξη",
+    supportReply: "Απάντηση από την υποστήριξη",
+    chatPlaceholder: "Στείλε ένα μήνυμα...",
+  },
+  en: {
+    error: "Error",
+    sent: "Sent",
+    sendFailed: "Failed to send",
+    writeBeforeSend: "Write your message before sending.",
+    writeChatBeforeSend: "Write a message before sending.",
+    notifSuggestion: "New support request (suggestion)",
+    notifIssue: "New support request (issue)",
+    suggestionSaved: "Suggestion submitted.",
+    issueSaved: "Issue submitted.",
+    chatSaved: "Message submitted.",
+    businessFallback: "Business",
+    support: "Support",
+    pageTitle: "Support",
+    openRequests: "open requests",
+    pageSubtitle: "Premium support for your business - send a suggestion or issue report.",
+    supportRequests: "Support requests",
+    open: "Open",
+    knowledgeBase: "Knowledge base",
+    faqLegal: "FAQ + Legal",
+    terms: "Terms of Use",
+    privacy: "Privacy Policy",
+    suggestionTitle: "Improvement suggestion",
+    issueTitle: "Issue report",
+    issueBadge: "Bugs / Errors",
+    message: "Message",
+    suggestionPlaceholder: "e.g. I want a faster way to create recurring appointments...",
+    issuePlaceholder: "e.g. On the Appointments page, when I click \"Save\" the form does not close...",
+    suggestionHint: "Your suggestions help us improve the platform.",
+    issueHint: "Add as many details as possible (steps, browser, etc.).",
+    send: "Send",
+    sending: "Sending...",
+    historyTitle: "Request history",
+    historyHint: "See your latest suggestions and issue reports.",
+    all: "All",
+    resolved: "Resolved",
+    noRequests: "No requests yet.",
+    problem: "Issue",
+    suggestion: "Suggestion",
+    unread: "Unread",
+    you: "You",
+    supportAgent: "Support",
+    supportReply: "Reply from support",
+    chatPlaceholder: "Send a message...",
+  },
+} as const
+
 export default function Support() {
   const { businessId, user, businessName } = useAuth()
+  const { language } = useLanguage()
+  const t = supportI18n[language]
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [suggestionText, setSuggestionText] = useState("")
@@ -105,6 +201,12 @@ export default function Support() {
     return rows.filter((r) => r.status === historyFilter)
   }, [rows, historyFilter])
 
+  function supportStatusLabel(status: string) {
+    if (status === "open") return t.open
+    if (status === "resolved") return t.resolved
+    return status
+  }
+
   async function refresh() {
     if (!businessId) return
     const { data } = await supabase
@@ -148,7 +250,7 @@ export default function Support() {
     if (!businessId || !user) return
     const text = (type === "suggestion" ? suggestionText : issueText).trim()
     if (!text) {
-      toast({ title: "Σφάλμα", description: "Γράψτε το μήνυμα πριν την αποστολή.", variant: "destructive" })
+      toast({ title: t.error, description: t.writeBeforeSend, variant: "destructive" })
       return
     }
     try {
@@ -167,17 +269,15 @@ export default function Support() {
       if (inserted?.id) {
         await notifyInAppQuiet(
           businessId,
-          type === "suggestion"
-            ? "Νέο αίτημα υποστήριξης (πρόταση)"
-            : "Νέο αίτημα υποστήριξης (πρόβλημα)",
+          type === "suggestion" ? t.notifSuggestion : t.notifIssue,
           { notificationType: "support_request", relatedSupportRequestId: inserted.id as string },
         )
       }
       type === "suggestion" ? setSuggestionText("") : setIssueText("")
-      toast({ title: "Εστάλη", description: type === "suggestion" ? "Η πρόταση καταχωρήθηκε." : "Το πρόβλημα καταχωρήθηκε." })
+      toast({ title: t.sent, description: type === "suggestion" ? t.suggestionSaved : t.issueSaved })
       await refresh()
     } catch (e) {
-      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία αποστολής", variant: "destructive" })
+      toast({ title: t.error, description: e instanceof Error ? e.message : t.sendFailed, variant: "destructive" })
     } finally {
       setSending(null)
     }
@@ -187,7 +287,7 @@ export default function Support() {
     if (!businessId || !user) return
     const content = (draftByRequestId[requestId] ?? "").trim()
     if (!content) {
-      toast({ title: "Σφάλμα", description: "Γράψτε ένα μήνυμα πριν την αποστολή.", variant: "destructive" })
+      toast({ title: t.error, description: t.writeChatBeforeSend, variant: "destructive" })
       return
     }
 
@@ -207,9 +307,9 @@ export default function Support() {
       setDraftByRequestId((prev) => ({ ...prev, [requestId]: "" }))
       // Status is controlled only by super_admin (incident closes only when super_admin marks it resolved).
       await refresh()
-      toast({ title: "Εστάλη", description: "Το μήνυμα καταχωρήθηκε." })
+      toast({ title: t.sent, description: t.chatSaved })
     } catch (e) {
-      toast({ title: "Σφάλμα", description: e instanceof Error ? e.message : "Αποτυχία αποστολής", variant: "destructive" })
+      toast({ title: t.error, description: e instanceof Error ? e.message : t.sendFailed, variant: "destructive" })
     } finally {
       setChatSendingId((prev) => (prev === requestId ? null : prev))
     }
@@ -221,16 +321,16 @@ export default function Support() {
         <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
         <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur">
           <History className="h-4 w-4 text-primary" />
-          {businessName ?? "Επιχείρηση"} • Υποστήριξη
+          {businessName ?? t.businessFallback} • {t.support}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">Υποστήριξη</h1>
+          <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight">{t.pageTitle}</h1>
           <Badge variant="secondary" className="border border-border/60 bg-background/60 backdrop-blur text-[11px]">
-            {openCount} ανοιχτά αιτήματα
+            {openCount} {t.openRequests}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Premium support για την επιχείρησή σου – στείλε πρόταση ή αναφορά προβλήματος.
+          {t.pageSubtitle}
         </p>
         <div className="mt-3 h-px w-full max-w-xl bg-gradient-to-r from-primary/40 via-purple-500/20 to-transparent" />
       </div>
@@ -239,20 +339,20 @@ export default function Support() {
         <div className="grid gap-3 md:grid-cols-3">
           <Card className="border-border/60 bg-card/60">
             <CardContent className="py-3">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Support requests</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t.supportRequests}</p>
               <p className="text-xl font-semibold tracking-tight">{rows.length}</p>
             </CardContent>
           </Card>
           <Card className="border-border/60 bg-card/60">
             <CardContent className="py-3">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Ανοιχτά</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t.open}</p>
               <p className="text-xl font-semibold tracking-tight">{openCount}</p>
             </CardContent>
           </Card>
           <Card className="border-border/60 bg-card/60">
             <CardContent className="py-3">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Knowledge base</p>
-              <p className="text-xl font-semibold tracking-tight">FAQ + Νομικά</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{t.knowledgeBase}</p>
+              <p className="text-xl font-semibold tracking-tight">{t.faqLegal}</p>
             </CardContent>
           </Card>
         </div>
@@ -260,7 +360,7 @@ export default function Support() {
         <TabsList className="h-auto w-full max-w-full justify-start overflow-x-auto whitespace-nowrap bg-card/60 border border-border/60 backdrop-blur text-[11px] p-1">
           <TabsTrigger value="support" className="gap-1.5">
             <History className="h-3.5 w-3.5" />
-            Υποστήριξη
+            {t.support}
           </TabsTrigger>
           <TabsTrigger value="faq" className="gap-1.5">
             <HelpCircle className="h-3.5 w-3.5" />
@@ -268,11 +368,11 @@ export default function Support() {
           </TabsTrigger>
           <TabsTrigger value="terms" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" />
-            Όροι Χρήσης
+            {t.terms}
           </TabsTrigger>
           <TabsTrigger value="privacy" className="gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Πολιτική Απορρήτου
+            {t.privacy}
           </TabsTrigger>
         </TabsList>
 
@@ -283,7 +383,7 @@ export default function Support() {
                 <CardTitle className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
                   <span className="inline-flex items-center gap-2">
                     <Lightbulb className="h-4 w-4 text-primary" />
-                    <span>Πρόταση βελτίωσης</span>
+                    <span>{t.suggestionTitle}</span>
                   </span>
                   <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/5">
                     UX / Features
@@ -291,18 +391,18 @@ export default function Support() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <Label className="text-xs text-muted-foreground">Μήνυμα</Label>
+                <Label className="text-xs text-muted-foreground">{t.message}</Label>
                 <Textarea
                   value={suggestionText}
                   onChange={(e) => setSuggestionText(e.target.value)}
-                  placeholder="Π.χ. Θα ήθελα πιο γρήγορο τρόπο για να κλείνω επαναλαμβανόμενα ραντεβού..."
+                  placeholder={t.suggestionPlaceholder}
                   className="bg-background/60 border-border/60 focus-visible:ring-primary/30 min-h-[120px] text-base md:text-sm"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
-                  <span className="pr-1">Οι προτάσεις σου μας βοηθούν να βελτιώνουμε την πλατφόρμα.</span>
+                  <span className="pr-1">{t.suggestionHint}</span>
                   <Button type="button" size="sm" className="w-full sm:w-auto" onClick={() => submit("suggestion")} disabled={sending !== null}>
                     <Send className="mr-1.5 h-3.5 w-3.5" />
-                    {sending === "suggestion" ? "Αποστολή..." : "Αποστολή"}
+                    {sending === "suggestion" ? t.sending : t.send}
                   </Button>
                 </div>
               </CardContent>
@@ -313,23 +413,23 @@ export default function Support() {
                 <CardTitle className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
                   <span className="inline-flex items-center gap-2">
                     <Bug className="h-4 w-4 text-destructive" />
-                    <span>Αναφορά προβλήματος</span>
+                    <span>{t.issueTitle}</span>
                   </span>
                   <Badge variant="outline" className="text-[11px] border-destructive/30 text-destructive bg-destructive/5">
-                    Bugs / Σφάλματα
+                    {t.issueBadge}
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <Label className="text-xs text-muted-foreground">Μήνυμα</Label>
+                <Label className="text-xs text-muted-foreground">{t.message}</Label>
                 <Textarea
                   value={issueText}
                   onChange={(e) => setIssueText(e.target.value)}
-                  placeholder="Π.χ. Στη σελίδα Ραντεβού, όταν πατάω “Αποθήκευση” δεν κλείνει η φόρμα..."
+                  placeholder={t.issuePlaceholder}
                   className="bg-background/60 border-border/60 focus-visible:ring-destructive/40 min-h-[120px] text-base md:text-sm"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground">
-                  <span className="pr-1">Πρόσθεσε όσο περισσότερες λεπτομέρειες μπορείς (βήματα, browser κ.λπ.).</span>
+                  <span className="pr-1">{t.issueHint}</span>
                   <Button
                     type="button"
                     variant="destructive"
@@ -339,7 +439,7 @@ export default function Support() {
                     disabled={sending !== null}
                   >
                     <Send className="mr-1.5 h-3.5 w-3.5" />
-                    {sending === "issue" ? "Αποστολή..." : "Αποστολή"}
+                    {sending === "issue" ? t.sending : t.send}
                   </Button>
                 </div>
               </CardContent>
@@ -349,8 +449,8 @@ export default function Support() {
           <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
             <CardHeader className="space-y-3">
               <div className="space-y-1">
-                <CardTitle className="text-sm">Ιστορικό αιτημάτων</CardTitle>
-                <p className="text-[11px] text-muted-foreground">Δες τις τελευταίες προτάσεις και αναφορές σου.</p>
+                <CardTitle className="text-sm">{t.historyTitle}</CardTitle>
+                <p className="text-[11px] text-muted-foreground">{t.historyHint}</p>
               </div>
               <div className="flex w-full flex-wrap gap-2">
                 <Button
@@ -359,7 +459,7 @@ export default function Support() {
                   size="sm"
                   onClick={() => setHistoryFilter("all")}
                 >
-                  Όλα
+                  {t.all}
                 </Button>
                 <Button
                   type="button"
@@ -367,7 +467,7 @@ export default function Support() {
                   size="sm"
                   onClick={() => setHistoryFilter("open")}
                 >
-                  Ανοιχτά
+                  {t.open}
                 </Button>
                 <Button
                   type="button"
@@ -375,7 +475,7 @@ export default function Support() {
                   size="sm"
                   onClick={() => setHistoryFilter("resolved")}
                 >
-                  Ολοκληρωμένα
+                  {t.resolved}
                 </Button>
               </div>
             </CardHeader>
@@ -383,7 +483,7 @@ export default function Support() {
               {loading ? (
                 <Skeleton className="h-40 w-full" />
               ) : filteredRows.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Δεν υπάρχουν αιτήματα ακόμα.</p>
+                <p className="text-muted-foreground text-sm">{t.noRequests}</p>
               ) : (
                 <div className="space-y-2">
                   {filteredRows.map((r) => (
@@ -398,7 +498,7 @@ export default function Support() {
                             variant={r.type === "issue" ? "destructive" : "secondary"}
                             className="border border-border/60 text-[11px]"
                           >
-                            {r.type === "issue" ? "Πρόβλημα" : "Πρόταση"}
+                            {r.type === "issue" ? t.problem : t.suggestion}
                           </Badge>
                           <Badge
                             variant="outline"
@@ -410,14 +510,14 @@ export default function Support() {
                                   : "text-[11px] border-border/60"
                             }
                           >
-                            {r.status}
+                            {supportStatusLabel(r.status)}
                           </Badge>
                         </div>
                         <div className="mt-2 rounded-xl border border-border/60 bg-background/40 p-2 overflow-hidden">
                           <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                             <div className="flex justify-end">
                               <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/50 bg-background/70 px-3 py-2">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Εσυ</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t.you}</p>
                                 <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug">{r.message}</p>
                               </div>
                             </div>
@@ -433,7 +533,7 @@ export default function Support() {
                                     <div className="mb-2 flex items-center gap-2 py-1">
                                       <div className="h-px flex-1 bg-primary/25" />
                                       <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                                        Μη αναγνωσμένα
+                                        {t.unread}
                                       </span>
                                       <div className="h-px flex-1 bg-primary/25" />
                                     </div>
@@ -453,7 +553,7 @@ export default function Support() {
                                             : "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
                                         }
                                       >
-                                        {m.sender_role === "super_admin" ? "Υποστήριξη" : "Εσυ"}
+                                        {m.sender_role === "super_admin" ? t.supportAgent : t.you}
                                       </p>
                                       <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug">{m.content}</p>
                                     </div>
@@ -465,7 +565,7 @@ export default function Support() {
                             {r.internal_notes?.trim() && (messagesByRequestId[r.id] ?? []).length === 0 ? (
                               <div className="flex justify-start">
                                 <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-primary/25 bg-primary/5 px-3 py-2">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Απάντηση από την υποστήριξη</p>
+                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">{t.supportReply}</p>
                                   <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug text-foreground">{r.internal_notes.trim()}</p>
                                 </div>
                               </div>
@@ -478,7 +578,7 @@ export default function Support() {
                             <Textarea
                               value={draftByRequestId[r.id] ?? ""}
                               onChange={(e) => setDraftByRequestId((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                              placeholder="Στείλε ένα μήνυμα..."
+                              placeholder={t.chatPlaceholder}
                               className="bg-background/40 border-border/60 focus-visible:ring-primary/30 min-h-[92px] text-base md:text-sm"
                             />
                             <div className="flex justify-end">
@@ -489,7 +589,7 @@ export default function Support() {
                                 onClick={() => sendChatMessage(r.id)}
                                 disabled={chatSendingId === r.id}
                               >
-                                {chatSendingId === r.id ? "Αποστολή..." : "Αποστολή"}
+                                {chatSendingId === r.id ? t.sending : t.send}
                               </Button>
                             </div>
                           </div>

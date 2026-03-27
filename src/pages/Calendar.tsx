@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { CalendarView } from "@/components/appointments/CalendarView"
 import { AppointmentForm } from "@/components/appointments/AppointmentForm"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -8,8 +9,29 @@ import { useToast } from "@/hooks/use-toast"
 import { fetchCustomers, fetchServices, fetchTeam } from "@/services/api"
 import type { Customer, Service, User } from "@/types"
 
+const i18n = {
+  el: {
+    errorLoad: "Αποτυχία φόρτωσης δεδομένων για το ημερολόγιο.",
+    saved: "Αποθηκεύτηκε",
+    created: "Το ραντεβού δημιουργήθηκε.",
+    title: "Ημερολόγιο",
+    subtitle: "Ραντεβού ανά ημέρα",
+    newAppointment: "Νέο ραντεβού",
+  },
+  en: {
+    errorLoad: "Failed to load calendar data.",
+    saved: "Saved",
+    created: "Appointment created.",
+    title: "Calendar",
+    subtitle: "Appointments per day",
+    newAppointment: "New appointment",
+  },
+} as const
+
 export default function Calendar() {
   const { businessId } = useAuth()
+  const { language } = useLanguage()
+  const t = i18n[language]
   const { toast } = useToast()
 
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -28,8 +50,8 @@ export default function Calendar() {
       })
       .catch(() =>
         toast({
-          title: "Σφάλμα",
-          description: "Αποτυχία φόρτωσης δεδομένων για το ημερολόγιο.",
+          title: language === "en" ? "Error" : "Σφάλμα",
+          description: t.errorLoad,
           variant: "destructive",
         }),
       )
@@ -38,15 +60,15 @@ export default function Calendar() {
   function handleSaved() {
     setDialogOpen(false)
     setPresetDate(null)
-    toast({ title: "Αποθηκεύτηκε", description: "Το ραντεβού δημιουργήθηκε." })
+    toast({ title: t.saved, description: t.created })
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ημερολόγιο</h1>
-          <p className="text-muted-foreground">Ραντεβού ανά ημέρα</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t.title}</h1>
+          <p className="text-muted-foreground">{t.subtitle}</p>
         </div>
       </div>
       <CalendarView
@@ -66,7 +88,7 @@ export default function Calendar() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Νέο ραντεβού</DialogTitle>
+            <DialogTitle>{t.newAppointment}</DialogTitle>
           </DialogHeader>
           <ErrorBoundary
             onReset={() => {

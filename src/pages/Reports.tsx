@@ -1,17 +1,118 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
+import type { AppLanguage } from "@/contexts/LanguageContext"
 import { fetchDashboardStats, fetchReportsSummary } from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { formatCurrency, formatDate } from "@/lib/utils"
 import { BarChart2, TrendingUp, ListChecks, Sparkles, ReceiptText } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+const reportsI18n = {
+  el: {
+    premiumBadge: "Αναφορές • Premium",
+    pageTitle: "Αναφορές",
+    pageSubtitle: "Έσοδα, ραντεβού και πληρωμές",
+    fromLabel: "Από",
+    toLabel: "Έως",
+    revenueToday: "Έσοδα σήμερα",
+    revenueTodayDesc: "Από πληρωμές που καταχωρήθηκαν σήμερα.",
+    revenueMonth: "Έσοδα μήνα",
+    revenueMonthDesc: "Σύνολο πληρωμών για τον τρέχοντα μήνα.",
+    outstanding: "Υπόλοιπα",
+    outstandingDesc: "Ανεξόφλητα υπόλοιπα από όλες τις πληρωμές.",
+    appointmentStatus: "Κατάσταση ραντεβού",
+    appointmentRange: (from: string, to: string) => `Από ${from} έως ${to}.`,
+    noData: "Δεν υπάρχουν διαθέσιμα δεδομένα.",
+    statusPending: "Εκκρεμή",
+    statusConfirmed: "Επιβεβαιωμένα",
+    statusInProgress: "Σε εξέλιξη",
+    statusCompleted: "Ολοκληρωμένα",
+    statusCancelled: "Ακυρωμένα",
+    statusNoShow: "Δεν προσήλθαν",
+    statusRescheduled: "Επαναπρογραμματισμένα",
+    topCustomers: "Κορυφαίοι πελάτες",
+    topCustomersEmpty: "Δεν υπάρχουν ακόμα έσοδα ανά πελάτη.",
+    revenueWord: "Έσοδα",
+    revenueByService: "Έσοδα ανά υπηρεσία",
+    revenueByServiceEmpty: "Δεν υπάρχουν έσοδα ανά υπηρεσία για το εύρος ημερομηνιών.",
+    revenueByStaff: "Έσοδα ανά υπεύθυνο",
+    revenueByStaffEmpty: "Δεν υπάρχουν έσοδα ανά υπεύθυνο για το εύρος ημερομηνιών.",
+    pctOfMax: (pct: number) => `${pct}% του μέγιστου`,
+    recentPayments: "Πρόσφατες πληρωμές",
+    recentPaymentsEmpty: "Δεν υπάρχουν πρόσφατες πληρωμές στο επιλεγμένο εύρος.",
+    colAppointment: "Ραντεβού",
+    colCustomer: "Πελάτης",
+    colDate: "Ημ/νία",
+    colPaid: "Πληρωμένο",
+    colBalance: "Υπόλοιπο",
+    mobilePaid: "Πληρωμένο",
+    mobileBalance: "Υπόλοιπο",
+    paymentFallback: "Πληρωμή",
+  },
+  en: {
+    premiumBadge: "Reports • Premium",
+    pageTitle: "Reports",
+    pageSubtitle: "Revenue, appointments, and payments",
+    fromLabel: "From",
+    toLabel: "To",
+    revenueToday: "Revenue today",
+    revenueTodayDesc: "From payments recorded today.",
+    revenueMonth: "Monthly revenue",
+    revenueMonthDesc: "Total payments for the current month.",
+    outstanding: "Outstanding",
+    outstandingDesc: "Unpaid balances across all payments.",
+    appointmentStatus: "Appointment status",
+    appointmentRange: (from: string, to: string) => `From ${from} to ${to}.`,
+    noData: "No data available.",
+    statusPending: "Pending",
+    statusConfirmed: "Confirmed",
+    statusInProgress: "In progress",
+    statusCompleted: "Completed",
+    statusCancelled: "Cancelled",
+    statusNoShow: "No-show",
+    statusRescheduled: "Rescheduled",
+    topCustomers: "Top customers",
+    topCustomersEmpty: "No per-customer revenue yet.",
+    revenueWord: "Revenue",
+    revenueByService: "Revenue by service",
+    revenueByServiceEmpty: "No revenue by service for this date range.",
+    revenueByStaff: "Revenue by staff",
+    revenueByStaffEmpty: "No revenue by staff for this date range.",
+    pctOfMax: (pct: number) => `${pct}% of maximum`,
+    recentPayments: "Recent payments",
+    recentPaymentsEmpty: "No recent payments in the selected range.",
+    colAppointment: "Appointment",
+    colCustomer: "Customer",
+    colDate: "Date",
+    colPaid: "Paid",
+    colBalance: "Balance",
+    mobilePaid: "Paid",
+    mobileBalance: "Balance",
+    paymentFallback: "Payment",
+  },
+}
+
+function formatReportDate(iso: string | Date, lang: AppLanguage) {
+  return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "el-GR", { dateStyle: "short" }).format(
+    typeof iso === "string" ? new Date(iso) : iso,
+  )
+}
+
+function formatReportMoney(amount: number, lang: AppLanguage) {
+  return new Intl.NumberFormat(lang === "en" ? "en-GB" : "el-GR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(amount)
+}
+
 export default function Reports() {
   const { businessId } = useAuth()
+  const { language } = useLanguage()
+  const t = reportsI18n[language]
   const [from, setFrom] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10))
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [loading, setLoading] = useState(true)
@@ -37,15 +138,15 @@ export default function Reports() {
 
   const statusChips = useMemo(
     () => [
-      { key: "pending", label: "Εκκρεμή", value: summary?.statusCounts.pending ?? 0 },
-      { key: "confirmed", label: "Επιβεβαιωμένα", value: summary?.statusCounts.confirmed ?? 0 },
-      { key: "in_progress", label: "Σε εξέλιξη", value: summary?.statusCounts.in_progress ?? 0 },
-      { key: "completed", label: "Ολοκληρωμένα", value: summary?.statusCounts.completed ?? 0 },
-      { key: "cancelled", label: "Ακυρωμένα", value: summary?.statusCounts.cancelled ?? 0 },
-      { key: "no_show", label: "Δεν εμφανίστηκαν", value: summary?.statusCounts.no_show ?? 0 },
-      { key: "rescheduled", label: "Επαναπρογραμματισμένα", value: summary?.statusCounts.rescheduled ?? 0 },
+      { key: "pending", label: t.statusPending, value: summary?.statusCounts.pending ?? 0 },
+      { key: "confirmed", label: t.statusConfirmed, value: summary?.statusCounts.confirmed ?? 0 },
+      { key: "in_progress", label: t.statusInProgress, value: summary?.statusCounts.in_progress ?? 0 },
+      { key: "completed", label: t.statusCompleted, value: summary?.statusCounts.completed ?? 0 },
+      { key: "cancelled", label: t.statusCancelled, value: summary?.statusCounts.cancelled ?? 0 },
+      { key: "no_show", label: t.statusNoShow, value: summary?.statusCounts.no_show ?? 0 },
+      { key: "rescheduled", label: t.statusRescheduled, value: summary?.statusCounts.rescheduled ?? 0 },
     ],
-    [summary?.statusCounts],
+    [summary?.statusCounts, language],
   )
 
   function statusBadgeVariant(key: string): string {
@@ -76,16 +177,16 @@ export default function Reports() {
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
               <Sparkles className="h-4 w-4 text-primary" />
-              Reports • Premium
+              {t.premiumBadge}
             </div>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Αναφορές</h1>
-            <p className="text-muted-foreground">Έσοδα, ραντεβού και πληρωμές</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">{t.pageTitle}</h1>
+            <p className="text-muted-foreground">{t.pageSubtitle}</p>
           </div>
 
           <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
               <div className="space-y-1">
-                <Label className="text-xs">Από</Label>
+                <Label className="text-xs">{t.fromLabel}</Label>
                 <Input
                   type="date"
                   value={from}
@@ -94,7 +195,7 @@ export default function Reports() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Έως</Label>
+                <Label className="text-xs">{t.toLabel}</Label>
                 <Input
                   type="date"
                   value={to}
@@ -105,7 +206,7 @@ export default function Reports() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ReceiptText className="h-4 w-4" />
                 <span className="hidden sm:inline">
-                  {from && to ? `(${formatDate(from)} → ${formatDate(to)})` : "—"}
+                  {from && to ? `(${formatReportDate(from, language)} → ${formatReportDate(to, language)})` : "—"}
                 </span>
               </div>
             </div>
@@ -116,52 +217,46 @@ export default function Reports() {
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Έσοδα σήμερα</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.revenueToday}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading || !dashboard ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{formatCurrency(dashboard.revenueToday)}</div>
+              <div className="text-2xl font-bold">{formatReportMoney(dashboard.revenueToday, language)}</div>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Από πληρωμές που καταχωρήθηκαν σήμερα.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t.revenueTodayDesc}</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Έσοδα μήνα</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.revenueMonth}</CardTitle>
             <BarChart2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading || !dashboard ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{formatCurrency(dashboard.revenueMonth)}</div>
+              <div className="text-2xl font-bold">{formatReportMoney(dashboard.revenueMonth, language)}</div>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Σύνολο πληρωμών για τον τρέχοντα μήνα.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t.revenueMonthDesc}</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Υπόλοιπα</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.outstanding}</CardTitle>
             <ListChecks className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading || !dashboard ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{formatCurrency(dashboard.outstandingBalances)}</div>
+              <div className="text-2xl font-bold">{formatReportMoney(dashboard.outstandingBalances, language)}</div>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Ανεξόφλητα υπόλοιπα από όλες τις πληρωμές.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t.outstandingDesc}</p>
           </CardContent>
         </Card>
       </div>
@@ -170,9 +265,9 @@ export default function Reports() {
         <Card className="md:col-span-2 border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base">Κατάσταση ραντεβού</CardTitle>
+              <CardTitle className="text-base">{t.appointmentStatus}</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Από {from && formatDate(from)} έως {to && formatDate(to)}.
+                {from && to ? t.appointmentRange(formatReportDate(from, language), formatReportDate(to, language)) : ""}
               </p>
             </div>
           </CardHeader>
@@ -180,7 +275,7 @@ export default function Reports() {
             {summaryLoading ? (
               <Skeleton className="h-24 w-full" />
             ) : !summary ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν διαθέσιμα δεδομένα.</p>
+              <p className="text-sm text-muted-foreground">{t.noData}</p>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {statusChips.map((chip) => (
@@ -203,13 +298,13 @@ export default function Reports() {
 
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Κορυφαίοι πελάτες</CardTitle>
+            <CardTitle className="text-base">{t.topCustomers}</CardTitle>
           </CardHeader>
           <CardContent>
             {summaryLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : !summary || summary.topCustomers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν ακόμα έσοδα ανά πελάτη.</p>
+              <p className="text-sm text-muted-foreground">{t.topCustomersEmpty}</p>
             ) : (
               <div className="space-y-2">
                 {summary.topCustomers.map((c, idx) => (
@@ -223,10 +318,10 @@ export default function Reports() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">Έσοδα</p>
+                        <p className="text-xs text-muted-foreground">{t.revenueWord}</p>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(c.value)}</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatReportMoney(c.value, language)}</p>
                   </div>
                 ))}
               </div>
@@ -238,13 +333,13 @@ export default function Reports() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Έσοδα ανά υπηρεσία</CardTitle>
+            <CardTitle className="text-base">{t.revenueByService}</CardTitle>
           </CardHeader>
           <CardContent>
             {summaryLoading ? (
               <Skeleton className="h-40 w-full" />
             ) : !summary || summary.revenueByService.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν έσοδα ανά υπηρεσία για το εύρος ημερομηνιών.</p>
+              <p className="text-sm text-muted-foreground">{t.revenueByServiceEmpty}</p>
             ) : (
               <div className="space-y-3">
                 {(() => {
@@ -255,12 +350,12 @@ export default function Reports() {
                       <div key={row.name} className="rounded-xl border border-border/60 bg-background/25 p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2 text-sm">
                           <span className="truncate pr-2">{row.name}</span>
-                          <span className="font-semibold tabular-nums">{formatCurrency(row.value)}</span>
+                          <span className="font-semibold tabular-nums">{formatReportMoney(row.value, language)}</span>
                         </div>
                         <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
                           <div className="h-full rounded-full bg-primary/60" style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-[11px] text-muted-foreground">{pct}% του μέγιστου</p>
+                        <p className="text-[11px] text-muted-foreground">{t.pctOfMax(pct)}</p>
                       </div>
                     )
                   })
@@ -272,13 +367,13 @@ export default function Reports() {
 
         <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Έσοδα ανά υπεύθυνο</CardTitle>
+            <CardTitle className="text-base">{t.revenueByStaff}</CardTitle>
           </CardHeader>
           <CardContent>
             {summaryLoading ? (
               <Skeleton className="h-40 w-full" />
             ) : !summary || summary.revenueByUser.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν έσοδα ανά υπεύθυνο για το εύρος ημερομηνιών.</p>
+              <p className="text-sm text-muted-foreground">{t.revenueByStaffEmpty}</p>
             ) : (
               <div className="space-y-3">
                 {(() => {
@@ -289,12 +384,12 @@ export default function Reports() {
                       <div key={row.name} className="rounded-xl border border-border/60 bg-background/25 p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2 text-sm">
                           <span className="truncate pr-2">{row.name}</span>
-                          <span className="font-semibold tabular-nums">{formatCurrency(row.value)}</span>
+                          <span className="font-semibold tabular-nums">{formatReportMoney(row.value, language)}</span>
                         </div>
                         <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
                           <div className="h-full rounded-full bg-emerald-500/60" style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-[11px] text-muted-foreground">{pct}% του μέγιστου</p>
+                        <p className="text-[11px] text-muted-foreground">{t.pctOfMax(pct)}</p>
                       </div>
                     )
                   })
@@ -307,28 +402,32 @@ export default function Reports() {
 
       <Card className="border-border/60 bg-card/60 backdrop-blur-xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">Πρόσφατες πληρωμές</CardTitle>
+          <CardTitle className="text-base">{t.recentPayments}</CardTitle>
         </CardHeader>
         <CardContent>
           {summaryLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : !summary || summary.recentPayments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Δεν υπάρχουν πρόσφατες πληρωμές στο επιλεγμένο εύρος.</p>
+            <p className="text-sm text-muted-foreground">{t.recentPaymentsEmpty}</p>
           ) : (
             <>
             <div className="space-y-2 md:hidden">
               {summary.recentPayments.map((p: any) => (
                 <div key={`mobile-${p.id}`} className="rounded-lg border border-border/60 bg-background/30 p-3">
-                  <p className="text-sm font-medium">{p.appointment_job?.title ?? "Πληρωμή"}</p>
+                  <p className="text-sm font-medium">{p.appointment_job?.title ?? t.paymentFallback}</p>
                   <p className="text-xs text-muted-foreground">
                     {p.appointment_job?.customer
                       ? `${p.appointment_job.customer.first_name} ${p.appointment_job.customer.last_name}`
                       : "—"}{" "}
-                    • {formatDate(p.created_at)}
+                    • {formatReportDate(p.created_at, language)}
                   </p>
                   <div className="mt-2 flex items-center justify-between text-sm">
-                    <span>Πληρωμένο: {formatCurrency(Number(p.paid_amount ?? 0))}</span>
-                    <span>Υπόλοιπο: {formatCurrency(Number(p.remaining_balance ?? 0))}</span>
+                    <span>
+                      {t.mobilePaid}: {formatReportMoney(Number(p.paid_amount ?? 0), language)}
+                    </span>
+                    <span>
+                      {t.mobileBalance}: {formatReportMoney(Number(p.remaining_balance ?? 0), language)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -337,28 +436,28 @@ export default function Reports() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-background/30">
-                  <TableHead>Ραντεβού</TableHead>
-                  <TableHead>Πελάτης</TableHead>
-                  <TableHead>Ημ/νία</TableHead>
-                  <TableHead className="text-right">Πληρωμένο</TableHead>
-                  <TableHead className="text-right">Υπόλοιπο</TableHead>
+                  <TableHead>{t.colAppointment}</TableHead>
+                  <TableHead>{t.colCustomer}</TableHead>
+                  <TableHead>{t.colDate}</TableHead>
+                  <TableHead className="text-right">{t.colPaid}</TableHead>
+                  <TableHead className="text-right">{t.colBalance}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {summary.recentPayments.map((p: any) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.appointment_job?.title ?? "Πληρωμή"}</TableCell>
+                    <TableCell className="font-medium">{p.appointment_job?.title ?? t.paymentFallback}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {p.appointment_job?.customer
                         ? `${p.appointment_job.customer.first_name} ${p.appointment_job.customer.last_name}`
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(p.created_at)}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatReportDate(p.created_at, language)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(p.paid_amount ?? 0))}
+                      {formatReportMoney(Number(p.paid_amount ?? 0), language)}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(p.remaining_balance ?? 0))}
+                      {formatReportMoney(Number(p.remaining_balance ?? 0), language)}
                     </TableCell>
                   </TableRow>
                 ))}

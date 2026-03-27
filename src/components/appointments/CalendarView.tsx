@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfDay } from "date-fns"
-import { el } from "date-fns/locale"
+import { el, enUS } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAppointments } from "@/services/api"
 import type { AppointmentJob, Customer } from "@/types"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -18,7 +19,83 @@ type CalendarViewProps = {
   onCreateFromDate?: (date: string) => void
 }
 
+const i18n = {
+  el: {
+    today: "Σήμερα",
+    statusPlaceholder: "Φίλτρο κατάστασης",
+    allStatuses: "Όλες οι καταστάσεις",
+    pending: "Εκκρεμεί",
+    confirmed: "Επιβεβαιωμένο",
+    inProgress: "Σε εξέλιξη",
+    completed: "Ολοκληρώθηκε",
+    cancelled: "Ακυρώθηκε",
+    noShow: "Δεν εμφανίστηκε",
+    rescheduled: "Επανεπιλογή",
+    swipeHint: "Σύρε οριζόντια για να δεις όλο το ημερολόγιο.",
+    appointments: "ραντεβού",
+    shortAppointments: "ραντ.",
+    dayAppointmentsTitle: "Ραντεβού ημέρας",
+    noAppointmentsDay: "Δεν υπάρχουν κλεισμένα ραντεβού για αυτή την ημέρα.",
+    summary: "Σύνοψη",
+    summaryHint: "υπολογισμός από `final_cost` (ή `cost_estimate` αν δεν υπάρχει).",
+    total: "Σύνολο",
+    noCustomer: "Χωρίς πελάτη",
+    newAppointmentQuestion: "Θέλετε να κλείσετε νέο ραντεβού;",
+    cannotPast: "Δεν μπορείτε να δημιουργήσετε νέο ραντεβού για προηγούμενες ημέρες.",
+    canCreate: "Μπορείτε να δημιουργήσετε νέο ραντεβού για την επιλεγμένη ημέρα.",
+    createNew: "Κλείσιμο νέου ραντεβού",
+    dayShort: ["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"],
+    statusShort: {
+      pending: "Εκκρ.",
+      confirmed: "Επιβεβ.",
+      in_progress: "Σε εξέλ.",
+      completed: "Ολοκλ.",
+      cancelled: "Ακυρ.",
+      no_show: "No show",
+      rescheduled: "Re-sched",
+    } as Record<AppointmentJob["status"], string>,
+  },
+  en: {
+    today: "Today",
+    statusPlaceholder: "Status filter",
+    allStatuses: "All statuses",
+    pending: "Pending",
+    confirmed: "Confirmed",
+    inProgress: "In progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    noShow: "No show",
+    rescheduled: "Rescheduled",
+    swipeHint: "Swipe horizontally to view the whole calendar.",
+    appointments: "appointments",
+    shortAppointments: "appts",
+    dayAppointmentsTitle: "Day appointments",
+    noAppointmentsDay: "There are no booked appointments for this day.",
+    summary: "Summary",
+    summaryHint: "calculated from `final_cost` (or `cost_estimate` when missing).",
+    total: "Total",
+    noCustomer: "No customer",
+    newAppointmentQuestion: "Do you want to create a new appointment?",
+    cannotPast: "You cannot create a new appointment for previous days.",
+    canCreate: "You can create a new appointment for the selected day.",
+    createNew: "Create new appointment",
+    dayShort: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    statusShort: {
+      pending: "Pend.",
+      confirmed: "Conf.",
+      in_progress: "In prog.",
+      completed: "Done",
+      cancelled: "Canc.",
+      no_show: "No show",
+      rescheduled: "Re-sch.",
+    } as Record<AppointmentJob["status"], string>,
+  },
+} as const
+
 export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps) {
+  const { language } = useLanguage()
+  const t = i18n[language]
+  const locale = language === "en" ? enUS : el
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [appointments, setAppointments] = useState<AppointmentWithCustomer[]>([])
   const [statusFilter, setStatusFilter] = useState<AppointmentJob["status"] | "all">("all")
@@ -102,24 +179,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
   }
 
   function statusShort(status: AppointmentJob["status"]): string {
-    switch (status) {
-      case "pending":
-        return "Εκκρ."
-      case "confirmed":
-        return "Επιβεβ."
-      case "in_progress":
-        return "Σε εξέλ."
-      case "completed":
-        return "Ολοκλ."
-      case "cancelled":
-        return "Ακυρ."
-      case "no_show":
-        return "No show"
-      case "rescheduled":
-        return "Re-sched"
-      default:
-        return status
-    }
+    return t.statusShort[status] ?? status
   }
 
   return (
@@ -130,7 +190,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="min-w-[180px] text-center font-medium text-sm sm:text-base">
-            {format(currentMonth, "LLLL yyyy", { locale: el })}
+            {format(currentMonth, "LLLL yyyy", { locale })}
           </span>
           <Button variant="outline" size="icon" onClick={() => setCurrentMonth((d) => addMonths(d, 1))}>
             <ChevronRight className="h-4 w-4" />
@@ -138,21 +198,21 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
           <Button variant="outline" size="sm" onClick={() => setCurrentMonth(today)} className="w-full sm:w-auto">
-            Σήμερα
+            {t.today}
           </Button>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
             <SelectTrigger className="h-8 w-full sm:w-[220px] bg-card/80 border-border/60">
-              <SelectValue placeholder="Φίλτρο κατάστασης" />
+              <SelectValue placeholder={t.statusPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Όλες οι καταστάσεις</SelectItem>
-              <SelectItem value="pending">Εκκρεμεί</SelectItem>
-              <SelectItem value="confirmed">Επιβεβαιωμένο</SelectItem>
-              <SelectItem value="in_progress">Σε εξέλιξη</SelectItem>
-              <SelectItem value="completed">Ολοκληρώθηκε</SelectItem>
-              <SelectItem value="cancelled">Ακυρώθηκε</SelectItem>
-              <SelectItem value="no_show">Δεν εμφανίστηκε</SelectItem>
-              <SelectItem value="rescheduled">Επανεπιλογή</SelectItem>
+              <SelectItem value="all">{t.allStatuses}</SelectItem>
+              <SelectItem value="pending">{t.pending}</SelectItem>
+              <SelectItem value="confirmed">{t.confirmed}</SelectItem>
+              <SelectItem value="in_progress">{t.inProgress}</SelectItem>
+              <SelectItem value="completed">{t.completed}</SelectItem>
+              <SelectItem value="cancelled">{t.cancelled}</SelectItem>
+              <SelectItem value="no_show">{t.noShow}</SelectItem>
+              <SelectItem value="rescheduled">{t.rescheduled}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -161,7 +221,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
       <Card>
         <CardHeader>
           <p className="text-[11px] text-muted-foreground md:hidden">
-            Σύρε οριζόντια για να δεις όλο το ημερολόγιο.
+            {t.swipeHint}
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -179,8 +239,8 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                     setDayDialogOpen(true)
                   }}
                 >
-                  <p className="text-sm font-medium">{format(day, "EEE dd/MM", { locale: el })}</p>
-                  <p className="text-xs text-muted-foreground">{dayAppointments.length} ραντεβού</p>
+                  <p className="text-sm font-medium">{format(day, "EEE dd/MM", { locale })}</p>
+                  <p className="text-xs text-muted-foreground">{dayAppointments.length} {t.appointments}</p>
                 </button>
               )
             })}
@@ -188,7 +248,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
           <div className="hidden overflow-x-auto md:block">
           <div className="min-w-[680px]">
             <div className="grid grid-cols-7 text-center text-sm font-medium text-muted-foreground mb-1">
-              {["Δευ", "Τρι", "Τετ", "Πεμ", "Παρ", "Σαβ", "Κυρ"].map((d) => (
+              {t.dayShort.map((d) => (
                 <div key={d}>{d}</div>
               ))}
             </div>
@@ -230,13 +290,13 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                         <span className="text-sm font-medium">{format(day, "d")}</span>
                         {isToday && (
                           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                            Today
+                            {t.today}
                           </span>
                         )}
                       </div>
                       {count > 0 && (
                         <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {count} ραντ.
+                          {count} {t.shortAppointments}
                         </span>
                       )}
                     </div>
@@ -284,23 +344,23 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
       <Dialog open={dayDialogOpen} onOpenChange={setDayDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Ραντεβού ημέρας - {selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""}</DialogTitle>
+            <DialogTitle>{t.dayAppointmentsTitle} - {selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {selectedDayAppointments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Δεν υπάρχουν κλεισμένα ραντεβού για αυτή την ημέρα.</p>
+              <p className="text-sm text-muted-foreground">{t.noAppointmentsDay}</p>
             ) : (
               <>
                 <div className="rounded-xl border border-border/60 bg-background/50 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium">Σύνοψη</p>
+                      <p className="text-sm font-medium">{t.summary}</p>
                       <p className="text-xs text-muted-foreground">
-                        {selectedDayTotals.count} ραντεβού • υπολογισμός από `final_cost` (ή `cost_estimate` αν δεν υπάρχει).
+                        {selectedDayTotals.count} {t.appointments} • {t.summaryHint}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Σύνολο</p>
+                      <p className="text-xs text-muted-foreground">{t.total}</p>
                       <p className="text-lg font-semibold tabular-nums">{formatCurrency(selectedDayTotals.total)}</p>
                     </div>
                   </div>
@@ -316,7 +376,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                         </Badge>
                       </div>
                       <div className="mt-1 truncate text-xs text-muted-foreground">
-                        {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : "Χωρίς πελάτη"}
+                        {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : t.noCustomer}
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-3">
@@ -333,11 +393,11 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
               </>
             )}
             <div className="rounded-md border border-border/60 bg-background/50 p-3">
-              <p className="text-sm font-medium">Θέλετε να κλείσετε νέο ραντεβού;</p>
+              <p className="text-sm font-medium">{t.newAppointmentQuestion}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {selectedDate && startOfDay(selectedDate) < today
-                  ? "Δεν μπορείτε να δημιουργήσετε νέο ραντεβού για προηγούμενες ημέρες."
-                  : "Μπορείτε να δημιουργήσετε νέο ραντεβού για την επιλεγμένη ημέρα."}
+                  ? t.cannotPast
+                  : t.canCreate}
               </p>
               <div className="mt-3 flex justify-end">
                 <Button
@@ -349,7 +409,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                   }}
                   disabled={!!selectedDate && startOfDay(selectedDate) < today}
                 >
-                  Κλείσιμο νέου ραντεβού
+                  {t.createNew}
                 </Button>
               </div>
             </div>

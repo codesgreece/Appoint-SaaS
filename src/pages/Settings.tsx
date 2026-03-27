@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { fetchBusiness, fetchCustomers, resetDemoBusiness, notifyInAppQuiet } from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -15,8 +16,174 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import * as XLSX from "xlsx"
 import { Link as LinkIcon } from "lucide-react"
 
+const settingsI18n = {
+  el: {
+    breadcrumb: "Εφαρμογή • Ρυθμίσεις",
+    pageTitle: "Ρυθμίσεις",
+    pageSubtitle: "Μόνο ρυθμίσεις εμφάνισης και εμπειρίας εφαρμογής.",
+    tabAppearance: "Εμφάνιση",
+    tabBooking: "Public Booking",
+    tabExports: "Exports",
+    tabDemo: "Demo Panel",
+    premiumAppearance: "Premium εμφάνιση εφαρμογής",
+    themePreset: "Προεπιλογή θέματος",
+    selectThemePlaceholder: "Επίλεξε θέμα",
+    presetClassicLight: "Κλασικό - Φωτεινό",
+    presetClassicDark: "Κλασικό - Σκούρο",
+    presetClassicSystem: "Κλασικό - Σύστημα",
+    presetBeautyLight: "Beauty Pink - Φωτεινό",
+    presetBeautyDark: "Beauty Pink - Σκούρο",
+    presetBeautySystem: "Beauty Pink - Σύστημα",
+    beautyHint: "Το «Beauty Pink» είναι πιο premium επιλογή για beauty/wellness επιχειρήσεις.",
+    dataExportTitle: "Εξαγωγή δεδομένων",
+    dataExportDesc:
+      "Εξαγωγή λίστας πελατών σε αρχείο Excel για backup ή μεταφορά σε άλλο σύστημα.",
+    exportCustomersExcel: "Εξαγωγή πελατών σε Excel",
+    exporting: "Εξαγωγή...",
+    publicBookingTitle: "Δημόσια σελίδα κρατήσεων",
+    enableOnlineBooking: "Ενεργοποίηση online κρατήσεων",
+    enableOnlineBookingDesc: "Δημόσια σελίδα κρατήσεων χωρίς login για τους πελάτες σου.",
+    bookingSlug: "Slug κρατήσεων",
+    slugPlaceholder: "π.χ. nansy-nails",
+    linkPrefix: "Link:",
+    bookingWindowDays: "Παράθυρο κρατήσεων (ημέρες)",
+    theme: "Θέμα",
+    bookingThemeDefault: "Default (ουδέτερο)",
+    bookingThemeBeauty: "Beauty Pink (νύχια/αισθητική)",
+    bookingThemeSalon: "Salon Luxe (κομμωτήριο/spa)",
+    bookingThemeCraftsman: "Craftsman Pro (μάστορες/τεχνίτες)",
+    bookingThemeMedical: "Medical Clean (ιατροί/κλινικές)",
+    startHour: "Έναρξη ωραρίου (0-23)",
+    endHour: "Λήξη ωραρίου (1-24)",
+    slotStep: "Βήμα slots (λεπτά)",
+    minNotice: "Ελάχιστη προειδοποίηση (ώρες)",
+    requireApproval: "Απαιτείται έγκριση",
+    requireApprovalDesc: "Νέες κρατήσεις ως pending για χειροκίνητη έγκριση.",
+    saveBooking: "Αποθήκευση ρυθμίσεων κρατήσεων",
+    savingBooking: "Αποθήκευση...",
+    demoPanelTitle: "Demo Panel",
+    demoPanelDesc:
+      "Επαναφορά όλων των δεδομένων δοκιμής για να είναι ο λογαριασμός έτοιμος για την επόμενη χρήση.",
+    resetDemoAll: "Επαναφορά όλων (Demo)",
+    resettingDemo: "Επαναφορά...",
+    error: "Σφάλμα",
+    resetDoneTitle: "Έγινε επαναφορά",
+    resetDoneDesc: "Τα δεδομένα demo διαγράφηκαν και ο λογαριασμός είναι έτοιμος για νέα δοκιμή.",
+    resetFailed: "Αποτυχία επαναφοράς demo δεδομένων",
+    confirmResetDemo:
+      "Θέλεις σίγουρα να γίνει επαναφορά demo; Θα διαγραφούν ραντεβού, πληρωμές, πελάτες, υπηρεσίες και αιτήματα support.",
+    noDataTitle: "Δεν υπάρχουν δεδομένα",
+    noCustomersExport: "Δεν βρέθηκαν πελάτες για εξαγωγή.",
+    exportDoneTitle: "Ολοκληρώθηκε",
+    exportDoneDesc: "Το Excel αρχείο πελατών δημιουργήθηκε επιτυχώς.",
+    exportFailed: "Αποτυχία εξαγωγής αρχείου Excel",
+    exportNotify: (count: number, date: string) =>
+      `Εξαγωγή Excel ολοκληρώθηκε: ${count} πελάτες (${date}).`,
+    bookingSlugError: "Συμπλήρωσε έγκυρο slug κρατήσεων.",
+    bookingHoursError: "Η ώρα έναρξης πρέπει να είναι πριν τη λήξη.",
+    bookingSavedTitle: "Αποθηκεύτηκε",
+    bookingSavedDesc: "Οι ρυθμίσεις δημόσιας κράτησης ενημερώθηκαν.",
+    bookingSaveFailed: "Αποτυχία αποθήκευσης ρυθμίσεων κρατήσεων",
+    excel: {
+      id: "ID",
+      firstName: "Όνομα",
+      lastName: "Επώνυμο",
+      phone: "Τηλέφωνο",
+      email: "Email",
+      address: "Διεύθυνση",
+      area: "Περιοχή",
+      postal: "Τ.Κ.",
+      company: "Εταιρεία",
+      vat: "ΑΦΜ",
+      tags: "Tags",
+      createdAt: "Ημ/νία Δημιουργίας",
+    },
+  },
+  en: {
+    breadcrumb: "Application • Settings",
+    pageTitle: "Settings",
+    pageSubtitle: "Appearance and app experience settings only.",
+    tabAppearance: "Appearance",
+    tabBooking: "Public Booking",
+    tabExports: "Exports",
+    tabDemo: "Demo Panel",
+    premiumAppearance: "Premium app appearance",
+    themePreset: "Theme preset",
+    selectThemePlaceholder: "Choose theme",
+    presetClassicLight: "Classic - Light",
+    presetClassicDark: "Classic - Dark",
+    presetClassicSystem: "Classic - System",
+    presetBeautyLight: "Beauty Pink - Light",
+    presetBeautyDark: "Beauty Pink - Dark",
+    presetBeautySystem: "Beauty Pink - System",
+    beautyHint: "“Beauty Pink” is a more premium option for beauty/wellness businesses.",
+    dataExportTitle: "Data export",
+    dataExportDesc: "Export your customer list to an Excel file for backup or migration to another system.",
+    exportCustomersExcel: "Export customers to Excel",
+    exporting: "Exporting...",
+    publicBookingTitle: "Public booking page",
+    enableOnlineBooking: "Enable online booking",
+    enableOnlineBookingDesc: "Public booking page without login for your customers.",
+    bookingSlug: "Booking slug",
+    slugPlaceholder: "e.g. my-business",
+    linkPrefix: "Link:",
+    bookingWindowDays: "Booking window (days)",
+    theme: "Theme",
+    bookingThemeDefault: "Default (neutral)",
+    bookingThemeBeauty: "Beauty Pink (nails/aesthetics)",
+    bookingThemeSalon: "Salon Luxe (hair salon/spa)",
+    bookingThemeCraftsman: "Craftsman Pro (trades/crafts)",
+    bookingThemeMedical: "Medical Clean (doctors/clinics)",
+    startHour: "Day start hour (0-23)",
+    endHour: "Day end hour (1-24)",
+    slotStep: "Slot step (minutes)",
+    minNotice: "Minimum notice (hours)",
+    requireApproval: "Require approval",
+    requireApprovalDesc: "New bookings stay pending until you approve them manually.",
+    saveBooking: "Save booking settings",
+    savingBooking: "Saving...",
+    demoPanelTitle: "Demo Panel",
+    demoPanelDesc: "Reset all demo data so the account is ready for the next trial.",
+    resetDemoAll: "Reset all (Demo)",
+    resettingDemo: "Resetting...",
+    error: "Error",
+    resetDoneTitle: "Reset complete",
+    resetDoneDesc: "Demo data was cleared and the account is ready for a fresh trial.",
+    resetFailed: "Failed to reset demo data",
+    confirmResetDemo:
+      "Reset demo data? This will delete appointments, payments, customers, services, and support requests.",
+    noDataTitle: "No data",
+    noCustomersExport: "No customers found to export.",
+    exportDoneTitle: "Complete",
+    exportDoneDesc: "Customer Excel file was created successfully.",
+    exportFailed: "Failed to export Excel file",
+    exportNotify: (count: number, date: string) => `Excel export complete: ${count} customers (${date}).`,
+    bookingSlugError: "Enter a valid booking slug.",
+    bookingHoursError: "Start hour must be before end hour.",
+    bookingSavedTitle: "Saved",
+    bookingSavedDesc: "Public booking settings were updated.",
+    bookingSaveFailed: "Failed to save booking settings",
+    excel: {
+      id: "ID",
+      firstName: "First name",
+      lastName: "Last name",
+      phone: "Phone",
+      email: "Email",
+      address: "Address",
+      area: "Area",
+      postal: "Postal code",
+      company: "Company",
+      vat: "VAT",
+      tags: "Tags",
+      createdAt: "Created at",
+    },
+  },
+}
+
 export default function Settings() {
   const { businessId } = useAuth()
+  const { language } = useLanguage()
+  const t = settingsI18n[language]
   const { theme, setTheme, palette, setPalette } = useTheme()
   const { toast } = useToast()
   const [isDemoPlan, setIsDemoPlan] = useState(false)
@@ -73,21 +240,19 @@ export default function Settings() {
 
   async function handleResetDemoData() {
     if (!businessId) return
-    const ok = window.confirm(
-      "Θέλεις σίγουρα να γίνει επαναφορά demo; Θα διαγραφούν ραντεβού, πληρωμές, πελάτες, υπηρεσίες και αιτήματα support.",
-    )
+    const ok = window.confirm(t.confirmResetDemo)
     if (!ok) return
     try {
       setResettingDemo(true)
       await resetDemoBusiness(businessId)
       toast({
-        title: "Έγινε επαναφορά",
-        description: "Τα δεδομένα demo διαγράφηκαν και ο λογαριασμός είναι έτοιμος για νέα δοκιμή.",
+        title: t.resetDoneTitle,
+        description: t.resetDoneDesc,
       })
     } catch (e) {
       toast({
-        title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία επαναφοράς demo δεδομένων",
+        title: t.error,
+        description: e instanceof Error ? e.message : t.resetFailed,
         variant: "destructive",
       })
     } finally {
@@ -101,23 +266,24 @@ export default function Settings() {
       setExportingCustomers(true)
       const customers = await fetchCustomers(businessId)
       if (!customers.length) {
-        toast({ title: "Δεν υπάρχουν δεδομένα", description: "Δεν βρέθηκαν πελάτες για εξαγωγή." })
+        toast({ title: t.noDataTitle, description: t.noCustomersExport })
         return
       }
 
+      const x = t.excel
       const rows = customers.map((c) => ({
-        ID: c.id,
-        "Όνομα": c.first_name ?? "",
-        "Επώνυμο": c.last_name ?? "",
-        "Τηλέφωνο": c.phone ?? "",
-        Email: c.email ?? "",
-        "Διεύθυνση": c.address ?? "",
-        "Περιοχή": c.area ?? "",
-        "Τ.Κ.": c.postal_code ?? "",
-        "Εταιρεία": c.company ?? "",
-        ΑΦΜ: c.vat_number ?? "",
-        Tags: Array.isArray(c.tags) ? c.tags.join(", ") : "",
-        "Ημ/νία Δημιουργίας": c.created_at ?? "",
+        [x.id]: c.id,
+        [x.firstName]: c.first_name ?? "",
+        [x.lastName]: c.last_name ?? "",
+        [x.phone]: c.phone ?? "",
+        [x.email]: c.email ?? "",
+        [x.address]: c.address ?? "",
+        [x.area]: c.area ?? "",
+        [x.postal]: c.postal_code ?? "",
+        [x.company]: c.company ?? "",
+        [x.vat]: c.vat_number ?? "",
+        [x.tags]: Array.isArray(c.tags) ? c.tags.join(", ") : "",
+        [x.createdAt]: c.created_at ?? "",
       }))
 
       const worksheet = XLSX.utils.json_to_sheet(rows)
@@ -127,14 +293,14 @@ export default function Settings() {
       XLSX.writeFile(workbook, `customers-export-${today}.xlsx`)
       await notifyInAppQuiet(
         businessId,
-        `Εξαγωγή Excel ολοκληρώθηκε: ${customers.length} πελάτες (${today}).`,
+        t.exportNotify(customers.length, today),
         { notificationType: "data_export", metadata: { format: "xlsx_customers", row_count: customers.length } },
       )
-      toast({ title: "Ολοκληρώθηκε", description: "Το Excel αρχείο πελατών δημιουργήθηκε επιτυχώς." })
+      toast({ title: t.exportDoneTitle, description: t.exportDoneDesc })
     } catch (e) {
       toast({
-        title: "Σφάλμα",
-        description: e instanceof Error ? e.message : "Αποτυχία εξαγωγής αρχείου Excel",
+        title: t.error,
+        description: e instanceof Error ? e.message : t.exportFailed,
         variant: "destructive",
       })
     } finally {
@@ -146,11 +312,11 @@ export default function Settings() {
     if (!businessId) return
     const normalizedSlug = bookingSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "")
     if (bookingEnabled && !normalizedSlug) {
-      toast({ title: "Σφάλμα", description: "Συμπλήρωσε έγκυρο booking slug.", variant: "destructive" })
+      toast({ title: t.error, description: t.bookingSlugError, variant: "destructive" })
       return
     }
     if (bookingStartHour >= bookingEndHour) {
-      toast({ title: "Σφάλμα", description: "Η ώρα έναρξης πρέπει να είναι πριν τη λήξη.", variant: "destructive" })
+      toast({ title: t.error, description: t.bookingHoursError, variant: "destructive" })
       return
     }
     try {
@@ -173,11 +339,11 @@ export default function Settings() {
         .eq("id", businessId)
       if (error) throw error
       setBookingSlug(normalizedSlug)
-      toast({ title: "Αποθηκεύτηκε", description: "Οι ρυθμίσεις public booking ενημερώθηκαν." })
+      toast({ title: t.bookingSavedTitle, description: t.bookingSavedDesc })
     } catch (e) {
       toast({
-        title: "Σφάλμα",
-        description: getErrorMessage(e, "Αποτυχία αποθήκευσης booking settings"),
+        title: t.error,
+        description: getErrorMessage(e, t.bookingSaveFailed),
         variant: "destructive",
       })
     } finally {
@@ -191,19 +357,19 @@ export default function Settings() {
         <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
         <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur">
           <Sparkles className="h-4 w-4 text-primary" />
-          Εφαρμογή • Ρυθμίσεις
+          {t.breadcrumb}
         </div>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Ρυθμίσεις</h1>
-        <p className="text-muted-foreground">Μόνο ρυθμίσεις εμφάνισης και εμπειρίας εφαρμογής.</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">{t.pageTitle}</h1>
+        <p className="text-muted-foreground">{t.pageSubtitle}</p>
         <div className="mt-3 h-px w-full max-w-xl bg-gradient-to-r from-primary/40 via-purple-500/20 to-transparent" />
       </div>
 
       <Tabs defaultValue="appearance" className="space-y-4">
         <TabsList className="w-full bg-card/60 border border-border/60 backdrop-blur text-[11px]">
-          <TabsTrigger value="appearance">Εμφάνιση</TabsTrigger>
-          <TabsTrigger value="booking">Public Booking</TabsTrigger>
-          <TabsTrigger value="exports">Exports</TabsTrigger>
-          {isDemoPlan && <TabsTrigger value="demo">Demo Panel</TabsTrigger>}
+          <TabsTrigger value="appearance">{t.tabAppearance}</TabsTrigger>
+          <TabsTrigger value="booking">{t.tabBooking}</TabsTrigger>
+          <TabsTrigger value="exports">{t.tabExports}</TabsTrigger>
+          {isDemoPlan && <TabsTrigger value="demo">{t.tabDemo}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="appearance">
@@ -211,29 +377,27 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Palette className="h-4 w-4 text-primary" />
-                Premium εμφάνιση εφαρμογής
+                {t.premiumAppearance}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
-                <Label>Theme preset</Label>
+                <Label>{t.themePreset}</Label>
                 <Select value={selectedThemePreset} onValueChange={handleThemePresetChange}>
                   <SelectTrigger className="w-full max-w-sm bg-background/40 border-border/60">
-                    <SelectValue placeholder="Επίλεξε θέμα" />
+                    <SelectValue placeholder={t.selectThemePlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light:default">Κλασικό - Φωτεινό</SelectItem>
-                    <SelectItem value="dark:default">Κλασικό - Σκούρο</SelectItem>
-                    <SelectItem value="system:default">Κλασικό - Σύστημα</SelectItem>
-                    <SelectItem value="light:beauty">Beauty Pink - Φωτεινό</SelectItem>
-                    <SelectItem value="dark:beauty">Beauty Pink - Σκούρο</SelectItem>
-                    <SelectItem value="system:beauty">Beauty Pink - Σύστημα</SelectItem>
+                    <SelectItem value="light:default">{t.presetClassicLight}</SelectItem>
+                    <SelectItem value="dark:default">{t.presetClassicDark}</SelectItem>
+                    <SelectItem value="system:default">{t.presetClassicSystem}</SelectItem>
+                    <SelectItem value="light:beauty">{t.presetBeautyLight}</SelectItem>
+                    <SelectItem value="dark:beauty">{t.presetBeautyDark}</SelectItem>
+                    <SelectItem value="system:beauty">{t.presetBeautySystem}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Το “Beauty Pink” είναι πιο premium επιλογή για beauty/wellness επιχειρήσεις.
-              </p>
+              <p className="text-xs text-muted-foreground">{t.beautyHint}</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -243,17 +407,15 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Database className="h-4 w-4 text-primary" />
-                Data export
+                {t.dataExportTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Εξαγωγή λίστας πελατών σε αρχείο Excel για backup ή μεταφορά σε άλλο σύστημα.
-              </p>
+              <p className="text-sm text-muted-foreground">{t.dataExportDesc}</p>
               <div className="flex justify-end">
                 <Button type="button" variant="outline" onClick={handleExportCustomersExcel} disabled={exportingCustomers}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  {exportingCustomers ? "Εξαγωγή..." : "Export πελατών σε Excel"}
+                  {exportingCustomers ? t.exporting : t.exportCustomersExcel}
                 </Button>
               </div>
             </CardContent>
@@ -265,36 +427,34 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <LinkIcon className="h-4 w-4 text-primary" />
-                Public booking page
+                {t.publicBookingTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Enable online booking</p>
-                  <p className="text-xs text-muted-foreground">
-                    Δημόσια σελίδα κρατήσεων χωρίς login για τους πελάτες σου.
-                  </p>
+                  <p className="text-sm font-medium">{t.enableOnlineBooking}</p>
+                  <p className="text-xs text-muted-foreground">{t.enableOnlineBookingDesc}</p>
                 </div>
                 <Switch checked={bookingEnabled} onCheckedChange={setBookingEnabled} />
               </div>
               <div className="space-y-1">
-                <Label>Booking slug</Label>
+                <Label>{t.bookingSlug}</Label>
                 <Input
                   value={bookingSlug}
                   onChange={(e) => setBookingSlug(e.target.value)}
-                  placeholder="π.χ. nansy-nails"
+                  placeholder={t.slugPlaceholder}
                   className="w-full sm:max-w-md bg-background/40 border-border/60"
                 />
                 {bookingSlug.trim() ? (
                   <p className="text-xs text-muted-foreground">
-                    Link: {window.location.origin}/book/{bookingSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "")}
+                    {t.linkPrefix} {window.location.origin}/book/{bookingSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "")}
                   </p>
                 ) : null}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Booking window (ημέρες)</Label>
+                  <Label>{t.bookingWindowDays}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -304,24 +464,24 @@ export default function Settings() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Theme</Label>
+                  <Label>{t.theme}</Label>
                   <Select value={bookingTheme} onValueChange={setBookingTheme}>
                     <SelectTrigger className="w-full sm:max-w-md bg-background/40 border-border/60">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">Default (ουδέτερο)</SelectItem>
-                      <SelectItem value="beauty">Beauty Pink (νύχια/αισθητική)</SelectItem>
-                      <SelectItem value="salon_luxe">Salon Luxe (κομμωτήριο/spa)</SelectItem>
-                      <SelectItem value="craftsman">Craftsman Pro (μάστορες/τεχνίτες)</SelectItem>
-                      <SelectItem value="medical">Medical Clean (ιατροί/κλινικές)</SelectItem>
+                      <SelectItem value="default">{t.bookingThemeDefault}</SelectItem>
+                      <SelectItem value="beauty">{t.bookingThemeBeauty}</SelectItem>
+                      <SelectItem value="salon_luxe">{t.bookingThemeSalon}</SelectItem>
+                      <SelectItem value="craftsman">{t.bookingThemeCraftsman}</SelectItem>
+                      <SelectItem value="medical">{t.bookingThemeMedical}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Έναρξη ωραρίου (0-23)</Label>
+                  <Label>{t.startHour}</Label>
                   <Input
                     type="number"
                     min={0}
@@ -332,7 +492,7 @@ export default function Settings() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Λήξη ωραρίου (1-24)</Label>
+                  <Label>{t.endHour}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -345,7 +505,7 @@ export default function Settings() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Βήμα slots (λεπτά)</Label>
+                  <Label>{t.slotStep}</Label>
                   <Select
                     value={String(bookingSlotIntervalMinutes)}
                     onValueChange={(v) => setBookingSlotIntervalMinutes(Number(v))}
@@ -364,7 +524,7 @@ export default function Settings() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Ελάχιστη προειδοποίηση (ώρες)</Label>
+                  <Label>{t.minNotice}</Label>
                   <Input
                     type="number"
                     min={0}
@@ -377,14 +537,14 @@ export default function Settings() {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-background/40 px-3 py-3">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Require approval</p>
-                  <p className="text-xs text-muted-foreground">Νέες κρατήσεις ως pending για χειροκίνητη έγκριση.</p>
+                  <p className="text-sm font-medium">{t.requireApproval}</p>
+                  <p className="text-xs text-muted-foreground">{t.requireApprovalDesc}</p>
                 </div>
                 <Switch checked={bookingRequiresApproval} onCheckedChange={setBookingRequiresApproval} />
               </div>
               <div className="flex justify-end">
                 <Button type="button" onClick={handleSaveBookingSettings} disabled={savingBooking}>
-                  {savingBooking ? "Αποθήκευση..." : "Αποθήκευση booking settings"}
+                  {savingBooking ? t.savingBooking : t.saveBooking}
                 </Button>
               </div>
             </CardContent>
@@ -395,12 +555,10 @@ export default function Settings() {
           <TabsContent value="demo">
             <Card className="border-destructive/40 bg-card/60 backdrop-blur-xl shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
               <CardHeader>
-                <CardTitle className="text-base text-destructive">Demo Panel</CardTitle>
+                <CardTitle className="text-base text-destructive">{t.demoPanelTitle}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Επαναφορά όλων των δεδομένων δοκιμής για να είναι ο λογαριασμός έτοιμος για την επόμενη χρήση.
-                </p>
+                <p className="text-sm text-muted-foreground">{t.demoPanelDesc}</p>
                 <div className="flex justify-end">
                   <Button
                     type="button"
@@ -408,7 +566,7 @@ export default function Settings() {
                     onClick={handleResetDemoData}
                     disabled={resettingDemo}
                   >
-                    {resettingDemo ? "Επαναφορά..." : "Επαναφορά όλων (Demo)"}
+                    {resettingDemo ? t.resettingDemo : t.resetDemoAll}
                   </Button>
                 </div>
               </CardContent>
