@@ -27,7 +27,6 @@ export default function Login() {
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -128,43 +127,6 @@ export default function Login() {
                 ) : (
                   "Σύνδεση"
                 )}
-              </Button>
-              <Button
-                type="button"
-                variant="link"
-                className="w-full text-xs text-muted-foreground"
-                disabled={isSubmitting}
-                onClick={async () => {
-                  const rawIdentifier = getValues("identifier")?.trim()
-                  if (!rawIdentifier) {
-                    toast({
-                      title: "Υπενθύμιση κωδικού",
-                      description: "Συμπληρώστε email ή όνομα χρήστη για επαναφορά κωδικού.",
-                    })
-                    return
-                  }
-                  let emailForReset = rawIdentifier
-                  if (!rawIdentifier.includes("@")) {
-                    emailForReset = `${rawIdentifier.toLowerCase()}@internal.app`
-                  }
-                  const { error } = await supabase.auth.resetPasswordForEmail(emailForReset, {
-                    redirectTo: `${window.location.origin}/reset-password`,
-                  })
-                  if (error) {
-                    toast({
-                      title: "Υπενθύμιση κωδικού",
-                      description: error.message,
-                      variant: "destructive",
-                    })
-                    return
-                  }
-                  toast({
-                    title: "Υπενθύμιση κωδικού",
-                    description: "Σας στείλαμε email για επαναφορά κωδικού (αν υπάρχει ο λογαριασμός).",
-                  })
-                }}
-              >
-                Ξεχάσατε τον κωδικό;
               </Button>
             </form>
             <p className="mt-4 text-center text-xs text-muted-foreground">
