@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, type ReactNode } from "react"
+import { cloneElement, isValidElement, useEffect, type ReactNode } from "react"
 import { useLanguage } from "@/contexts/LanguageContext"
 
 const exactPhraseMap: Record<string, string> = {
@@ -89,6 +89,38 @@ const tokenMap: Record<string, string> = {
   "Δεν βρέθηκαν": "Not found",
   "Δεν υπάρχουν": "There are no",
   "Σφάλμα": "Error",
+  "Αποτυχία": "Failed",
+  "Αποτυχία φόρτωσης": "Failed to load",
+  "Αποτυχία ενημέρωσης": "Failed to update",
+  "Αποτυχία διαγραφής": "Failed to delete",
+  "Ανανέωση σελίδας": "Refresh page",
+  "Δοκιμάστε ξανά": "Try again",
+  "Απρόσμενο σφάλμα": "Unexpected error",
+  "Dashboard": "Dashboard",
+  "Πληρωμή": "Payment",
+  "υπόλ.": "rem.",
+  "Τελική χρέωση": "Final charge",
+  "Εκτίμηση τιμής": "Estimated price",
+  "Χωρίς ποσό": "No amount",
+  "μέλη σε βάρδια": "members on shift",
+  "ολοκληρωμένα": "completed",
+  "Εκπρόθεσμες": "Overdue",
+  "Επόμενες υπενθυμίσεις": "Upcoming reminders",
+  "Άνοιγμα υπενθυμίσεων": "Open reminders",
+  "Κενές ώρες": "Empty slots",
+  "Δεν υπάρχουν κενές ώρες για τη συγκεκριμένη ημέρα.": "No empty slots for this day.",
+  "Αναζήτηση": "Search",
+  "Όριο πλάνου": "Plan limit",
+  "του πλάνου": "of plan",
+  "Σύνολο πελατών": "Total customers",
+  "Με email": "With email",
+  "Με τηλέφωνο": "With phone",
+  "Κλήση / SMS": "Call / SMS",
+  "Λίστα πελατών": "Customer list",
+  "Δεν βρέθηκαν πελάτες": "No customers found",
+  "Δεν βρέθηκαν ραντεβού": "No appointments found",
+  "Διαχείριση πελατών": "Customer management",
+  "Διαχείριση ραντεβού και work orders": "Manage appointments and work orders",
 }
 
 function replaceByTokens(text: string): string {
@@ -104,6 +136,69 @@ function translateText(text: string, language: "el" | "en"): string {
   if (!/[Α-Ωα-ωΆ-Ώά-ώ]/.test(text)) return text
   if (exactPhraseMap[text]) return exactPhraseMap[text]
   return replaceByTokens(text)
+}
+
+const originalTextNodes = new WeakMap<Text, string>()
+const originalElementAttrs = new WeakMap<Element, Record<string, string>>()
+let applyingNow = false
+
+function collectTranslatableElements(root: ParentNode): Element[] {
+  return Array.from(root.querySelectorAll("*"))
+}
+
+function shouldSkipTextNode(node: Text): boolean {
+  const parent = node.parentElement
+  if (!parent) return true
+  const tag = parent.tagName
+  return tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT"
+}
+
+function applyDomTranslation(language: "el" | "en") {
+  applyingNow = true
+  try {
+    const body = document.body
+    if (!body) return
+
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+    let current = walker.nextNode()
+    while (current) {
+      const textNode = current as Text
+      if (!shouldSkipTextNode(textNode)) {
+        const currentText = textNode.nodeValue ?? ""
+        if (language === "en") {
+          if (!originalTextNodes.has(textNode)) originalTextNodes.set(textNode, currentText)
+          textNode.nodeValue = translateText(currentText, language)
+        } else if (originalTextNodes.has(textNode)) {
+          textNode.nodeValue = originalTextNodes.get(textNode) ?? currentText
+        }
+      }
+      current = walker.nextNode()
+    }
+
+    const attrs = ["placeholder", "title", "aria-label", "alt", "value"] as const
+    for (const el of collectTranslatableElements(body)) {
+      const originals: Record<string, string> = originalElementAttrs.get(el) ?? {}
+      let changed = false
+      for (const attr of attrs) {
+        const currentVal = el.getAttribute(attr)
+        if (currentVal == null) continue
+        if (language === "en") {
+          if (!(attr in originals)) {
+            originals[attr] = currentVal
+            changed = true
+          }
+          el.setAttribute(attr, translateText(currentVal, language))
+        } else if (attr in originals) {
+          el.setAttribute(attr, originals[attr])
+        }
+      }
+      if (language === "en" && changed) {
+        originalElementAttrs.set(el, originals)
+      }
+    }
+  } finally {
+    applyingNow = false
+  }
 }
 
 function translateProps(props: Record<string, unknown>, language: "el" | "en"): Record<string, unknown> {
@@ -129,5 +224,30 @@ function translateNode(node: ReactNode, language: "el" | "en"): ReactNode {
 
 export function AutoTranslate({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
+
+  useEffect(() => {
+    let raf = 0
+    const apply = () => applyDomTranslation(language)
+    apply()
+
+    const observer = new MutationObserver(() => {
+      if (applyingNow) return
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(apply)
+    })
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["placeholder", "title", "aria-label", "alt", "value"],
+    })
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [language])
+
   return <>{translateNode(children, language)}</>
 }
