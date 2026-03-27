@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatDate, formatCurrency } from "@/lib/utils"
+import { formatDate, formatCurrency, localIsoDate } from "@/lib/utils"
 import { AppointmentForm } from "@/components/appointments/AppointmentForm"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { CalendarView } from "@/components/appointments/CalendarView"
@@ -108,22 +108,21 @@ export default function Appointments() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [presetDate, setPresetDate] = useState<string | null>(null)
   const [formInitial, setFormInitial] = useState<Partial<AppointmentJob> | null>(null)
-  const [gapDate, setGapDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
+  const [gapDate, setGapDate] = useState<string>(() => localIsoDate(new Date()))
   const [emptySlots, setEmptySlots] = useState<Array<{ start: string; end: string }>>([])
 
   useEffect(() => {
     if (!businessId) return
     const today = new Date()
-    const toIso = (d: Date) => d.toISOString().slice(0, 10)
     const from =
       datePreset === "today"
-        ? toIso(today)
+        ? localIsoDate(today)
         : datePreset === "week"
-          ? toIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6))
+          ? localIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6))
           : undefined
     const to =
       datePreset === "today" || datePreset === "week"
-        ? toIso(today)
+        ? localIsoDate(today)
         : undefined
 
     Promise.all([
@@ -259,16 +258,15 @@ export default function Appointments() {
     setFormInitial(null)
     setPresetDate(null)
     const today = new Date()
-    const toIso = (d: Date) => d.toISOString().slice(0, 10)
     const from =
       datePreset === "today"
-        ? toIso(today)
+        ? localIsoDate(today)
         : datePreset === "week"
-          ? toIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6))
+          ? localIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6))
           : undefined
     const to =
       datePreset === "today" || datePreset === "week"
-        ? toIso(today)
+        ? localIsoDate(today)
         : undefined
     fetchAppointments(businessId, {
       from,
@@ -337,7 +335,7 @@ export default function Appointments() {
 
   const completedCount = appointments.filter((a) => a.status === "completed").length
   const todayCount = appointments.filter((a) => {
-    const todayIso = new Date().toISOString().slice(0, 10)
+    const todayIso = localIsoDate(new Date())
     return a.scheduled_date === todayIso
   }).length
   const pendingCount = appointments.filter((a) => a.status === "pending" || a.status === "confirmed").length

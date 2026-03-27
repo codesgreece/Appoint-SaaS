@@ -12,6 +12,14 @@ export function formatCurrency(amount: number, currency = "EUR"): string {
   }).format(amount)
 }
 
+/** Calendar YYYY-MM-DD in the user's local timezone (not UTC). Use for `scheduled_date` filters. */
+export function localIsoDate(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat("el-GR", {
     dateStyle: options?.dateStyle ?? "short",

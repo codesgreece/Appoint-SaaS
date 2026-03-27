@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AlertCircle, ChevronDown, Clock } from "lucide-react"
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDate, localIsoDate } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 const statusOptions: AppointmentJobStatus[] = [
@@ -171,13 +171,6 @@ function addMonthsToDate(isoDate: string, months: number): string {
   const base = new Date(y, (m ?? 1) - 1, d ?? 1)
   const target = new Date(base.getFullYear(), base.getMonth() + months, base.getDate())
   return target.toISOString().slice(0, 10)
-}
-
-function localIsoDate(d: Date): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
 }
 
 interface AppointmentFormProps {
