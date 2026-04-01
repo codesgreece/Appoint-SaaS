@@ -11,6 +11,7 @@ import {
   fetchBusiness,
   deleteAppointment,
   fetchCustomerById,
+  fetchAppointmentStatusCountsByCustomer,
   notifyInAppQuiet,
 } from "@/services/api"
 import type { Customer } from "@/types"
@@ -34,7 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { cn, formatCurrency, formatDate } from "@/lib/utils"
 import {
   getAppointmentValueForTotals,
   sumPaidAmountForAppointment,
@@ -48,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLanguage } from "@/contexts/LanguageContext"
+import { computeReliabilityTier, tierDotClass, type CustomerReliabilityTier } from "@/lib/customerReliability"
 
 export default function Customers() {
   const { businessId, user } = useAuth()
@@ -63,13 +65,38 @@ export default function Customers() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyAppointments, setHistoryAppointments] = useState<any[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [appointmentCounts, setAppointmentCounts] = useState<
+    Record<string, { noShow: number; completed: number }>
+  >({})
 
   useEffect(() => {
     if (!businessId) return
-    fetchCustomers(businessId)
-      .then(setCustomers)
-      .catch(() => toast({ title: language === "en" ? "Error" : "Σφάλμα", description: language === "en" ? "Failed to load customers" : "Αποτυχία φόρτωσης πελατών", variant: "destructive" }))
+    setLoading(true)
+    Promise.all([fetchCustomers(businessId), fetchAppointmentStatusCountsByCustomer(businessId)])
+      .then(([list, counts]) => {
+        setCustomers(list)
+        setAppointmentCounts(counts)
+      })
+      .catch(() =>
+        toast({
+          title: language === "en" ? "Error" : "Σφάλμα",
+          description: language === "en" ? "Failed to load customers" : "Αποτυχία φόρτωσης πελατών",
+          variant: "destructive",
+        }),
+      )
       .finally(() => setLoading(false))
+  }, [businessId])
+
+  useEffect(() => {
+    if (!businessId) return
+    const refreshCounts = () => {
+      if (document.visibilityState !== "visible") return
+      void fetchAppointmentStatusCountsByCustomer(businessId)
+        .then(setAppointmentCounts)
+        .catch(() => {})
+    }
+    document.addEventListener("visibilitychange", refreshCounts)
+    return () => document.removeEventListener("visibilitychange", refreshCounts)
   }, [businessId])
 
   useEffect(() => {
@@ -111,6 +138,39 @@ export default function Customers() {
       cancelled = true
     }
   }, [openFromNotification, businessId, setSearchParams])
+
+  const reliabilityTitle: Record<CustomerReliabilityTier, { el: string; en: string }> = {
+    good: {
+      el: "Αξιόπιστος: τουλάχιστον ένα ολοκληρωμένο ραντεβού, χωρίς «δεν εμφανίστηκε».",
+      en: "Reliable: at least one completed visit, no no-shows.",
+    },
+    warn1: {
+      el: "Προσοχή: 1 φορά δεν εμφανίστηκε.",
+      en: "Caution: 1 no-show.",
+    },
+    warn2: {
+      el: "Προσοχή: 2 φορές δεν εμφανίστηκε.",
+      en: "Caution: 2 no-shows.",
+    },
+    bad: {
+      el: "Υψηλός κίνδυνος: 3+ φορές δεν εμφανίστηκε.",
+      en: "High risk: 3+ no-shows.",
+    },
+    neutral: {
+      el: "Χωρίς επαρκές ιστορικό (ή μόνο εκκρεμή/ακυρωμένα κ.λπ.).",
+      en: "Not enough history (pending/cancelled only, etc.).",
+    },
+  }
+
+  function tierForCustomer(c: Customer): CustomerReliabilityTier {
+    const s = appointmentCounts[c.id] ?? { noShow: 0, completed: 0 }
+    return computeReliabilityTier(s.noShow, s.completed)
+  }
+
+  function tierLabel(tier: CustomerReliabilityTier): string {
+    const row = reliabilityTitle[tier]
+    return language === "en" ? row.en : row.el
+  }
 
   const filtered = customers.filter(
     (c) =>
@@ -297,6 +357,31 @@ export default function Customers() {
               className="pl-9 bg-background/40 border-border/50 focus-visible:ring-primary/30"
             />
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            {language === "en" ? "Visit signal (from appointments):" : "Σήμα επίσκεψης (από ραντεβού):"}
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", tierDotClass("good"))} aria-hidden />
+              {language === "en" ? "Completed, no no-show" : "Ολοκληρώθηκε, χωρίς απουσία"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", tierDotClass("warn1"))} aria-hidden />
+              1× {language === "en" ? "no-show" : "δεν εμφανίστηκε"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", tierDotClass("warn2"))} aria-hidden />
+              2× {language === "en" ? "no-show" : "δεν εμφανίστηκε"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", tierDotClass("bad"))} aria-hidden />
+              3+ {language === "en" ? "no-show" : "δεν εμφανίστηκε"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full", tierDotClass("neutral"))} aria-hidden />
+              {language === "en" ? "No data yet" : "Χωρίς δεδομένα ακόμα"}
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -313,11 +398,18 @@ export default function Customers() {
           ) : (
             <>
               <div className="md:hidden space-y-2">
-                {filtered.map((c) => (
+                {filtered.map((c) => {
+                  const tier = tierForCustomer(c)
+                  return (
                   <div key={c.id} className="rounded-xl border border-border/50 bg-card/40 p-4 backdrop-blur">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
+                          <span
+                            className={cn("inline-block h-3 w-3 shrink-0 rounded-full", tierDotClass(tier))}
+                            title={tierLabel(tier)}
+                            aria-label={tierLabel(tier)}
+                          />
                           <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">
                             {`${c.first_name?.[0] ?? ""}${c.last_name?.[0] ?? ""}`.toUpperCase()}
                           </div>
@@ -357,13 +449,17 @@ export default function Customers() {
                       </DropdownMenu>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="hidden md:block rounded-xl border border-border/50 bg-card/20 overflow-x-auto">
                 <Table>
                   <TableHeader className="sticky top-0 bg-background/40 backdrop-blur z-10">
                     <TableRow>
+                      <TableHead className="w-10 pr-0" title={language === "en" ? "Visit signal" : "Σήμα επίσκεψης"}>
+                        <span className="sr-only">{language === "en" ? "Signal" : "Σήμα"}</span>
+                      </TableHead>
                       <TableHead>{language === "en" ? "Name" : "Όνομα"}</TableHead>
                       <TableHead>{language === "en" ? "Phone" : "Τηλ."}</TableHead>
                       <TableHead>Email</TableHead>
@@ -374,8 +470,17 @@ export default function Customers() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((c) => (
+                    {filtered.map((c) => {
+                      const tier = tierForCustomer(c)
+                      return (
                       <TableRow key={c.id} className="odd:bg-muted/25 hover:bg-primary/10 transition-colors">
+                        <TableCell className="w-10 pr-0 align-middle">
+                          <span
+                            className={cn("inline-block h-3 w-3 rounded-full", tierDotClass(tier))}
+                            title={tierLabel(tier)}
+                            aria-label={tierLabel(tier)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">
@@ -431,7 +536,8 @@ export default function Customers() {
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

@@ -352,6 +352,25 @@ export async function deleteCustomer(id: string) {
   if (error) throw error
 }
 
+/** Per-customer counts from appointments_jobs (for reliability indicator on Customers list). */
+export async function fetchAppointmentStatusCountsByCustomer(
+  businessId: string,
+): Promise<Record<string, { noShow: number; completed: number }>> {
+  const { data, error } = await supabase
+    .from("appointments_jobs")
+    .select("customer_id, status")
+    .eq("business_id", businessId)
+  if (error) throw error
+  const map: Record<string, { noShow: number; completed: number }> = {}
+  for (const row of data ?? []) {
+    const cid = row.customer_id as string
+    if (!map[cid]) map[cid] = { noShow: 0, completed: 0 }
+    if (row.status === "no_show") map[cid].noShow += 1
+    if (row.status === "completed") map[cid].completed += 1
+  }
+  return map
+}
+
 export async function fetchAppointments(
   _businessId: string,
   filters?: { from?: string; to?: string; status?: string; customerId?: string },
