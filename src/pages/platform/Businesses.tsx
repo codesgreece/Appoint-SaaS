@@ -184,6 +184,12 @@ export default function PlatformBusinesses() {
   const [addAdminSubmitting, setAddAdminSubmitting] = useState(false)
   const [detailsExpiryDate, setDetailsExpiryDate] = useState("")
   const [updatingExpiry, setUpdatingExpiry] = useState(false)
+  const [detailsLimitsDraft, setDetailsLimitsDraft] = useState({
+    max_users: "",
+    max_customers: "",
+    max_appointments: "",
+  })
+  const [updatingLimits, setUpdatingLimits] = useState(false)
 
   const [businessForm, setBusinessForm] = useState(initialBusinessForm)
   const [createPlan, setCreatePlan] = useState<PlanKey>("unsubscribed")
@@ -649,6 +655,61 @@ export default function PlatformBusinesses() {
       setDetailsExpiryDate("")
     }
   }, [detailsBusiness?.id, detailsBusiness?.subscription_expires_at])
+
+  useEffect(() => {
+    if (!detailsBusiness) return
+    setDetailsLimitsDraft({
+      max_users: detailsBusiness.max_users != null ? String(detailsBusiness.max_users) : "",
+      max_customers: detailsBusiness.max_customers != null ? String(detailsBusiness.max_customers) : "",
+      max_appointments: detailsBusiness.max_appointments != null ? String(detailsBusiness.max_appointments) : "",
+    })
+  }, [
+    detailsBusiness?.id,
+    detailsBusiness?.max_users,
+    detailsBusiness?.max_customers,
+    detailsBusiness?.max_appointments,
+  ])
+
+  async function handleSaveLimits() {
+    if (!detailsBusinessId || user?.role !== "super_admin") return
+    const mu = parseInt(detailsLimitsDraft.max_users, 10)
+    const mc = parseInt(detailsLimitsDraft.max_customers, 10)
+    const ma = parseInt(detailsLimitsDraft.max_appointments, 10)
+    if ([mu, mc, ma].some((n) => Number.isNaN(n) || n < 0)) {
+      toast({
+        title: "Σφάλμα",
+        description: "Συμπληρώστε έγκυρα μη αρνητικά ακέραια για χρήστες, πελάτες και ραντεβού.",
+        variant: "destructive",
+      })
+      return
+    }
+    setUpdatingLimits(true)
+    try {
+      const { error } = await supabase
+        .from("businesses")
+        .update({
+          max_users: mu,
+          max_customers: mc,
+          max_appointments: ma,
+        })
+        .eq("id", detailsBusinessId)
+      if (error) throw error
+      await loadBusinesses()
+      toast({
+        title: "Όρια αποθηκεύτηκαν",
+        description: "Τα μέγιστα χρήστες, πελάτες και ραντεβού ενημερώθηκαν.",
+      })
+    } catch (err) {
+      console.error("Save limits error:", err)
+      toast({
+        title: "Σφάλμα",
+        description: err instanceof Error ? err.message : "Αποτυχία αποθήκευσης ορίων.",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingLimits(false)
+    }
+  }
 
   async function handleUpdateExpiry() {
     if (!detailsBusinessId || !detailsExpiryDate) return
@@ -1140,7 +1201,10 @@ export default function PlatformBusinesses() {
                         <CreditCard className="h-4 w-4 text-primary" />
                         Συνδρομή & όρια
                       </CardTitle>
-                      <CardDescription>Πλάνο, ημερομηνία λήξης και quotas</CardDescription>
+                      <CardDescription>
+                        Πλάνο, ημερομηνία λήξης και όρια. Ως super admin μπορείτε να αλλάξετε τα μέγιστα χειροκίνητα (π.χ.
+                        επιπλέον χρήστες πέρα από το πλάνο).
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1166,22 +1230,100 @@ export default function PlatformBusinesses() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        {[
-                          { label: "Χρήστες", value: detailsBusiness.max_users, icon: Users },
-                          { label: "Πελάτες", value: detailsBusiness.max_customers, icon: Sparkles },
-                          { label: "Ραντεβού", value: detailsBusiness.max_appointments, icon: Gauge },
-                        ].map(({ label, value, icon: Icon }) => (
-                          <div
-                            key={label}
-                            className="rounded-xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/10 px-2 py-3 text-center shadow-sm"
-                          >
-                            <Icon className="mx-auto mb-1 h-4 w-4 text-primary/80" />
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                            <p className="text-lg font-semibold tabular-nums text-foreground">{value ?? "—"}</p>
+                      {user?.role === "super_admin" ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-medium text-muted-foreground">Όρια (μέγιστα)</p>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="lim-users" className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                <Users className="h-3.5 w-3.5 text-primary/80" />
+                                Χρήστες
+                              </Label>
+                              <Input
+                                id="lim-users"
+                                type="number"
+                                min={0}
+                                inputMode="numeric"
+                                className="h-10 rounded-xl border-border/60 bg-background/90 tabular-nums"
+                                value={detailsLimitsDraft.max_users}
+                                onChange={(e) =>
+                                  setDetailsLimitsDraft((d) => ({ ...d, max_users: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="lim-customers" className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                <Sparkles className="h-3.5 w-3.5 text-primary/80" />
+                                Πελάτες
+                              </Label>
+                              <Input
+                                id="lim-customers"
+                                type="number"
+                                min={0}
+                                inputMode="numeric"
+                                className="h-10 rounded-xl border-border/60 bg-background/90 tabular-nums"
+                                value={detailsLimitsDraft.max_customers}
+                                onChange={(e) =>
+                                  setDetailsLimitsDraft((d) => ({ ...d, max_customers: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="lim-appts" className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                <Gauge className="h-3.5 w-3.5 text-primary/80" />
+                                Ραντεβού
+                              </Label>
+                              <Input
+                                id="lim-appts"
+                                type="number"
+                                min={0}
+                                inputMode="numeric"
+                                className="h-10 rounded-xl border-border/60 bg-background/90 tabular-nums"
+                                value={detailsLimitsDraft.max_appointments}
+                                onChange={(e) =>
+                                  setDetailsLimitsDraft((d) => ({ ...d, max_appointments: e.target.value }))
+                                }
+                              />
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="rounded-lg"
+                            variant="secondary"
+                            onClick={handleSaveLimits}
+                            disabled={
+                              updatingLimits ||
+                              detailsLimitsDraft.max_users === "" ||
+                              detailsLimitsDraft.max_customers === "" ||
+                              detailsLimitsDraft.max_appointments === ""
+                            }
+                          >
+                            {updatingLimits ? "Αποθήκευση..." : "Αποθήκευση ορίων"}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Η αλλαγή πλάνου από το παραπάνω μενού επαναφέρει τα προεπιλεγμένα όρια του πλάνου — αποθηκεύστε
+                            ξανά τα όρια εδώ αν χρειάζεστε custom τιμές.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {[
+                            { label: "Χρήστες", value: detailsBusiness.max_users, icon: Users },
+                            { label: "Πελάτες", value: detailsBusiness.max_customers, icon: Sparkles },
+                            { label: "Ραντεβού", value: detailsBusiness.max_appointments, icon: Gauge },
+                          ].map(({ label, value, icon: Icon }) => (
+                            <div
+                              key={label}
+                              className="rounded-xl border border-border/50 bg-gradient-to-b from-muted/40 to-muted/10 px-2 py-3 text-center shadow-sm"
+                            >
+                              <Icon className="mx-auto mb-1 h-4 w-4 text-primary/80" />
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                              <p className="text-lg font-semibold tabular-nums text-foreground">{value ?? "—"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/50 via-background to-background p-4">
                         <div className="flex items-start gap-3">
