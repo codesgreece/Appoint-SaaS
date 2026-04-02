@@ -6,8 +6,8 @@ import { AppointmentForm } from "@/components/appointments/AppointmentForm"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { useToast } from "@/hooks/use-toast"
-import { fetchCustomers, fetchServices, fetchTeam } from "@/services/api"
-import type { Customer, Service, User } from "@/types"
+import { fetchCustomers, fetchServices, fetchTeam, fetchCrews } from "@/services/api"
+import type { Customer, Service, User, Crew } from "@/types"
 
 const i18n = {
   el: {
@@ -36,16 +36,18 @@ export default function Calendar() {
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [team, setTeam] = useState<User[]>([])
+  const [crews, setCrews] = useState<Crew[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [presetDate, setPresetDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (!businessId) return
-    Promise.all([fetchCustomers(businessId), fetchTeam(businessId), fetchServices(businessId)])
-      .then(([cust, tm, svc]) => {
+    Promise.all([fetchCustomers(businessId), fetchTeam(businessId), fetchCrews(businessId), fetchServices(businessId)])
+      .then(([cust, tm, cr, svc]) => {
         setCustomers(cust)
         setTeam(tm)
+        setCrews(cr)
         setServices(svc)
       })
       .catch(() =>
@@ -100,6 +102,7 @@ export default function Calendar() {
               presetDate={presetDate ?? undefined}
               customers={customers}
               team={team}
+              crews={crews}
               services={services}
               businessId={businessId}
               onSaved={handleSaved}

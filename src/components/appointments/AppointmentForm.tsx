@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { AppointmentJob, AppointmentJobStatus, Customer, User, Service, Payment, PaymentStatus } from "@/types"
+import type { AppointmentJob, AppointmentJobStatus, Customer, User, Service, Crew, Payment, PaymentStatus } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +49,7 @@ const schema = z.object({
   title: z.string().min(1, "Απαιτείται"),
   customer_id: z.string().min(1, "Επιλέξτε πελάτη"),
   assigned_user_id: z.string().optional(),
+  crew_id: z.string().optional(),
   service_id: z.string().optional(),
   // keep enum values in sync with AppointmentJobStatus
   status: z.enum(
@@ -180,6 +181,7 @@ interface AppointmentFormProps {
   }
   customers?: Customer[] | null
   team?: User[] | null
+  crews?: Crew[] | null
   services?: Service[] | null
   businessId: string | null
   presetDate?: string
@@ -191,6 +193,7 @@ export function AppointmentForm({
   initial,
   customers,
   team,
+  crews,
   services,
   businessId,
   presetDate,
@@ -200,6 +203,7 @@ export function AppointmentForm({
   const { toast } = useToast()
   const safeCustomers = Array.isArray(customers) ? customers : []
   const safeTeam = Array.isArray(team) ? team : []
+  const safeCrews = Array.isArray(crews) ? crews : []
   const safeServices = Array.isArray(services) ? services : []
 
   const [customerOptions, setCustomerOptions] = useState<Customer[]>(safeCustomers)
@@ -233,6 +237,7 @@ export function AppointmentForm({
           title: initial.title ?? "",
           customer_id: initial.customer_id ?? "",
           assigned_user_id: initial.assigned_user_id ?? "",
+          crew_id: initial.crew_id ?? "",
           service_id: initial.service_id ?? "",
           status: (initial.status as FormValues["status"]) || "pending",
           scheduled_date: toDateInputValue(initial.scheduled_date),
@@ -250,6 +255,7 @@ export function AppointmentForm({
           title: "",
           customer_id: "",
           assigned_user_id: "",
+          crew_id: "",
           service_id: "",
           status: "pending",
           scheduled_date: defaultDate,
@@ -270,6 +276,7 @@ export function AppointmentForm({
       title: "",
       customer_id: "",
       assigned_user_id: "",
+      crew_id: "",
       service_id: "",
       status: "pending",
       scheduled_date: defaultDate,
@@ -292,7 +299,12 @@ export function AppointmentForm({
 
   const customerIdRaw = watch("customer_id") ?? ""
   const assignedUserIdRaw = watch("assigned_user_id") ?? ""
+  const crewIdRaw = watch("crew_id") ?? ""
   const serviceIdRaw = watch("service_id") ?? ""
+  const [assignmentMode, setAssignmentMode] = useState<"responsible" | "crew">(
+    initial?.crew_id ? "crew" : "responsible",
+  )
+  const activeAssigneeUserId = assignmentMode === "responsible" ? assignedUserIdRaw : ""
   const status = watch("status") ?? "pending"
   const watchedFinalCost = watch("final_cost")
   const watchedCostEstimate = watch("cost_estimate")
@@ -325,18 +337,18 @@ export function AppointmentForm({
   }, [selectedServices])
 
   const availableStartSlots = useMemo(() => {
-    const selectedShift = assignedUserIdRaw ? shiftsByUserId[assignedUserIdRaw] : null
+    const selectedShift = activeAssigneeUserId ? shiftsByUserId[activeAssigneeUserId] : null
     const windowStart = selectedShift?.status === "active" && selectedShift.start_time ? timeToMinutes(selectedShift.start_time.slice(0, 5)) : BUSINESS_DAY_START_MIN
     const windowEnd = selectedShift?.status === "active" && selectedShift.end_time ? timeToMinutes(selectedShift.end_time.slice(0, 5)) : BUSINESS_DAY_END_MIN
     return generateAvailableStartTimes(
       slotDurationMinutesForPicker,
       dayAppointments,
-      assignedUserIdRaw || undefined,
+      activeAssigneeUserId || undefined,
       windowStart,
       windowEnd,
       initial?.id,
     )
-  }, [slotDurationMinutesForPicker, dayAppointments, assignedUserIdRaw, initial?.id, shiftsByUserId])
+  }, [slotDurationMinutesForPicker, dayAppointments, activeAssigneeUserId, initial?.id, shiftsByUserId])
 
   useEffect(() => {
     if (!businessId || !scheduledDateWatch || safeTeam.length === 0) {
@@ -367,7 +379,7 @@ export function AppointmentForm({
   }, [businessId, scheduledDateWatch, safeTeam.length])
 
   useEffect(() => {
-    if (!assignedUserIdRaw) return
+    if (assignmentMode !== "responsible" || !assignedUserIdRaw) return
     const selectedShift = shiftsByUserId[assignedUserIdRaw]
     if (selectedShift?.status === "off") {
       setValue("assigned_user_id", "")
@@ -377,7 +389,7 @@ export function AppointmentForm({
         variant: "destructive",
       })
     }
-  }, [assignedUserIdRaw, shiftsByUserId, setValue, toast])
+  }, [assignedUserIdRaw, assignmentMode, shiftsByUserId, setValue, toast])
 
   useEffect(() => {
     if (!businessId || !scheduledDateWatch) {
@@ -581,6 +593,7 @@ export function AppointmentForm({
   // Radix Select does not allow empty-string values; map internal empty/undefined to sentinel values.
   const customerSelectValue = customerIdRaw || "none"
   const assignedUserSelectValue = assignedUserIdRaw || "unassigned"
+  const crewSelectValue = crewIdRaw || "unassigned"
   const serviceSelectValue = serviceIdRaw || "none"
   const availableTeam = safeTeam.filter((u) => shiftsByUserId[u.id]?.status !== "off")
 
@@ -619,7 +632,7 @@ export function AppointmentForm({
       const hasOverlap = sameDayAppointments.some((a) => {
         if (initial?.id && a.id === initial.id) return false
         // Αν έχει οριστεί υπεύθυνος, ελέγχουμε μόνο για τον ίδιο υπεύθυνο.
-        if (data.assigned_user_id && a.assigned_user_id && a.assigned_user_id !== data.assigned_user_id) {
+        if (activeAssigneeUserId && a.assigned_user_id && a.assigned_user_id !== activeAssigneeUserId) {
           return false
         }
         const existingStart = timeToMinutes(a.start_time)
@@ -642,8 +655,8 @@ export function AppointmentForm({
       }
 
       // Έλεγχος ωραρίου εργασίας υπεύθυνου (αν έχει οριστεί).
-      if (data.assigned_user_id) {
-        const shift = shiftsByUserId[data.assigned_user_id]
+      if (activeAssigneeUserId) {
+        const shift = shiftsByUserId[activeAssigneeUserId]
         if (shift?.status === "off") {
           toast({
             title: "Μέλος εκτός βάρδιας",
@@ -664,7 +677,7 @@ export function AppointmentForm({
             return
           }
         }
-        const profile = await fetchStaffProfileForUser(data.assigned_user_id)
+        const profile = await fetchStaffProfileForUser(activeAssigneeUserId)
         const availability = profile?.availability as any | null
         const schedule = availability?.schedule as
           | {
@@ -708,7 +721,14 @@ export function AppointmentForm({
         business_id: businessId,
         title: data.title,
         customer_id: data.customer_id,
-        assigned_user_id: data.assigned_user_id && data.assigned_user_id.length > 0 ? data.assigned_user_id : null,
+        assigned_user_id:
+          assignmentMode === "responsible" && data.assigned_user_id && data.assigned_user_id.length > 0
+            ? data.assigned_user_id
+            : null,
+        crew_id:
+          assignmentMode === "crew" && data.crew_id && data.crew_id.length > 0
+            ? data.crew_id
+            : null,
         service_id: selectedServiceIds.length > 0 ? selectedServiceIds[0] : null,
         status: data.status as AppointmentJobStatus,
         scheduled_date: data.scheduled_date,
@@ -954,25 +974,74 @@ export function AppointmentForm({
               {errors.customer_id && <p className="text-sm text-destructive">{errors.customer_id.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Υπεύθυνος</Label>
-              <Select
-                value={assignedUserSelectValue}
-                onValueChange={(v) => {
-                  if (v === "unassigned") {
-                    setValue("assigned_user_id", "")
-                  } else {
-                    setValue("assigned_user_id", v)
-                  }
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Επιλέξτε" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">—</SelectItem>
-                  {availableTeam.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Ανάθεση</Label>
+              <div className="space-y-2 rounded-lg border border-border/60 bg-card/40 p-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={assignmentMode === "responsible" ? "default" : "outline"}
+                    onClick={() => {
+                      setAssignmentMode("responsible")
+                      setValue("crew_id", "")
+                    }}
+                  >
+                    Υπεύθυνος
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={assignmentMode === "crew" ? "default" : "outline"}
+                    onClick={() => {
+                      setAssignmentMode("crew")
+                      setValue("assigned_user_id", "")
+                    }}
+                  >
+                    Συνεργείο
+                  </Button>
+                </div>
+                {assignmentMode === "responsible" ? (
+                  <Select
+                    value={assignedUserSelectValue}
+                    onValueChange={(v) => {
+                      if (v === "unassigned") {
+                        setValue("assigned_user_id", "")
+                      } else {
+                        setValue("assigned_user_id", v)
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Επιλέξτε υπεύθυνο" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">—</SelectItem>
+                      {availableTeam.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select
+                    value={crewSelectValue}
+                    onValueChange={(v) => {
+                      if (v === "unassigned") {
+                        setValue("crew_id", "")
+                      } else {
+                        setValue("crew_id", v)
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Επιλέξτε συνεργείο" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">—</SelectItem>
+                      {safeCrews.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <input type="hidden" {...register("assigned_user_id")} />
+                <input type="hidden" {...register("crew_id")} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Υπηρεσίες</Label>
@@ -1077,7 +1146,7 @@ export function AppointmentForm({
                   <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-background via-muted/20 to-muted/40 p-3 shadow-inner sm:p-4">
                     <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">
                       Εμφανίζονται μόνο ελεύθερα κουλάκια (08:00–22:00, βήμα 15 λεπτά
-                      {assignedUserIdRaw ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"}).
+                      {activeAssigneeUserId ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"}).
                     </p>
                     <div className="max-h-48 overflow-y-auto pr-1">
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-5">

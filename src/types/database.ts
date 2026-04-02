@@ -172,11 +172,21 @@ export interface Service {
   updated_at: string
 }
 
+export interface Crew {
+  id: string
+  business_id: string
+  name: string
+  color: string
+  created_at: string
+  updated_at: string
+}
+
 export interface AppointmentJob {
   id: string
   business_id: string
   customer_id: string
   assigned_user_id: string | null
+  crew_id?: string | null
   service_id: string | null
   title: string
   description: string | null
@@ -304,6 +314,7 @@ export type Database = {
       staff_profiles: { Row: StaffProfile; Insert: Omit<StaffProfile, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<StaffProfile> }
       customers: { Row: Customer; Insert: Omit<Customer, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Customer> }
       services: { Row: Service; Insert: Omit<Service, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Service> }
+      crews: { Row: Crew; Insert: Omit<Crew, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Crew> }
       appointments_jobs: { Row: AppointmentJob; Insert: Omit<AppointmentJob, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<AppointmentJob> }
       appointment_job_comments: { Row: AppointmentJobComment; Insert: Omit<AppointmentJobComment, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobComment> }
       appointment_job_audit_logs: { Row: AppointmentJobAuditLog; Insert: Omit<AppointmentJobAuditLog, "changed_at"> & { changed_at?: string }; Update: Partial<AppointmentJobAuditLog> }

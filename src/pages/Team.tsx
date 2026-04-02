@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useLanguage } from "@/contexts/LanguageContext"
 import {
   fetchTeam,
+  fetchCrews,
+  createCrew,
   inviteTeamMember,
   setTeamMemberStatus,
   deleteTeamMember,
@@ -15,7 +17,7 @@ import {
   fetchBusiness,
   notifyInAppQuiet,
 } from "@/services/api"
-import type { AppointmentJob, StaffProfile, User } from "@/types"
+import type { AppointmentJob, StaffProfile, User, Crew } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -319,6 +321,7 @@ export default function Team() {
   const t = teamI18n[language]
   const { toast } = useToast()
   const [team, setTeam] = useState<User[]>([])
+  const [crews, setCrews] = useState<Crew[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -372,12 +375,16 @@ export default function Team() {
   const canAddMember = currentUser && ["admin", "super_admin"].includes(currentUser.role)
   const canManageMembers = Boolean(canAddMember)
   const [subSection, setSubSection] = useState<"team" | "shifts">("team")
+  const [newCrewName, setNewCrewName] = useState("")
+  const [newCrewColor, setNewCrewColor] = useState("#3b82f6")
+  const [creatingCrew, setCreatingCrew] = useState(false)
 
   useEffect(() => {
     if (!businessId) return
-    fetchTeam(businessId)
-      .then(async (members) => {
+    Promise.all([fetchTeam(businessId), fetchCrews(businessId)])
+      .then(async ([members, crewsRows]) => {
         setTeam(members)
+        setCrews(crewsRows)
         // Φόρτωση στατιστικών ραντεβού & εσόδων ανά μέλος
         try {
           const today = new Date()
@@ -636,6 +643,31 @@ export default function Team() {
     }
   }
 
+  async function handleCreateCrew() {
+    if (!businessId || !canManageMembers) return
+    if (!newCrewName.trim()) {
+      toast({ title: t.errorTitle, description: language === "en" ? "Crew name is required." : "Το όνομα συνεργείου είναι υποχρεωτικό.", variant: "destructive" })
+      return
+    }
+    try {
+      setCreatingCrew(true)
+      await createCrew({ business_id: businessId, name: newCrewName.trim(), color: newCrewColor })
+      const refreshed = await fetchCrews(businessId)
+      setCrews(refreshed)
+      setNewCrewName("")
+      setNewCrewColor("#3b82f6")
+      toast({ title: t.okTitle, description: language === "en" ? "Crew created." : "Το συνεργείο δημιουργήθηκε." })
+    } catch (e) {
+      toast({
+        title: t.errorTitle,
+        description: e instanceof Error ? e.message : language === "en" ? "Failed to create crew." : "Αποτυχία δημιουργίας συνεργείου.",
+        variant: "destructive",
+      })
+    } finally {
+      setCreatingCrew(false)
+    }
+  }
+
   return (
     <ErrorBoundary>
       {subSection === "shifts" ? (
@@ -737,6 +769,47 @@ export default function Team() {
                 ))}
               </ul>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/50 mt-2">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-base">{language === "en" ? "Crews" : "Συνεργεία"}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {language === "en"
+                ? "Create team groups and define their color for calendar visibility."
+                : "Δημιούργησε ομάδες συνεργείων και όρισε χρώμα για εμφάνιση στο ημερολόγιο."}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {canManageMembers ? (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto]">
+                <Input
+                  value={newCrewName}
+                  onChange={(e) => setNewCrewName(e.target.value)}
+                  placeholder={language === "en" ? "Crew name" : "Όνομα συνεργείου"}
+                />
+                <Input type="color" value={newCrewColor} onChange={(e) => setNewCrewColor(e.target.value)} className="h-10 w-full md:w-20" />
+                <Button type="button" onClick={handleCreateCrew} disabled={creatingCrew}>
+                  {creatingCrew ? (language === "en" ? "Creating..." : "Δημιουργία...") : (language === "en" ? "Add crew" : "Προσθήκη συνεργείου")}
+                </Button>
+              </div>
+            ) : null}
+            {crews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {language === "en" ? "No crews yet." : "Δεν υπάρχουν συνεργεία ακόμα."}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {crews.map((crew) => (
+                  <div key={crew.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2 text-sm">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: crew.color }} />
+                    <span className="font-medium">{crew.name}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{crew.color}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -5,6 +5,7 @@ import type {
   AppointmentJob,
   User,
   Service,
+  Crew,
   Business,
   Payment,
   PaymentStatus,
@@ -378,7 +379,7 @@ export async function fetchAppointments(
   let q = supabase
     .from("appointments_jobs")
     .select(
-      "*, customer:customers(*), assigned_user:users(full_name, email), service:services(id, name), payments:payments(paid_amount, amount, payment_status, remaining_balance)",
+      "*, customer:customers(*), assigned_user:users(full_name, email), crew:crews(id, name, color), service:services(id, name), payments:payments(paid_amount, amount, payment_status, remaining_balance)",
     )
     .order("scheduled_date", { ascending: true })
     .order("start_time", { ascending: true })
@@ -386,23 +387,55 @@ export async function fetchAppointments(
   if (filters?.to) q = q.lte("scheduled_date", filters.to)
   if (filters?.status) q = q.eq("status", filters.status)
   if (filters?.customerId) q = q.eq("customer_id", filters.customerId)
-  const { data, error } = await q
-  if (error) throw error
+  let data: unknown[] | null = null
+  let error: unknown = null
+  const first = await q
+  data = first.data as unknown[] | null
+  error = first.error
+  if (error) {
+    const code = (error as { code?: string }).code
+    const msg = String((error as { message?: string }).message ?? "")
+    if (!(code === "42P01" || /crews/i.test(msg))) throw error
+    let fallback = supabase
+      .from("appointments_jobs")
+      .select(
+        "*, customer:customers(*), assigned_user:users(full_name, email), service:services(id, name), payments:payments(paid_amount, amount, payment_status, remaining_balance)",
+      )
+      .order("scheduled_date", { ascending: true })
+      .order("start_time", { ascending: true })
+    if (filters?.from) fallback = fallback.gte("scheduled_date", filters.from)
+    if (filters?.to) fallback = fallback.lte("scheduled_date", filters.to)
+    if (filters?.status) fallback = fallback.eq("status", filters.status)
+    if (filters?.customerId) fallback = fallback.eq("customer_id", filters.customerId)
+    const second = await fallback
+    if (second.error) throw second.error
+    data = second.data as unknown[] | null
+  }
   return (data ?? []) as (AppointmentJob & {
     customer: Customer
     assigned_user: Pick<User, "full_name" | "email"> | null
+    crew?: Pick<Crew, "id" | "name" | "color"> | null
     service: Pick<Service, "id" | "name"> | null
   })[]
 }
 
 export async function fetchAppointmentById(id: string) {
-  const { data, error } = await supabase
+  const first = await supabase
+    .from("appointments_jobs")
+    .select("*, customer:customers(*), assigned_user:users(*), crew:crews(*), service:services(*)")
+    .eq("id", id)
+    .single()
+  if (!first.error) return first.data
+  const code = (first.error as { code?: string }).code
+  const msg = String((first.error as { message?: string }).message ?? "")
+  if (!(code === "42P01" || /crews/i.test(msg))) return null
+  const second = await supabase
     .from("appointments_jobs")
     .select("*, customer:customers(*), assigned_user:users(*), service:services(*)")
     .eq("id", id)
     .single()
-  if (error) return null
-  return data
+  if (second.error) return null
+  return second.data
 }
 
 export async function createAppointment(payload: Partial<AppointmentJob>) {
@@ -600,6 +633,23 @@ export async function fetchTeam(_businessId: string): Promise<User[]> {
   const { data, error } = await supabase.from("users").select("*").order("full_name")
   if (error) throw error
   return (data ?? []) as User[]
+}
+
+export async function fetchCrews(businessId: string): Promise<Crew[]> {
+  const { data, error } = await supabase.from("crews").select("*").eq("business_id", businessId).order("name")
+  if (error) {
+    const code = (error as { code?: string }).code
+    const msg = (error as { message?: string }).message ?? ""
+    if (code === "42P01" || /crews/i.test(msg)) return []
+    throw error
+  }
+  return (data ?? []) as Crew[]
+}
+
+export async function createCrew(payload: { business_id: string; name: string; color: string }): Promise<Crew> {
+  const { data, error } = await supabase.from("crews").insert(payload).select("*").single()
+  if (error) throw error
+  return data as Crew
 }
 
 export async function fetchStaffProfiles(businessId: string): Promise<StaffProfile[]> {

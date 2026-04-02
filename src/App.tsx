@@ -58,6 +58,14 @@ function Home() {
   return <Dashboard />
 }
 
+function FinancialRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return null
+  if (user.role === "employee" || user.role === "reception") return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -166,7 +174,9 @@ export default function App() {
                       path="/payments"
                       element={
                         <TenantApp>
-                          <Payments />
+                          <FinancialRoute>
+                            <Payments />
+                          </FinancialRoute>
                         </TenantApp>
                       }
                     />
@@ -174,7 +184,9 @@ export default function App() {
                       path="/reports"
                       element={
                         <TenantApp>
-                          <Reports />
+                          <FinancialRoute>
+                            <Reports />
+                          </FinancialRoute>
                         </TenantApp>
                       }
                     />

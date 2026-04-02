@@ -116,6 +116,10 @@ function getBusinessNavItems(language: AppLanguage) {
   ]
 }
 
+function hasFinancialAccess(role: string | undefined): boolean {
+  return role !== "employee" && role !== "reception"
+}
+
 function getPlatformNavItems(language: AppLanguage) {
   const t = translations[language]
   return [
@@ -163,6 +167,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const t = translations[language]
   const businessNavItems = getBusinessNavItems(language)
   const platformNavItems = getPlatformNavItems(language)
+  const canAccessFinancials = hasFinancialAccess(user?.role)
 
   const isExpiredSubscription =
     user?.role !== "super_admin" &&
@@ -334,7 +339,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-col gap-1.5 p-2.5">
           {(() => {
             if (user?.role === "super_admin" && mode === "platform") return platformNavItems
-            return businessNavItems
+            return businessNavItems.filter((item) => canAccessFinancials || (item.to !== "/reports" && item.to !== "/payments"))
           })().map((item) => {
             const isActive =
               location.pathname === item.to ||

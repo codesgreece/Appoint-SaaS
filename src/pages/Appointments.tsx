@@ -8,6 +8,7 @@ import {
   fetchAppointmentById,
   fetchCustomers,
   fetchTeam,
+  fetchCrews,
   fetchServices,
   updateAppointment,
   deleteAppointment,
@@ -50,6 +51,7 @@ import { useLanguage } from "@/contexts/LanguageContext"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
+import type { Crew } from "@/types"
 function getStatusLabels(language: "el" | "en"): Record<AppointmentJobStatus, string> {
   if (language === "en") {
     return {
@@ -86,6 +88,7 @@ const STATUS_VARIANT: Record<AppointmentJobStatus, "pending" | "confirmed" | "in
 type AppointmentRow = AppointmentJob & {
   customer?: Customer
   assigned_user?: Pick<User, "full_name" | "email"> | null
+  crew?: Pick<Crew, "id" | "name" | "color"> | null
   service?: Pick<Service, "id" | "name"> | null
 }
 
@@ -98,6 +101,7 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<AppointmentRow[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [team, setTeam] = useState<User[]>([])
+  const [crews, setCrews] = useState<Crew[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
@@ -133,12 +137,14 @@ export default function Appointments() {
       }),
       fetchCustomers(businessId),
       fetchTeam(businessId),
+      fetchCrews(businessId),
       fetchServices(businessId),
     ])
-      .then(([apps, cust, tm, svc]) => {
+      .then(([apps, cust, tm, cr, svc]) => {
         setAppointments(apps as AppointmentRow[])
         setCustomers(cust)
         setTeam(tm)
+        setCrews(cr)
         setServices(svc)
       })
       .catch(() => toast({ title: language === "en" ? "Error" : "Σφάλμα", description: language === "en" ? "Failed to load data" : "Αποτυχία φόρτωσης", variant: "destructive" }))
@@ -571,7 +577,7 @@ export default function Appointments() {
                           <TableHead>{language === "en" ? "Title" : "Τίτλος"}</TableHead>
                           <TableHead>{language === "en" ? "Customer" : "Πελάτης"}</TableHead>
                           <TableHead>{language === "en" ? "Service" : "Υπηρεσία"}</TableHead>
-                          <TableHead>{language === "en" ? "Assigned" : "Υπεύθυνος"}</TableHead>
+                          <TableHead>{language === "en" ? "Assigned" : "Ανάθεση"}</TableHead>
                           <TableHead>{language === "en" ? "Status" : "Κατάσταση"}</TableHead>
                           <TableHead>{language === "en" ? "Cost" : "Κόστος"}</TableHead>
                           <TableHead>{language === "en" ? "Actions" : "Ενέργειες"}</TableHead>
@@ -598,7 +604,9 @@ export default function Appointments() {
                             </div>
                           </TableCell>
                             <TableCell>{a.service?.name ?? "—"}</TableCell>
-                            <TableCell>{(a.assigned_user as { full_name?: string })?.full_name ?? "—"}</TableCell>
+                            <TableCell>
+                              {(a.crew as { name?: string })?.name ?? (a.assigned_user as { full_name?: string })?.full_name ?? "—"}
+                            </TableCell>
                             <TableCell>
                               <Badge variant={STATUS_VARIANT[a.status]}>{STATUS_LABELS[a.status]}</Badge>
                             </TableCell>
@@ -668,6 +676,7 @@ export default function Appointments() {
               presetDate={presetDate ?? undefined}
               customers={customers}
               team={team}
+              crews={crews}
               services={services}
               businessId={businessId}
               onSaved={handleSaved}

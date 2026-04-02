@@ -3,7 +3,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { el, enUS } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAppointments } from "@/services/api"
-import type { AppointmentJob, Customer } from "@/types"
+import type { AppointmentJob, Customer, Crew } from "@/types"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -12,7 +12,10 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatCurrency } from "@/lib/utils"
 
-type AppointmentWithCustomer = AppointmentJob & { customer?: Customer }
+type AppointmentWithCustomer = AppointmentJob & {
+  customer?: Customer
+  crew?: Pick<Crew, "id" | "name" | "color"> | null
+}
 
 type CalendarViewProps = {
   businessId: string | null
@@ -310,8 +313,8 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                           <span
                             className="h-1.5 w-1.5 rounded-full"
                             style={{
-                              background:
-                                a.status === "completed"
+                              background: (a.crew as { color?: string } | null)?.color ??
+                                (a.status === "completed"
                                   ? "hsl(var(--status-completed))"
                                   : a.status === "pending"
                                     ? "hsl(var(--status-pending))"
@@ -321,7 +324,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                                         ? "hsl(var(--status-in-progress))"
                                         : a.status === "cancelled" || a.status === "no_show"
                                           ? "hsl(var(--status-cancelled))"
-                                          : "hsl(var(--status-rescheduled))",
+                                          : "hsl(var(--status-rescheduled))"),
                             }}
                           />
                           <span className="min-w-0 truncate">
@@ -378,6 +381,12 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
                       <div className="mt-1 truncate text-xs text-muted-foreground">
                         {a.customer ? `${a.customer.first_name} ${a.customer.last_name}` : t.noCustomer}
                       </div>
+                      {a.crew?.name ? (
+                        <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.crew.color }} />
+                          {a.crew.name}
+                        </div>
+                      ) : null}
 
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <Badge variant={statusBadgeVariantForDay(a.status) as any} className="px-2 py-1">

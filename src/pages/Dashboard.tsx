@@ -62,6 +62,7 @@ function timeOfDayGreeting(lang: "el" | "en"): string {
 export default function Dashboard() {
   const { businessId, user } = useAuth()
   const { language } = useLanguage()
+  const canAccessFinancials = user?.role !== "employee" && user?.role !== "reception"
   const greetAs = dashboardGreetingName(user)
   const [stats, setStats] = useState<Awaited<ReturnType<typeof fetchDashboardStats>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -244,6 +245,7 @@ export default function Dashboard() {
       color: "text-emerald-600",
       badge: language === "en" ? "Today's revenue" : "Σημερινά έσοδα",
       badgeColor: "text-emerald-500 bg-emerald-500/10",
+      isFinancial: true,
     },
     {
       title: language === "en" ? "Monthly revenue" : "Έσοδα μήνα",
@@ -252,6 +254,7 @@ export default function Dashboard() {
       color: "text-blue-500",
       badge: language === "en" ? "Current month" : "Τρέχων μήνας",
       badgeColor: "text-blue-500 bg-blue-500/10",
+      isFinancial: true,
     },
     {
       title: language === "en" ? "Outstanding balances" : "Εκκρεμή υπόλοιπα",
@@ -260,8 +263,10 @@ export default function Dashboard() {
       color: "text-amber-600",
       badge: language === "en" ? "Balances" : "Υπόλοιπα",
       badgeColor: "text-amber-600 bg-amber-600/10",
+      isFinancial: true,
     },
   ]
+  const visibleCards = cards.filter((card) => canAccessFinancials || !card.isFinancial)
 
   const chartData = [
     { name: language === "en" ? "Mon" : "Δευ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.3) : 0 },
@@ -368,7 +373,7 @@ export default function Dashboard() {
       ) : null}
 
       <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
-        {cards.map((c) => (
+        {visibleCards.map((c) => (
           <motion.div key={c.title} variants={item}>
             <Card className="border-border/60 bg-card/60 overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5">
@@ -454,30 +459,32 @@ export default function Dashboard() {
         </Card>
       </motion.div>
 
-      <motion.div variants={item}>
-        <Card>
-          <CardHeader>
-            <CardTitle>{language === "en" ? "Weekly revenue" : "Έσοδα εβδομάδας"}</CardTitle>
-            <CardDescription>{language === "en" ? "Data simulation" : "Προσομοίωση δεδομένων"}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                    formatter={(value: number) => [formatCurrency(value), language === "en" ? "Revenue" : "Έσοδα"]}
-                  />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+      {canAccessFinancials ? (
+        <motion.div variants={item}>
+          <Card>
+            <CardHeader>
+              <CardTitle>{language === "en" ? "Weekly revenue" : "Έσοδα εβδομάδας"}</CardTitle>
+              <CardDescription>{language === "en" ? "Data simulation" : "Προσομοίωση δεδομένων"}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip
+                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                      formatter={(value: number) => [formatCurrency(value), language === "en" ? "Revenue" : "Έσοδα"]}
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
     </motion.div>
   )
 }
