@@ -19,13 +19,13 @@ import {
   Monitor,
   Wrench,
   Route,
+  Lock,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
 import { useWorkspace } from "@/contexts/WorkspaceContext"
 import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
 import { supabase } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -63,7 +63,8 @@ const translations = {
     settings: "Ρυθμίσεις",
     signOut: "Αποσύνδεση",
     expiredTitle: "Η συνδρομή έχει λήξει",
-    expiredDescription: "Επικοινωνήστε με κάποιον διαχειριστή για την αγορά προγράμματος.",
+    expiredDescription: "Επικοινωνήστε με τον διαχειριστή για ανανέωση του panel.",
+    expiredSignOut: "Αποσύνδεση",
     remainingPrefix: "Υπολείπονται",
     remainingSuffix: "ημέρες στη συνδρομή",
     expiresOn: "λήξη",
@@ -92,7 +93,8 @@ const translations = {
     settings: "Settings",
     signOut: "Sign out",
     expiredTitle: "Subscription expired",
-    expiredDescription: "Contact an administrator to purchase a plan.",
+    expiredDescription: "Contact your administrator to renew the panel.",
+    expiredSignOut: "Sign out",
     remainingPrefix: "Remaining",
     remainingSuffix: "days in subscription",
     expiresOn: "expires",
@@ -154,8 +156,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { language, setLanguage } = useLanguage()
-  const { user, signOut, businessName, businessId, tenantSubscriptionPlan, tenantSubscriptionExpiresAt } = useAuth()
-  const { toast } = useToast()
+  const {
+    user,
+    signOut,
+    businessName,
+    businessId,
+    tenantSubscriptionPlan,
+    tenantSubscriptionExpiresAt,
+    tenantSubscriptionLoaded,
+  } = useAuth()
   useTheme()
 
   const { mode, setMode } = useWorkspace()
@@ -163,7 +172,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState<number | null>(null)
   const [publicBookingUnreadCount, setPublicBookingUnreadCount] = useState<number | null>(null)
-  const [lastExpiredToastAt, setLastExpiredToastAt] = useState(0)
   const t = translations[language]
   const businessNavItems = getBusinessNavItems(language)
   const platformNavItems = getPlatformNavItems(language)
@@ -171,12 +179,29 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isExpiredSubscription =
     user?.role !== "super_admin" &&
+    tenantSubscriptionLoaded &&
     tenantSubscriptionPlan !== "demo" &&
     Boolean(tenantSubscriptionExpiresAt) &&
     new Date(tenantSubscriptionExpiresAt as string).getTime() < Date.now()
 
   useEffect(() => {
+    if (isExpiredSubscription) {
+      setCommandOpen(false)
+    }
+  }, [isExpiredSubscription])
+
+  useEffect(() => {
+    if (!isExpiredSubscription) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isExpiredSubscription])
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (isExpiredSubscription) return
       const isK = e.key.toLowerCase() === "k"
       if ((e.ctrlKey || e.metaKey) && isK) {
         e.preventDefault()
@@ -186,7 +211,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
+  }, [isExpiredSubscription])
 
   useEffect(() => {
     let active = true
@@ -275,37 +300,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     navigate("/login", { replace: true })
   }
 
-  function notifyExpired() {
-    const now = Date.now()
-    if (now - lastExpiredToastAt < 1500) return
-    setLastExpiredToastAt(now)
-    toast({
-      title: t.expiredTitle,
-      description: t.expiredDescription,
-      variant: "destructive",
-    })
-  }
-
-  function blockExpiredInteractions(e: React.SyntheticEvent) {
-    if (!isExpiredSubscription) return
-    const target = e.target as HTMLElement | null
-    if (!target) return
-    const interactive = target.closest("button, a, input, textarea, select, [role='button'], form")
-    if (!interactive) return
-    e.preventDefault()
-    e.stopPropagation()
-    notifyExpired()
-  }
-
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="relative min-h-screen flex bg-background">
       {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute top-1/3 -right-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
         <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
       </div>
-      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
+      <CommandPalette open={commandOpen && !isExpiredSubscription} onOpenChange={setCommandOpen} />
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -531,14 +534,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           )}
-        <main
-          className="p-3 md:p-4 lg:p-5"
-          onClickCapture={blockExpiredInteractions}
-          onSubmitCapture={blockExpiredInteractions}
-        >
-          {children}
-        </main>
+        <main className="p-3 md:p-4 lg:p-5">{children}</main>
       </div>
+
+      {isExpiredSubscription ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-background/70 p-4 backdrop-blur-md"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="subscription-expired-title"
+          aria-describedby="subscription-expired-desc"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-6 text-center shadow-2xl ring-1 ring-border/60">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+              <Lock className="h-7 w-7" aria-hidden />
+            </div>
+            <h2 id="subscription-expired-title" className="text-lg font-semibold tracking-tight text-foreground">
+              {t.expiredTitle}
+            </h2>
+            <p id="subscription-expired-desc" className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {t.expiredDescription}
+            </p>
+            <Button className="mt-6 w-full rounded-xl sm:w-auto" variant="default" onClick={() => void handleSignOut()}>
+              {t.expiredSignOut}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
