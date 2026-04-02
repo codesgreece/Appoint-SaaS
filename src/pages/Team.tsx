@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { UserCircle, Plus, Shield, UserCheck, Headphones, AtSign, MoreHorizontal, UserX, Trash2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useLanguage } from "@/contexts/LanguageContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
 import {
   fetchTeam,
   fetchCrews,
@@ -47,6 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { pickLang, appLocaleTag } from "@/lib/app-language"
 import Shifts from "@/pages/Shifts"
 
 const teamI18n = {
@@ -286,6 +287,124 @@ const teamI18n = {
       sun: "Sunday",
     },
   },
+  de: {
+    errorTitle: "Fehler",
+    okTitle: "Erledigt",
+    loadTeamError: "Team konnte nicht geladen werden.",
+    fillUsernameName: "Benutzername und Name eingeben.",
+    usernamePattern: "Benutzername nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich.",
+    passwordMin8: "Passwort mindestens 8 Zeichen.",
+    passwordsMismatch: "Passwörter stimmen nicht überein.",
+    missingBusinessId: "Unternehmens-ID fehlt.",
+    planUserLimitTitle: "Benutzerlimit des Plans",
+    planUserLimitDesc: "Sie haben die maximale Benutzeranzahl für den aktuellen Plan erreicht.",
+    inviteSuccessTitle: "Zum Team hinzugefügt",
+    inviteNotify: (name: string, role: string, username: string) =>
+      `Neues Teammitglied: ${name} (${role}) · Login ${username}`,
+    inviteDescTemp: (username: string, temp: string) =>
+      `Login: ${username}  •  Erst-Login-Passwort: ${temp}`,
+    inviteDescCustom: (username: string) =>
+      `Login: ${username}  •  Der Benutzer kann sich mit dem gesetzten Passwort anmelden.`,
+    userCreateFailed: "Benutzer konnte nicht angelegt werden",
+    edgeFunctionHint:
+      "Supabase Edge Function nicht erreichbar (CORS/Deploy). invite-team-member deployen und erneut versuchen.",
+    usernameTaken: "Benutzername vergeben. Anderen wählen.",
+    cannotToggleSelf: "Sie können den Status Ihres eigenen Kontos nicht ändern.",
+    confirmDeactivate: (name: string) => `Benutzer ${name} deaktivieren? (kein Login mehr)`,
+    confirmActivate: (name: string) => `Benutzer ${name} aktivieren?`,
+    accountDeactivated: "Konto deaktiviert.",
+    accountActivated: "Konto aktiviert.",
+    updateFailed: "Aktualisierung fehlgeschlagen",
+    cannotDeleteSelf: "Sie können Ihr eigenes Konto nicht löschen.",
+    confirmDelete: (name: string) => `Benutzer ${name} endgültig löschen? (nicht rückgängig)`,
+    deletedTitle: "Gelöscht",
+    deletedDesc: "Konto endgültig gelöscht.",
+    deleteFailed: "Löschen fehlgeschlagen",
+    scheduleLoadError: "Schichtplan des Mitglieds konnte nicht geladen werden.",
+    scheduleSavedTitle: "Gespeichert",
+    scheduleSavedDesc: "Schichtplan & Berechtigungen aktualisiert.",
+    scheduleSaveFailed: "Einstellungen konnten nicht gespeichert werden.",
+    teamTab: "Team",
+    shiftsTab: "Schichten",
+    pageTitle: "Team",
+    pageSubtitle: "Mitglieder und Rollen",
+    addMember: "Mitglied hinzufügen",
+    summaryTitle: "Team-Übersicht",
+    summaryHint: "Kurzübersicht aktiver Mitglieder.",
+    total: "Gesamt",
+    active: "Aktiv",
+    inactive: "Inaktiv",
+    statusActive: "Aktiv",
+    statusInactive: "Inaktiv",
+    membersSuffix: "Mitglieder",
+    rolesTitle: "Rollen & Berechtigungen",
+    rolesHint: "Kurzbeschreibung der Rollen.",
+    roleAdmin: "Administrator",
+    roleEmployee: "Mitarbeiter",
+    roleReception: "Empfang",
+    superAdmin: "Super Admin",
+    adminBullets: [
+      "- Verwaltet Unternehmenseinstellungen",
+      "- Fügt Teammitglieder hinzu",
+      "- Voller Zugriff auf Kunden/Termine/Zahlungen",
+    ],
+    employeeBullets: [
+      "- Verwaltet Termine/Aufträge",
+      "- Sieht Kunden und Termindetails",
+      "- Keine kritischen Einstellungen",
+    ],
+    receptionBullets: [
+      "- Verwaltet Buchungen/Kalender",
+      "- Legt Kunden und Termine an",
+      "- Eingeschränkter Zugriff auf Einstellungen",
+    ],
+    activeToday: "Heute aktiv",
+    todayAppts: "Heute",
+    weekAppts: "7T",
+    monthlyRevenue: "Umsatz Monat",
+    apptsShort: "Term.",
+    memberActionsAria: "Mitgliedaktionen",
+    scheduleSettings: "Schichtplan & Berechtigungen",
+    deactivate: "Deaktivieren",
+    activate: "Aktivieren",
+    deletePermanent: "Endgültig löschen",
+    addedOn: "Hinzugefügt",
+    emptyTeam: "Noch keine Teammitglieder",
+    addFirstMember: "Erstes Mitglied hinzufügen",
+    dialogAddTitle: "Teammitglied hinzufügen",
+    labelUsername: "Benutzername (Anmeldung mit Benutzername + Passwort)",
+    placeholderUsername: "z. B. maria",
+    labelFullName: "Vollständiger Name",
+    placeholderName: "Name des Mitglieds",
+    labelRole: "Rolle",
+    labelPassword: "Passwort",
+    placeholderPassword: "Mindestens 8 Zeichen",
+    labelPasswordConfirm: "Passwort bestätigen",
+    placeholderPasswordConfirm: "Passwort wiederholen",
+    cancel: "Abbrechen",
+    creating: "Wird angelegt...",
+    add: "Hinzufügen",
+    scheduleDialogHeading: "Schichtplan & Berechtigungen",
+    scheduleDialogTitle: (name: string) => `Schichtplan & Berechtigungen – ${name}`,
+    schedulePerDay: "Arbeitszeiten pro Tag",
+    dayEnabled: "An",
+    from: "Von",
+    to: "Bis",
+    permissionsTitle: "Berechtigungen",
+    permReports: "Darf Berichte sehen",
+    permPrices: "Darf Preise ändern",
+    permDeleteAppts: "Darf Termine löschen",
+    save: "Speichern",
+    days: {
+      mon: "Montag",
+      tue: "Dienstag",
+      wed: "Mittwoch",
+      thu: "Donnerstag",
+      fri: "Freitag",
+      sat: "Samstag",
+      sun: "Sonntag",
+    },
+  },
 }
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
@@ -307,7 +426,7 @@ function roleLabel(role: string, t: TeamStrings): string {
   }
 }
 
-function roleOptions(lang: "el" | "en"): { value: InviteTeamMemberRole; label: string }[] {
+function roleOptions(lang: AppLanguage): { value: InviteTeamMemberRole; label: string }[] {
   const t = teamI18n[lang]
   return [
     { value: "admin", label: t.roleAdmin },
@@ -647,7 +766,15 @@ export default function Team() {
   async function handleCreateCrew() {
     if (!businessId || !canManageMembers) return
     if (!newCrewName.trim()) {
-      toast({ title: t.errorTitle, description: language === "en" ? "Crew name is required." : "Το όνομα συνεργείου είναι υποχρεωτικό.", variant: "destructive" })
+      toast({
+        title: t.errorTitle,
+        description: pickLang(language, {
+          el: "Το όνομα συνεργείου είναι υποχρεωτικό.",
+          en: "Crew name is required.",
+          de: "Teamname ist erforderlich.",
+        }),
+        variant: "destructive",
+      })
       return
     }
     try {
@@ -657,11 +784,25 @@ export default function Team() {
       setCrews(refreshed)
       setNewCrewName("")
       setNewCrewColor("#3b82f6")
-      toast({ title: t.okTitle, description: language === "en" ? "Crew created." : "Το συνεργείο δημιουργήθηκε." })
+      toast({
+        title: t.okTitle,
+        description: pickLang(language, {
+          el: "Το συνεργείο δημιουργήθηκε.",
+          en: "Crew created.",
+          de: "Team wurde angelegt.",
+        }),
+      })
     } catch (e) {
       toast({
         title: t.errorTitle,
-        description: e instanceof Error ? e.message : language === "en" ? "Failed to create crew." : "Αποτυχία δημιουργίας συνεργείου.",
+        description:
+          e instanceof Error
+            ? e.message
+            : pickLang(language, {
+                el: "Αποτυχία δημιουργίας συνεργείου.",
+                en: "Failed to create crew.",
+                de: "Team konnte nicht angelegt werden.",
+              }),
         variant: "destructive",
       })
     } finally {
@@ -672,9 +813,11 @@ export default function Team() {
   async function handleDeleteCrew(crew: Crew) {
     if (!businessId || !canManageMembers) return
     const ok = confirm(
-      language === "en"
-        ? `Delete crew "${crew.name}"?`
-        : `Διαγραφή συνεργείου «${crew.name}»;`,
+      pickLang(language, {
+        el: `Διαγραφή συνεργείου «${crew.name}»;`,
+        en: `Delete crew "${crew.name}"?`,
+        de: `Team „${crew.name}“ löschen?`,
+      }),
     )
     if (!ok) return
     try {
@@ -683,7 +826,11 @@ export default function Team() {
       setCrews(refreshed)
       toast({
         title: t.okTitle,
-        description: language === "en" ? "Crew deleted." : "Το συνεργείο διαγράφηκε.",
+        description: pickLang(language, {
+          el: "Το συνεργείο διαγράφηκε.",
+          en: "Crew deleted.",
+          de: "Team gelöscht.",
+        }),
       })
     } catch (e) {
       toast({
@@ -691,9 +838,11 @@ export default function Team() {
         description:
           e instanceof Error
             ? e.message
-            : language === "en"
-              ? "Failed to delete crew."
-              : "Αποτυχία διαγραφής συνεργείου.",
+            : pickLang(language, {
+                el: "Αποτυχία διαγραφής συνεργείου.",
+                en: "Failed to delete crew.",
+                de: "Team konnte nicht gelöscht werden.",
+              }),
         variant: "destructive",
       })
     }
@@ -805,11 +954,15 @@ export default function Team() {
 
         <Card className="border-border/50 bg-card/50 mt-2">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-base">{language === "en" ? "Crews" : "Συνεργεία"}</CardTitle>
+            <CardTitle className="text-base">
+              {pickLang(language, { el: "Συνεργεία", en: "Crews", de: "Teams" })}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {language === "en"
-                ? "Create team groups and define their color for calendar visibility."
-                : "Δημιούργησε ομάδες συνεργείων και όρισε χρώμα για εμφάνιση στο ημερολόγιο."}
+              {pickLang(language, {
+                el: "Δημιούργησε ομάδες συνεργείων και όρισε χρώμα για εμφάνιση στο ημερολόγιο.",
+                en: "Create team groups and define their color for calendar visibility.",
+                de: "Teams anlegen und Farbe für die Kalenderansicht festlegen.",
+              })}
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -818,17 +971,27 @@ export default function Team() {
                 <Input
                   value={newCrewName}
                   onChange={(e) => setNewCrewName(e.target.value)}
-                  placeholder={language === "en" ? "Crew name" : "Όνομα συνεργείου"}
+                  placeholder={pickLang(language, {
+                    el: "Όνομα συνεργείου",
+                    en: "Crew name",
+                    de: "Teamname",
+                  })}
                 />
                 <Input type="color" value={newCrewColor} onChange={(e) => setNewCrewColor(e.target.value)} className="h-10 w-full md:w-20" />
                 <Button type="button" onClick={handleCreateCrew} disabled={creatingCrew}>
-                  {creatingCrew ? (language === "en" ? "Creating..." : "Δημιουργία...") : (language === "en" ? "Add crew" : "Προσθήκη συνεργείου")}
+                  {creatingCrew
+                    ? pickLang(language, { el: "Δημιουργία...", en: "Creating...", de: "Wird angelegt..." })
+                    : pickLang(language, { el: "Προσθήκη συνεργείου", en: "Add crew", de: "Team hinzufügen" })}
                 </Button>
               </div>
             ) : null}
             {crews.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {language === "en" ? "No crews yet." : "Δεν υπάρχουν συνεργεία ακόμα."}
+                {pickLang(language, {
+                  el: "Δεν υπάρχουν συνεργεία ακόμα.",
+                  en: "No crews yet.",
+                  de: "Noch keine Teams.",
+                })}
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -902,7 +1065,7 @@ export default function Team() {
                       <span>
                         {t.monthlyRevenue}:{" "}
                         {(revenueByUser[user.full_name] ?? 0).toLocaleString(
-                          language === "en" ? "en-GB" : "el-GR",
+                          appLocaleTag(language),
                           {
                             style: "currency",
                             currency: "EUR",
@@ -937,7 +1100,7 @@ export default function Team() {
                 </CardHeader>
                 <CardContent className="text-xs text-muted-foreground">
                   {t.addedOn}:{" "}
-                  {new Intl.DateTimeFormat(language === "en" ? "en-GB" : "el-GR", {
+                  {new Intl.DateTimeFormat(appLocaleTag(language), {
                     dateStyle: "short",
                   }).format(new Date(user.created_at))}
                 </CardContent>

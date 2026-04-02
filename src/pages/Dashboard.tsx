@@ -30,7 +30,8 @@ import {
   CartesianGrid,
 } from "recharts"
 import { ChangelogCard } from "@/components/ChangelogCard"
-import { useLanguage } from "@/contexts/LanguageContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
+import { pickLang, appLocaleTag } from "@/lib/app-language"
 
 const container = {
   hidden: { opacity: 0 },
@@ -52,10 +53,11 @@ function dashboardGreetingName(user: { username: string | null; full_name: strin
   return n || null
 }
 
-function timeOfDayGreeting(lang: "el" | "en"): string {
+function timeOfDayGreeting(lang: AppLanguage): string {
   const h = new Date().getHours()
   const morning = h >= 5 && h < 15
   if (lang === "en") return morning ? "Good morning" : "Good evening"
+  if (lang === "de") return morning ? "Guten Morgen" : "Guten Abend"
   return morning ? "Καλημέρα" : "Καλησπέρα"
 }
 
@@ -116,7 +118,9 @@ export default function Dashboard() {
           .slice(0, 5)
           .map((r) => ({
             id: r.id,
-            customerName: r.customer ? `${r.customer.first_name} ${r.customer.last_name}` : language === "en" ? "Customer" : "Πελάτης",
+            customerName: r.customer
+              ? `${r.customer.first_name} ${r.customer.last_name}`
+              : pickLang(language, { el: "Πελάτης", en: "Customer", de: "Kunde" }),
             dueDate: r.due_date,
           }))
         setOverdueServiceReminders(overdue)
@@ -162,15 +166,49 @@ export default function Dashboard() {
 
   const setupItems = useMemo(() => {
     const items = [
-      { key: "services", label: language === "en" ? "Add services" : "Πρόσθεσε υπηρεσίες", done: setupCounts.services > 0, countLabel: `${setupCounts.services}`, to: "/services", icon: Briefcase },
-      { key: "team", label: language === "en" ? "Review team" : "Έλεγξε την ομάδα", done: setupCounts.team > 0, countLabel: `${setupCounts.team}`, to: "/team", icon: UsersIcon },
-      { key: "customers", label: language === "en" ? "Add customers" : "Πρόσθεσε πελάτες", done: setupCounts.customers > 0, countLabel: `${setupCounts.customers}`, to: "/customers", icon: UserIcon },
-      { key: "appointments", label: language === "en" ? "Create appointments" : "Δημιούργησε ραντεβού", done: setupCounts.appointments > 0, countLabel: `${setupCounts.appointments}`, to: "/appointments", icon: Calendar },
+      {
+        key: "services",
+        label: pickLang(language, { el: "Πρόσθεσε υπηρεσίες", en: "Add services", de: "Leistungen hinzufügen" }),
+        done: setupCounts.services > 0,
+        countLabel: `${setupCounts.services}`,
+        to: "/services",
+        icon: Briefcase,
+      },
+      {
+        key: "team",
+        label: pickLang(language, { el: "Έλεγξε την ομάδα", en: "Review team", de: "Team prüfen" }),
+        done: setupCounts.team > 0,
+        countLabel: `${setupCounts.team}`,
+        to: "/team",
+        icon: UsersIcon,
+      },
+      {
+        key: "customers",
+        label: pickLang(language, { el: "Πρόσθεσε πελάτες", en: "Add customers", de: "Kunden hinzufügen" }),
+        done: setupCounts.customers > 0,
+        countLabel: `${setupCounts.customers}`,
+        to: "/customers",
+        icon: UserIcon,
+      },
+      {
+        key: "appointments",
+        label: pickLang(language, { el: "Δημιούργησε ραντεβού", en: "Create appointments", de: "Termine anlegen" }),
+        done: setupCounts.appointments > 0,
+        countLabel: `${setupCounts.appointments}`,
+        to: "/appointments",
+        icon: Calendar,
+      },
     ] as const
     const completed = items.filter((i) => i.done).length
     return { items, completed, total: items.length }
   }, [setupCounts, language])
   const showQuickSetup = setupLoading || setupItems.completed < setupItems.total
+
+  const quickSetupDesc = pickLang(language, {
+    el: "Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα.",
+    en: "Complete the basic steps to get full value from the platform.",
+    de: "Schließen Sie die Grundschritte ab, um die Plattform voll zu nutzen.",
+  })
 
   if (loading) {
     return (
@@ -185,7 +223,9 @@ export default function Dashboard() {
                 </span>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">{language === "en" ? "Business overview" : "Επισκόπηση επιχείρησης"}</p>
+            <p className="text-sm text-muted-foreground">
+              {pickLang(language, { el: "Επισκόπηση επιχείρησης", en: "Business overview", de: "Unternehmensübersicht" })}
+            </p>
           </div>
           <Skeleton className="h-9 w-32 rounded-full" />
         </div>
@@ -207,61 +247,61 @@ export default function Dashboard() {
 
   const cards = [
     {
-      title: language === "en" ? "Today's appointments" : "Ραντεβού σήμερα",
+      title: pickLang(language, { el: "Ραντεβού σήμερα", en: "Today's appointments", de: "Heutige Termine" }),
       value: stats?.todayAppointments ?? 0,
       icon: Calendar,
       color: "text-primary",
-      badge: language === "en" ? "+12% vs yesterday" : "+12% από χθες",
+      badge: pickLang(language, { el: "+12% από χθες", en: "+12% vs yesterday", de: "+12% vs. gestern" }),
       badgeColor: "text-emerald-500 bg-emerald-500/10",
     },
     {
-      title: language === "en" ? "Pending jobs" : "Εκκρεμή εργασίες",
+      title: pickLang(language, { el: "Εκκρεμή εργασίες", en: "Pending jobs", de: "Ausstehende Aufträge" }),
       value: stats?.pendingJobs ?? 0,
       icon: Clock,
       color: "text-orange-500",
-      badge: language === "en" ? "Pending" : "Σε εκκρεμότητα",
+      badge: pickLang(language, { el: "Σε εκκρεμότητα", en: "Pending", de: "Ausstehend" }),
       badgeColor: "text-amber-500 bg-amber-500/10",
     },
     {
-      title: language === "en" ? "In progress" : "Σε εξέλιξη",
+      title: pickLang(language, { el: "Σε εξέλιξη", en: "In progress", de: "In Bearbeitung" }),
       value: stats?.inProgressJobs ?? 0,
       icon: AlertCircle,
       color: "text-purple-500",
-      badge: language === "en" ? "Live jobs" : "Ζωντανές εργασίες",
+      badge: pickLang(language, { el: "Ζωντανές εργασίες", en: "Live jobs", de: "Laufende Aufträge" }),
       badgeColor: "text-purple-500 bg-purple-500/10",
     },
     {
-      title: language === "en" ? "Completed today" : "Ολοκληρωμένα σήμερα",
+      title: pickLang(language, { el: "Ολοκληρωμένα σήμερα", en: "Completed today", de: "Heute abgeschlossen" }),
       value: stats?.completedToday ?? 0,
       icon: CheckCircle2,
       color: "text-green-500",
-      badge: language === "en" ? "Completed" : "Ολοκληρώθηκαν",
+      badge: pickLang(language, { el: "Ολοκληρώθηκαν", en: "Completed", de: "Abgeschlossen" }),
       badgeColor: "text-emerald-600 bg-emerald-600/10",
     },
     {
-      title: language === "en" ? "Revenue today" : "Έσοδα σήμερα",
+      title: pickLang(language, { el: "Έσοδα σήμερα", en: "Revenue today", de: "Umsatz heute" }),
       value: formatCurrency(stats?.revenueToday ?? 0),
       icon: Euro,
       color: "text-emerald-600",
-      badge: language === "en" ? "Today's revenue" : "Σημερινά έσοδα",
+      badge: pickLang(language, { el: "Σημερινά έσοδα", en: "Today's revenue", de: "Umsatz heute" }),
       badgeColor: "text-emerald-500 bg-emerald-500/10",
       isFinancial: true,
     },
     {
-      title: language === "en" ? "Monthly revenue" : "Έσοδα μήνα",
+      title: pickLang(language, { el: "Έσοδα μήνα", en: "Monthly revenue", de: "Umsatz Monat" }),
       value: formatCurrency(stats?.revenueMonth ?? 0),
       icon: TrendingUp,
       color: "text-blue-500",
-      badge: language === "en" ? "Current month" : "Τρέχων μήνας",
+      badge: pickLang(language, { el: "Τρέχων μήνας", en: "Current month", de: "Aktueller Monat" }),
       badgeColor: "text-blue-500 bg-blue-500/10",
       isFinancial: true,
     },
     {
-      title: language === "en" ? "Outstanding balances" : "Εκκρεμή υπόλοιπα",
+      title: pickLang(language, { el: "Εκκρεμή υπόλοιπα", en: "Outstanding balances", de: "Offene Salden" }),
       value: formatCurrency(stats?.outstandingBalances ?? 0),
       icon: Euro,
       color: "text-amber-600",
-      badge: language === "en" ? "Balances" : "Υπόλοιπα",
+      badge: pickLang(language, { el: "Υπόλοιπα", en: "Balances", de: "Salden" }),
       badgeColor: "text-amber-600 bg-amber-600/10",
       isFinancial: true,
     },
@@ -269,12 +309,30 @@ export default function Dashboard() {
   const visibleCards = cards.filter((card) => canAccessFinancials || !card.isFinancial)
 
   const chartData = [
-    { name: language === "en" ? "Mon" : "Δευ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.3) : 0 },
-    { name: language === "en" ? "Tue" : "Τρι", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.5) : 0 },
-    { name: language === "en" ? "Wed" : "Τετ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.8) : 0 },
-    { name: language === "en" ? "Thu" : "Πεμ", value: stats?.revenueToday ?? 0 },
-    { name: language === "en" ? "Fri" : "Παρ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 1.2) : 0 },
-    { name: language === "en" ? "Sat" : "Σαβ", value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.6) : 0 },
+    {
+      name: pickLang(language, { el: "Δευ", en: "Mon", de: "Mo" }),
+      value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.3) : 0,
+    },
+    {
+      name: pickLang(language, { el: "Τρι", en: "Tue", de: "Di" }),
+      value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.5) : 0,
+    },
+    {
+      name: pickLang(language, { el: "Τετ", en: "Wed", de: "Mi" }),
+      value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.8) : 0,
+    },
+    {
+      name: pickLang(language, { el: "Πεμ", en: "Thu", de: "Do" }),
+      value: stats?.revenueToday ?? 0,
+    },
+    {
+      name: pickLang(language, { el: "Παρ", en: "Fri", de: "Fr" }),
+      value: stats?.revenueToday ? Math.round(stats.revenueToday * 1.2) : 0,
+    },
+    {
+      name: pickLang(language, { el: "Σαβ", en: "Sat", de: "Sa" }),
+      value: stats?.revenueToday ? Math.round(stats.revenueToday * 0.6) : 0,
+    },
   ]
 
   return (
@@ -292,13 +350,17 @@ export default function Dashboard() {
             ) : null}
           </div>
           <p className="text-xs md:text-sm text-muted-foreground">
-            {language === "en" ? "Premium overview of your business." : "Premium επισκόπηση της επιχείρησής σου."}
+            {pickLang(language, {
+              el: "Premium επισκόπηση της επιχείρησής σου.",
+              en: "Premium overview of your business.",
+              de: "Premium-Übersicht Ihres Unternehmens.",
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center rounded-full border border-border/60 bg-card/60 px-2.5 py-0.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2" />
-            {language === "en" ? "Real-time" : "Σε πραγματικό χρόνο"}
+            {pickLang(language, { el: "Σε πραγματικό χρόνο", en: "Real-time", de: "Echtzeit" })}
           </span>
         </div>
       </div>
@@ -310,17 +372,14 @@ export default function Dashboard() {
               <CardTitle className="flex items-center justify-between gap-2 text-sm">
                 <span className="inline-flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-primary" />
-                  <span>{language === "en" ? "Quick setup" : "Γρήγορο setup"}</span>
+                  <span>{pickLang(language, { el: "Γρήγορο setup", en: "Quick setup", de: "Schnellstart" })}</span>
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {setupItems.completed}/{setupItems.total} {language === "en" ? "completed" : "ολοκληρωμένα"}
+                  {setupItems.completed}/{setupItems.total}{" "}
+                  {pickLang(language, { el: "ολοκληρωμένα", en: "completed", de: "erledigt" })}
                 </span>
               </CardTitle>
-              <CardDescription className="text-[11px]">
-                {language === "en"
-                  ? "Complete the basic steps to get full value from the platform."
-                  : "Ολοκλήρωσε τα βασικά βήματα για να εκμεταλλευτείς πλήρως την πλατφόρμα."}
-              </CardDescription>
+              <CardDescription className="text-[11px]">{quickSetupDesc}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
@@ -347,12 +406,12 @@ export default function Dashboard() {
                           <div>
                             <div className="text-sm font-medium leading-snug">{it.label}</div>
                             <div className="text-[11px] text-muted-foreground">
-                              {language === "en" ? "Total" : "Σύνολο"}: {it.countLabel}
+                              {pickLang(language, { el: "Σύνολο", en: "Total", de: "Gesamt" })}: {it.countLabel}
                             </div>
                           </div>
                         </div>
                         <span className={it.done ? "text-[11px] text-emerald-600" : "text-[11px] text-muted-foreground"}>
-                          {it.done ? "OK" : language === "en" ? "Pending" : "Εκκρεμεί"}
+                          {it.done ? "OK" : pickLang(language, { el: "Εκκρεμεί", en: "Pending", de: "Ausstehend" })}
                         </span>
                       </div>
                     </Link>
@@ -361,10 +420,14 @@ export default function Dashboard() {
               )}
               <div className="flex flex-wrap gap-1.5 text-xs">
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/appointments">{language === "en" ? "New appointment" : "Νέο ραντεβού"}</Link>
+                  <Link to="/appointments">
+                    {pickLang(language, { el: "Νέο ραντεβού", en: "New appointment", de: "Neuer Termin" })}
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/services">{language === "en" ? "New service" : "Νέα υπηρεσία"}</Link>
+                  <Link to="/services">
+                    {pickLang(language, { el: "Νέα υπηρεσία", en: "New service", de: "Neue Leistung" })}
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -404,28 +467,43 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <Card>
           <CardHeader>
-            <CardTitle>{language === "en" ? "Service Reminders" : "Υπενθυμίσεις Συντήρησης"}</CardTitle>
+            <CardTitle>
+              {pickLang(language, {
+                el: "Υπενθυμίσεις Συντήρησης",
+                en: "Service Reminders",
+                de: "Wartungs-Erinnerungen",
+              })}
+            </CardTitle>
             <CardDescription>
-              {language === "en" ? "Upcoming reminders" : "Επόμενες υπενθυμίσεις"}: {upcomingServiceReminders.length} •{" "}
-              {language === "en" ? "Overdue" : "Εκπρόθεσμες"}: {overdueServiceReminders}
+              {pickLang(language, { el: "Επόμενες υπενθυμίσεις", en: "Upcoming reminders", de: "Bevorstehende Erinnerungen" })}:{" "}
+              {upcomingServiceReminders.length} •{" "}
+              {pickLang(language, { el: "Εκπρόθεσμες", en: "Overdue", de: "Überfällig" })}: {overdueServiceReminders}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {upcomingServiceReminders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {language === "en" ? "No upcoming service reminders." : "Δεν υπάρχουν upcoming service reminders."}
+                {pickLang(language, {
+                  el: "Δεν υπάρχουν upcoming service reminders.",
+                  en: "No upcoming service reminders.",
+                  de: "Keine bevorstehenden Wartungs-Erinnerungen.",
+                })}
               </p>
             ) : (
               upcomingServiceReminders.map((r) => (
                 <div key={r.id} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
                   <span className="text-sm">{r.customerName}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(r.dueDate).toLocaleDateString(language === "en" ? "en-GB" : "el-GR")}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(r.dueDate).toLocaleDateString(appLocaleTag(language))}
+                  </span>
                 </div>
               ))
             )}
             <div className="pt-1">
               <Button asChild size="sm" variant="outline">
-                <Link to="/service-reminders">{language === "en" ? "Open reminders" : "Άνοιγμα υπενθυμίσεων"}</Link>
+                <Link to="/service-reminders">
+                  {pickLang(language, { el: "Άνοιγμα υπενθυμίσεων", en: "Open reminders", de: "Erinnerungen öffnen" })}
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -435,15 +513,22 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <Card>
           <CardHeader>
-            <CardTitle>{language === "en" ? "Who's working today" : "Ποιος δουλεύει σήμερα"}</CardTitle>
+            <CardTitle>
+              {pickLang(language, { el: "Ποιος δουλεύει σήμερα", en: "Who's working today", de: "Wer arbeitet heute" })}
+            </CardTitle>
             <CardDescription>
-              {workingToday.length} {language === "en" ? "members on shift" : "μέλη σε βάρδια"}
+              {workingToday.length}{" "}
+              {pickLang(language, { el: "μέλη σε βάρδια", en: "members on shift", de: "Mitglieder in Schicht" })}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {workingToday.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {language === "en" ? "No active shifts are scheduled for today." : "Δεν έχουν οριστεί ενεργές βάρδιες για σήμερα."}
+                {pickLang(language, {
+                  el: "Δεν έχουν οριστεί ενεργές βάρδιες για σήμερα.",
+                  en: "No active shifts are scheduled for today.",
+                  de: "Für heute sind keine aktiven Schichten geplant.",
+                })}
               </p>
             ) : (
               workingToday.slice(0, 6).map((w) => (
@@ -463,8 +548,12 @@ export default function Dashboard() {
         <motion.div variants={item}>
           <Card>
             <CardHeader>
-              <CardTitle>{language === "en" ? "Weekly revenue" : "Έσοδα εβδομάδας"}</CardTitle>
-              <CardDescription>{language === "en" ? "Data simulation" : "Προσομοίωση δεδομένων"}</CardDescription>
+              <CardTitle>
+                {pickLang(language, { el: "Έσοδα εβδομάδας", en: "Weekly revenue", de: "Wochenumsatz" })}
+              </CardTitle>
+              <CardDescription>
+                {pickLang(language, { el: "Προσομοίωση δεδομένων", en: "Data simulation", de: "Daten-Simulation" })}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[300px] w-full">
@@ -475,7 +564,10 @@ export default function Dashboard() {
                     <YAxis className="text-xs" />
                     <Tooltip
                       contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                      formatter={(value: number) => [formatCurrency(value), language === "en" ? "Revenue" : "Έσοδα"]}
+                      formatter={(value: number) => [
+                        formatCurrency(value),
+                        pickLang(language, { el: "Έσοδα", en: "Revenue", de: "Umsatz" }),
+                      ]}
                     />
                     <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>

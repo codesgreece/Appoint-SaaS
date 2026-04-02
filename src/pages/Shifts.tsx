@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { appLocaleTag } from "@/lib/app-language"
+import type { AppLanguage } from "@/contexts/LanguageContext"
 
 function toIsoLocal(d: Date) {
   const year = d.getFullYear()
@@ -85,6 +87,23 @@ const copy = {
     saveError: "Could not save shift.",
     loadError: "Failed to load shifts.",
   },
+  de: {
+    title: "Schichtplanung",
+    subtitleWeek: "Wochenplan pro Teammitglied — Termine richten sich nach Schichtzeiten.",
+    subtitleMonth: "Vollständiger Monatsplan pro Teammitglied.",
+    prev: "Zurück",
+    next: "Weiter",
+    today: "Heute",
+    thisMonth: "Dieser Monat",
+    weekLabel: "Woche",
+    monthLabel: "Monat",
+    periodWeek: "Woche",
+    periodMonth: "Monat",
+    loading: "Laden…",
+    off: "Frei",
+    saveError: "Schicht konnte nicht gespeichert werden.",
+    loadError: "Schichten konnten nicht geladen werden.",
+  },
 } as const
 
 type Period = "week" | "month"
@@ -123,7 +142,7 @@ export default function Shifts({ embedded = false }: ShiftsProps) {
     return datesInMonth(y, m)
   }, [period, weekStart, monthCursor])
 
-  const locale = language === "el" ? "el-GR" : "en-GB"
+  const locale = appLocaleTag(language)
 
   const rangeFromTo = useMemo(() => {
     const first = displayDays[0]
@@ -153,7 +172,11 @@ export default function Shifts({ embedded = false }: ShiftsProps) {
       setTeam(teamRows)
       setShiftsByKey(map)
     } catch {
-      toast({ title: language === "el" ? "Σφάλμα" : "Error", description: t.loadError, variant: "destructive" })
+      toast({
+        title: language === "el" ? "Σφάλμα" : language === "de" ? "Fehler" : "Error",
+        description: t.loadError,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -188,7 +211,11 @@ export default function Shifts({ embedded = false }: ShiftsProps) {
       })
       setShiftsByKey((prev) => ({ ...prev, [key]: row }))
     } catch {
-      toast({ title: language === "el" ? "Σφάλμα" : "Error", description: t.saveError, variant: "destructive" })
+      toast({
+        title: language === "el" ? "Σφάλμα" : language === "de" ? "Fehler" : "Error",
+        description: t.saveError,
+        variant: "destructive",
+      })
     } finally {
       setSavingKey(null)
     }
@@ -377,7 +404,7 @@ type MemberScheduleBlockProps = {
   savingKey: string | null
   businessId: string | null
   locale: string
-  t: typeof copy.el | typeof copy.en
+  t: (typeof copy)[AppLanguage]
   saveShift: (userId: string, date: string, patch: { status?: "active" | "off"; start_time?: string; end_time?: string }) => void
   scheduleTimeSave: (userId: string, date: string, key: string) => void
 }

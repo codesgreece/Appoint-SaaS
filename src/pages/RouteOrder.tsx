@@ -70,6 +70,25 @@ const routeOrderI18n = {
     customerFallback: "Customer",
     noAddress: "No address",
   },
+  de: {
+    loadError: "Tagesroute konnte nicht geladen werden.",
+    saved: "Gespeichert",
+    orderUpdated: "Reihenfolge der Aufträge aktualisiert.",
+    saveFailed: "Reihenfolge konnte nicht gespeichert werden.",
+    openRouteTitle: "Route öffnen",
+    needTwoAddresses: "Mindestens zwei gültige Adressen sind erforderlich.",
+    title: "Tagesroute",
+    subtitle: (dateLabel: string) => `Auftragsreihenfolge für ${dateLabel}.`,
+    openRoute: "Route öffnen",
+    saving: "Speichern...",
+    saveOrder: "Reihenfolge speichern",
+    todayAppointments: "Heutige Termine",
+    dragHint: "Per Drag & Drop die Ausführungsreihenfolge festlegen.",
+    loading: "Laden...",
+    empty: "Heute gibt es keine Termine.",
+    customerFallback: "Kunde",
+    noAddress: "Keine Adresse",
+  },
 } as const
 
 export default function RouteOrder() {

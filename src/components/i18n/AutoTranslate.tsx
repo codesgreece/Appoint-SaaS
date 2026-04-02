@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement, type ReactNode } from "react"
-import { useLanguage } from "@/contexts/LanguageContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
 
 const exactPhraseMap: Record<string, string> = {
   "Σφάλμα": "Error",
@@ -143,7 +143,7 @@ const tokenMap: Array<[string, string]> = [
   ["λεπτά", "minutes"],
 ]
 
-function translateText(text: string, language: "el" | "en"): string {
+function translateText(text: string, language: AppLanguage): string {
   if (language === "el") return text
   if (!/[Α-Ωα-ωΆ-Ώά-ώ]/.test(text)) return text
   if (exactPhraseMap[text]) return exactPhraseMap[text]
@@ -158,7 +158,7 @@ function translateText(text: string, language: "el" | "en"): string {
   return next
 }
 
-function translateProps(props: Record<string, unknown>, language: "el" | "en"): Record<string, unknown> {
+function translateProps(props: Record<string, unknown>, language: AppLanguage): Record<string, unknown> {
   if (language === "el") return props
   const out: Record<string, unknown> = { ...props }
   const keys: Array<keyof typeof out> = ["placeholder", "title", "aria-label", "alt"]
@@ -169,7 +169,7 @@ function translateProps(props: Record<string, unknown>, language: "el" | "en"): 
   return out
 }
 
-function translateNode(node: ReactNode, language: "el" | "en"): ReactNode {
+function translateNode(node: ReactNode, language: AppLanguage): ReactNode {
   if (typeof node === "string") return translateText(node, language)
   if (Array.isArray(node)) return node.map((n) => translateNode(n, language))
   if (!isValidElement(node)) return node

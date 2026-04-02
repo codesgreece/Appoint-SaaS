@@ -26,6 +26,14 @@ const i18n = {
     subtitle: "Appointments per day",
     newAppointment: "New appointment",
   },
+  de: {
+    errorLoad: "Kalenderdaten konnten nicht geladen werden.",
+    saved: "Gespeichert",
+    created: "Termin wurde angelegt.",
+    title: "Kalender",
+    subtitle: "Termine pro Tag",
+    newAppointment: "Neuer Termin",
+  },
 } as const
 
 export default function Calendar() {
@@ -52,7 +60,7 @@ export default function Calendar() {
       })
       .catch(() =>
         toast({
-          title: language === "en" ? "Error" : "Σφάλμα",
+          title: language === "en" ? "Error" : language === "de" ? "Fehler" : "Σφάλμα",
           description: t.errorLoad,
           variant: "destructive",
         }),

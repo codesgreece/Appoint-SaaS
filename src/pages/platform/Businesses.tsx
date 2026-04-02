@@ -102,10 +102,10 @@ const initialBusinessForm = {
   max_appointments: 10000,
 }
 
-type PlanKey = "unsubscribed" | "demo" | "starter" | "pro" | "premium" | "premium_plus"
+type PlanKey = "unsubscribed" | "demo" | "starter" | "pro" | "premium" | "premium_plus" | "lifetime"
 type BillingCycle = "daily" | "monthly" | "yearly"
 
-const PLAN_LIMITS: Record<Exclude<PlanKey, "premium_plus">, { maxUsers: number; maxCustomers: number; maxAppointments: number }> = {
+const PLAN_LIMITS: Record<Exclude<PlanKey, "premium_plus" | "lifetime">, { maxUsers: number; maxCustomers: number; maxAppointments: number }> = {
   unsubscribed: { maxUsers: 1, maxCustomers: 0, maxAppointments: 0 },
   demo: { maxUsers: 1, maxCustomers: 20, maxAppointments: 50 },
   starter: { maxUsers: 3, maxCustomers: 300, maxAppointments: 1000 },
@@ -120,6 +120,11 @@ const PLAN_LABEL: Record<PlanKey, string> = {
   pro: "Pro",
   premium: "Premium",
   premium_plus: "Premium+ (custom)",
+  lifetime: "Εφάπαξ (απεριόριστα)",
+}
+
+function formatLimitDisplay(v: number | null): string {
+  return v == null ? "∞" : String(v)
 }
 
 function formatPlanLabel(plan: string | null): string {
@@ -134,6 +139,9 @@ function getExpiryStatus(b: BusinessRow): { label: string; className: string } {
   }
   if (b.subscription_plan === "demo") {
     return { label: "Demo (χωρίς λήξη)", className: "bg-emerald-100 text-emerald-700 border-emerald-200" }
+  }
+  if (b.subscription_plan === "lifetime") {
+    return { label: "Εφάπαξ (χωρίς λήξη)", className: "bg-violet-100 text-violet-800 border-violet-200" }
   }
   if (!b.subscription_expires_at) {
     return { label: "Χωρίς ημερομηνία λήξης", className: "bg-slate-100 text-slate-700 border-slate-200" }
@@ -340,6 +348,14 @@ export default function PlatformBusinesses() {
         subscription_status = "active"
         subscription_started_at = now.toISOString()
         subscription_expires_at = expires.toISOString()
+      } else if (createPlanSnapshot === "lifetime") {
+        plan = "lifetime"
+        maxUsers = null
+        maxCustomers = null
+        maxAppointments = null
+        subscription_status = "active"
+        subscription_started_at = now.toISOString()
+        subscription_expires_at = null
       } else {
         plan = createPlanSnapshot
         const limits = PLAN_LIMITS[createPlanSnapshot]
@@ -426,6 +442,10 @@ export default function PlatformBusinesses() {
       maxUsers = 30
       maxCustomers = 10000
       maxAppointments = 50000
+    } else if (newPlan === "lifetime") {
+      maxUsers = null
+      maxCustomers = null
+      maxAppointments = null
     }
     // Για premium_plus κρατάμε τα υπάρχοντα custom όρια.
 
@@ -436,7 +456,7 @@ export default function PlatformBusinesses() {
         max_customers: maxCustomers,
         max_appointments: maxAppointments,
       }
-      if (newPlan === "demo" || newPlan === "unsubscribed") {
+      if (newPlan === "demo" || newPlan === "unsubscribed" || newPlan === "lifetime") {
         updatePayload.subscription_expires_at = null
       }
       if (newPlan === "unsubscribed") {
@@ -934,7 +954,7 @@ export default function PlatformBusinesses() {
                                       key={k}
                                       className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground ring-1 ring-border/40"
                                     >
-                                      {k} {v ?? "—"}
+                                      {k} {formatLimitDisplay(v)}
                                     </span>
                                   ))}
                                 </div>
@@ -1016,6 +1036,12 @@ export default function PlatformBusinesses() {
                       { key: "starter" as const, title: "Starter", desc: "Μικρές ομάδες.", limits: "U3 / C300 / A1000" },
                       { key: "pro" as const, title: "Pro", desc: "Αναπτυσσόμενες επιχειρήσεις.", limits: "U10 / C2000 / A10000" },
                       { key: "premium" as const, title: "Premium", desc: "Μεγάλος όγκος.", limits: "U30 / C10000 / A50000" },
+                      {
+                        key: "lifetime" as const,
+                        title: "Εφάπαξ",
+                        desc: "Μία πληρωμή· χωρίς λήξη· απεριόριστοι χρήστες, πελάτες, ραντεβού.",
+                        limits: "∞ / ∞ / ∞",
+                      },
                       { key: "premium_plus" as const, title: "Premium+", desc: "Custom όρια από super admin.", limits: "Custom" },
                     ] as const
                   ).map(({ key, title, desc, limits }) => (
@@ -1034,7 +1060,7 @@ export default function PlatformBusinesses() {
                   ))}
                 </div>
               </div>
-              {createPlan !== "unsubscribed" && createPlan !== "demo" && (
+              {createPlan !== "unsubscribed" && createPlan !== "demo" && createPlan !== "lifetime" && (
                 <div className="space-y-2">
                   <Label>Διάρκεια συνδρομής</Label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1065,6 +1091,11 @@ export default function PlatformBusinesses() {
               {createPlan === "demo" && (
                 <p className="text-sm text-muted-foreground sm:col-span-2">
                   Demo: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>, όρια 1 χρήστης / 20 πελάτες / 50 ραντεβού.
+                </p>
+              )}
+              {createPlan === "lifetime" && (
+                <p className="text-sm text-muted-foreground sm:col-span-2">
+                  Εφάπαξ: <span className="font-medium text-foreground">χωρίς ημερομηνία λήξης</span>· απεριόριστοι χρήστες, πελάτες και ραντεβού (όρια στη βάση ως κενά).
                 </p>
               )}
               {createPlan === "unsubscribed" && (
@@ -1237,7 +1268,7 @@ export default function PlatformBusinesses() {
                         )}
                       </div>
 
-                      {user?.role === "super_admin" ? (
+                      {user?.role === "super_admin" && detailsBusiness.subscription_plan !== "lifetime" ? (
                         <div className="space-y-3">
                           <p className="text-xs font-medium text-muted-foreground">Όρια (μέγιστα)</p>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1326,11 +1357,17 @@ export default function PlatformBusinesses() {
                             >
                               <Icon className="mx-auto mb-1 h-4 w-4 text-primary/80" />
                               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                              <p className="text-lg font-semibold tabular-nums text-foreground">{value ?? "—"}</p>
+                              <p className="text-lg font-semibold tabular-nums text-foreground">{formatLimitDisplay(value)}</p>
                             </div>
                           ))}
                         </div>
                       )}
+
+                      {user?.role === "super_admin" && detailsBusiness.subscription_plan === "lifetime" ? (
+                        <p className="rounded-xl border border-violet-200/60 bg-violet-500/5 px-3 py-2 text-sm text-foreground">
+                          <span className="font-medium">Εφάπαξ:</span> απεριόριστοι χρήστες, πελάτες και ραντεβού — χωρίς ημερομηνία λήξης. Αλλάξτε πλάνο αν θέλετε αριθμητικά όρια.
+                        </p>
+                      ) : null}
 
                       <div className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/50 via-background to-background p-4">
                         <div className="flex items-start gap-3">
@@ -1341,6 +1378,8 @@ export default function PlatformBusinesses() {
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Λήξη συνδρομής</p>
                             {detailsBusiness.subscription_plan === "demo" ? (
                               <p className="text-sm font-medium">Demo — χωρίς ημερομηνία λήξης</p>
+                            ) : detailsBusiness.subscription_plan === "lifetime" ? (
+                              <p className="text-sm font-medium">Εφάπαξ — χωρίς ημερομηνία λήξης</p>
                             ) : detailsBusiness.subscription_expires_at ? (
                               <p className="text-lg font-semibold tabular-nums tracking-tight">
                                 {new Date(detailsBusiness.subscription_expires_at).toLocaleDateString("el-GR", {
@@ -1356,7 +1395,9 @@ export default function PlatformBusinesses() {
                             <Badge variant="outline" className={cn("mt-1 w-fit border font-medium", expiryBadge.className)}>
                               {expiryBadge.label}
                             </Badge>
-                            {user?.role === "super_admin" && detailsBusiness.subscription_plan !== "demo" && (
+                            {user?.role === "super_admin" &&
+                              detailsBusiness.subscription_plan !== "demo" &&
+                              detailsBusiness.subscription_plan !== "lifetime" && (
                               <div className="flex flex-wrap items-center gap-2 pt-2">
                                 <Input
                                   type="date"

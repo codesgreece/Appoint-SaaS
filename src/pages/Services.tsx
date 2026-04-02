@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Plus, Search, Briefcase, MoreHorizontal } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useLanguage } from "@/contexts/LanguageContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
+import { pickLang } from "@/lib/app-language"
 import { useToast } from "@/hooks/use-toast"
 import type { Service } from "@/types"
 import { fetchServices, createService, updateService, deleteService, notifyInAppQuiet } from "@/services/api"
@@ -71,10 +72,13 @@ function parsePositiveNumber(raw: string): number | null {
   return n
 }
 
-function formatServicePrice(service: Service, lang: "el" | "en"): string {
+function formatServicePrice(service: Service, lang: AppLanguage): string {
   if (service.billing_type === "hourly") {
     const rate = service.hourly_rate != null ? Number(service.hourly_rate).toFixed(2) : null
-    return rate ? (lang === "en" ? `${rate} €/hr` : `${rate} €/ώρα`) : "—"
+    if (!rate) return "—"
+    if (lang === "el") return `${rate} €/ώρα`
+    if (lang === "de") return `${rate} €/Std.`
+    return `${rate} €/hr`
   }
   return service.price != null ? `${Number(service.price).toFixed(2)} €` : "—"
 }
@@ -214,6 +218,73 @@ const servicesI18n = {
     edit: "Edit",
     delete: "Delete",
   },
+  de: {
+    loadError: "Leistungen konnten nicht geladen werden",
+    nameRequired: "Der Name der Leistung ist erforderlich.",
+    hourlyRequired: "Stundensatz (€/Std.) eingeben.",
+    saveFailed: "Speichern fehlgeschlagen",
+    saved: "Gespeichert",
+    serviceUpdated: "Leistung aktualisiert.",
+    added: "Hinzugefügt",
+    serviceCreated: "Leistung angelegt.",
+    deleted: "Gelöscht",
+    serviceDeleted: "Leistung gelöscht.",
+    deleteFailed: "Löschen fehlgeschlagen",
+    deleteConfirm: (name: string) => `Leistung „${name}“ löschen?`,
+    breadcrumb: "Unternehmen · Leistungen",
+    title: "Leistungen",
+    subtitle: "Definieren Sie die Leistungen Ihres Unternehmens",
+    newService: "Neue Leistung",
+    totalServices: "Leistungen gesamt",
+    allBadge: "Alle",
+    withPrice: "Mit Preis",
+    billingBadge: "Abrechnung",
+    hourlyCharge: "Stundensatz",
+    hourlyBadge: "Stündlich",
+    publicBookingLabel: "Öffentliche Buchung",
+    visibleBadge: "Sichtbar",
+    serviceList: "Leistungsliste",
+    servicesCount: (n: number) => `${n} Leistungen`,
+    searchPlaceholder: "Suchen...",
+    emptyTitle: "Noch keine Leistungen",
+    emptyHint: "Legen Sie die erste Leistung an, um sie bei Terminen zu wählen.",
+    publicBookingShort: "Öffentliche Buchung",
+    visible: "Sichtbar",
+    hidden: "Ausgeblendet",
+    actions: "Aktionen",
+    ariaActions: "Aktionen",
+    tableName: "Name",
+    tableDuration: "Dauer",
+    tableCharge: "Preis",
+    tableDescription: "Beschreibung",
+    dialogEdit: "Leistung bearbeiten",
+    dialogNew: "Neue Leistung",
+    labelName: "Name",
+    labelBillingType: "Abrechnungsart",
+    billingPlaceholder: "Abrechnungsart wählen",
+    billingFixed: "Festpreis",
+    billingHourly: "Stundensatz",
+    labelDuration: "Dauer (Minuten)",
+    durationPlaceholder: "z. B. 30",
+    labelPrice: "Preis (€)",
+    pricePlaceholder: "z. B. 25,00",
+    labelHourlyRate: "Stundensatz (€/Std.)",
+    hourlyPlaceholder: "z. B. 40,00",
+    hourlyHint: "Der Endpreis für den Termin ergibt sich aus der Dauer der Leistung.",
+    labelDescription: "Beschreibung",
+    publicBookingTitle: "Bei öffentlicher Buchung anzeigen",
+    publicBookingHint: "Wenn aus, erscheint die Leistung nicht im öffentlichen Buchungsformular.",
+    cancel: "Abbrechen",
+    saving: "Speichern...",
+    save: "Speichern",
+    notifyPriceChange: (name: string, before: string, after: string) =>
+      `Preisänderung „${name}“: ${before} → ${after}`,
+    notifyServiceCreated: (name: string, price: string) => `Neue Leistung: „${name}“ (${price})`,
+    notifyServiceRemoved: (name: string) =>
+      `Leistung „${name}“ wurde aus dem Katalog entfernt (nicht mehr in den Optionen).`,
+    edit: "Bearbeiten",
+    delete: "Löschen",
+  },
 } as const
 
 export default function Services() {
@@ -238,7 +309,11 @@ export default function Services() {
     fetchServices(businessId)
       .then(setRows)
       .catch((e) =>
-        toast({ title: language === "en" ? "Error" : "Σφάλμα", description: e instanceof Error ? e.message : t.loadError, variant: "destructive" }),
+        toast({
+          title: pickLang(language, { el: "Σφάλμα", en: "Error", de: "Fehler" }),
+          description: e instanceof Error ? e.message : t.loadError,
+          variant: "destructive",
+        }),
       )
       .finally(() => setLoading(false))
   }, [businessId])
@@ -323,7 +398,7 @@ export default function Services() {
     try {
       if (!businessId) return
       if (!form.name.trim()) {
-        toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.nameRequired, variant: "destructive" })
+        toast({ title: pickLang(language, { el: "Σφάλμα", en: "Error", de: "Fehler" }), description: t.nameRequired, variant: "destructive" })
         return
       }
       const duration = parsePositiveNumber(form.duration_minutes)
@@ -331,7 +406,7 @@ export default function Services() {
       const hourlyRate = parsePositiveNumber(form.hourly_rate)
 
       if (form.billing_type === "hourly" && hourlyRate == null) {
-        toast({ title: language === "en" ? "Error" : "Σφάλμα", description: t.hourlyRequired, variant: "destructive" })
+        toast({ title: pickLang(language, { el: "Σφάλμα", en: "Error", de: "Fehler" }), description: t.hourlyRequired, variant: "destructive" })
         return
       }
 
@@ -385,7 +460,11 @@ export default function Services() {
       setForm(emptyForm)
       await refresh()
     } catch (e) {
-      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: e instanceof Error ? e.message : t.saveFailed, variant: "destructive" })
+      toast({
+        title: pickLang(language, { el: "Σφάλμα", en: "Error", de: "Fehler" }),
+        description: e instanceof Error ? e.message : t.saveFailed,
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -405,7 +484,11 @@ export default function Services() {
       toast({ title: t.deleted, description: t.serviceDeleted })
       setRows((prev) => prev.filter((x) => x.id !== s.id))
     } catch (e) {
-      toast({ title: language === "en" ? "Error" : "Σφάλμα", description: e instanceof Error ? e.message : t.deleteFailed, variant: "destructive" })
+      toast({
+        title: pickLang(language, { el: "Σφάλμα", en: "Error", de: "Fehler" }),
+        description: e instanceof Error ? e.message : t.deleteFailed,
+        variant: "destructive",
+      })
     }
   }
 
@@ -430,7 +513,7 @@ export default function Services() {
       <TabsList>
         <TabsTrigger value="services">{t.title}</TabsTrigger>
         <TabsTrigger value="warehouse">
-          {language === "en" ? "Warehouse" : "Αποθήκη"}
+          {pickLang(language, { el: "Αποθήκη", en: "Warehouse", de: "Lager" })}
           {lowStockCount > 0 ? (
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-[10px]">
               {lowStockCount > 99 ? "99+" : lowStockCount}

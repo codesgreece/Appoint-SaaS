@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/contexts/LanguageContext"
 import type { AppLanguage } from "@/contexts/LanguageContext"
+import { uiLang } from "@/lib/app-language"
 
 const statusOptions: AppointmentJobStatus[] = [
   "pending",
@@ -50,6 +51,17 @@ function statusLabelsFor(lang: AppLanguage): Record<AppointmentJobStatus, string
       rescheduled: "Rescheduled",
     }
   }
+  if (lang === "de") {
+    return {
+      pending: "Ausstehend",
+      confirmed: "Bestätigt",
+      in_progress: "In Bearbeitung",
+      completed: "Abgeschlossen",
+      cancelled: "Storniert",
+      no_show: "Nicht erschienen",
+      rescheduled: "Verschoben",
+    }
+  }
   return {
     pending: "Εκκρεμεί",
     confirmed: "Επιβεβαιωμένο",
@@ -62,9 +74,9 @@ function statusLabelsFor(lang: AppLanguage): Record<AppointmentJobStatus, string
 }
 
 function buildAppointmentSchema(lang: AppLanguage) {
-  const req = lang === "en" ? "Required" : "Απαιτείται"
-  const pickCustomer = lang === "en" ? "Select a customer" : "Επιλέξτε πελάτη"
-  const reqDate = lang === "en" ? "Date is required" : "Απαιτείται ημερομηνία"
+  const req = lang === "en" ? "Required" : lang === "de" ? "Erforderlich" : "Απαιτείται"
+  const pickCustomer = lang === "en" ? "Select a customer" : lang === "de" ? "Kunde wählen" : "Επιλέξτε πελάτη"
+  const reqDate = lang === "en" ? "Date is required" : lang === "de" ? "Datum ist erforderlich" : "Απαιτείται ημερομηνία"
   return z.object({
     title: z.string().min(1, req),
     customer_id: z.string().min(1, pickCustomer),
@@ -222,7 +234,8 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const { toast } = useToast()
   const { language } = useLanguage()
-  const en = language === "en"
+  /** Non-Greek UI uses English copy; German (de) follows English until strings are translated. */
+  const en = language !== "el"
   const safeCustomers = Array.isArray(customers) ? customers : []
   const safeTeam = Array.isArray(team) ? team : []
   const safeCrews = Array.isArray(crews) ? crews : []
@@ -296,9 +309,12 @@ export function AppointmentForm({
     initError =
       e instanceof Error
         ? e.message
-        : language === "en"
-          ? "Unexpected error loading the form."
-          : "Απροσδόκητο σφάλμα φόρτωσης φόρμας."
+        : uiLang(
+            language,
+            "Unexpected error loading the form.",
+            "Απροσδόκητο σφάλμα φόρτωσης φόρμας.",
+            "Unerwarteter Fehler beim Laden des Formulars.",
+          )
     defaultValues = {
       title: "",
       customer_id: "",

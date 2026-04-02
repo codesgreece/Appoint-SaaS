@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { appLocaleTag } from "@/lib/app-language"
 import { CommandPalette } from "@/components/CommandPalette"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
 
@@ -68,6 +69,36 @@ const translations = {
     remainingPrefix: "Υπολείπονται",
     remainingSuffix: "ημέρες στη συνδρομή",
     expiresOn: "λήξη",
+  },
+  de: {
+    navDashboard: "Dashboard",
+    navCustomers: "Kunden",
+    navServices: "Leistungen / Lager",
+    navAppointments: "Termine",
+    navRouteOrder: "Tagesroute",
+    navReminders: "Erinnerungen",
+    navCalendar: "Kalender",
+    navTeam: "Team & Schichten",
+    navReports: "Berichte & Zahlungen",
+    navSupport: "Support",
+    navSettings: "Einstellungen & Daten",
+    navPlatformOverview: "Plattform-Übersicht",
+    navPlatformBusinesses: "Unternehmen",
+    navPlatformPlans: "Pläne & Limits",
+    navPlatformUsers: "Plattform-Benutzer",
+    navPlatformTools: "Support-Tools",
+    availableOn: "Verfügbar am",
+    business: "Unternehmen",
+    myBusiness: "Mein Unternehmen",
+    platformManagement: "Plattform-Verwaltung",
+    settings: "Einstellungen",
+    signOut: "Abmelden",
+    expiredTitle: "Abonnement abgelaufen",
+    expiredDescription: "Wenden Sie sich an Ihren Administrator, um das Panel zu verlängern.",
+    expiredSignOut: "Abmelden",
+    remainingPrefix: "Noch",
+    remainingSuffix: "Tage im Abonnement",
+    expiresOn: "Ende",
   },
   en: {
     navDashboard: "Dashboard",
@@ -140,6 +171,7 @@ function planLabelGr(plan: string | null): string {
     premium: "Premium",
     premium_plus: "Premium+",
     demo: "Demo",
+    lifetime: "Εφάπαξ",
     unsubscribed: "—",
   }
   return plan ? m[plan] ?? plan : "—"
@@ -181,6 +213,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     user?.role !== "super_admin" &&
     tenantSubscriptionLoaded &&
     tenantSubscriptionPlan !== "demo" &&
+    tenantSubscriptionPlan !== "lifetime" &&
     Boolean(tenantSubscriptionExpiresAt) &&
     new Date(tenantSubscriptionExpiresAt as string).getTime() < Date.now()
 
@@ -486,6 +519,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 EN
               </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("de")}
+                className={cn(
+                  "rounded-full px-2 py-1 transition-colors",
+                  language === "de" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                DE
+              </button>
             </div>
             <NotificationBell businessId={businessId} />
             <DropdownMenu>
@@ -522,6 +565,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           tenantSubscriptionPlan &&
           tenantSubscriptionPlan !== "unsubscribed" &&
           tenantSubscriptionPlan !== "demo" &&
+          tenantSubscriptionPlan !== "lifetime" &&
           tenantSubscriptionExpiresAt && (
             <div className="border-b border-primary/25 bg-primary/10 px-3 py-2 text-center text-[11px] md:text-xs text-foreground">
               <span className="font-medium">{planLabelGr(tenantSubscriptionPlan)}</span>
@@ -530,7 +574,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {t.remainingSuffix}
               <span className="text-muted-foreground hidden sm:inline">
                 {" "}
-                ({t.expiresOn} {new Date(tenantSubscriptionExpiresAt).toLocaleDateString(language === "el" ? "el-GR" : "en-GB")})
+                ({t.expiresOn} {new Date(tenantSubscriptionExpiresAt).toLocaleDateString(appLocaleTag(language))})
               </span>
             </div>
           )}

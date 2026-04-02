@@ -14,7 +14,7 @@ import {
   addWeeks,
   subWeeks,
 } from "date-fns"
-import { el, enUS } from "date-fns/locale"
+import { de, el, enUS } from "date-fns/locale"
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAppointments } from "@/services/api"
 import type { AppointmentJob, Customer, Crew, User } from "@/types"
@@ -36,6 +36,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { buildIcsCalendar, downloadIcsString, type IcsExportEvent } from "@/lib/calendarIcs"
 import { cn, formatCurrency } from "@/lib/utils"
+import { appCollatorLocale } from "@/lib/app-language"
 
 type AppointmentWithCustomer = AppointmentJob & {
   customer?: Customer
@@ -167,6 +168,65 @@ const i18n = {
       rescheduled: "Re-sch.",
     } as Record<AppointmentJob["status"], string>,
   },
+  de: {
+    today: "Heute",
+    statusPlaceholder: "Statusfilter",
+    allStatuses: "Alle Status",
+    pending: "Ausstehend",
+    confirmed: "Bestätigt",
+    inProgress: "In Bearbeitung",
+    completed: "Abgeschlossen",
+    cancelled: "Storniert",
+    noShow: "Nicht erschienen",
+    rescheduled: "Verschoben",
+    swipeHint: "Zum Anzeigen des Kalenders horizontal wischen.",
+    weekSwipeHint: "Horizontal wischen, um alle Wochentage zu sehen.",
+    appointments: "Termine",
+    shortAppointments: "Term.",
+    dayAppointmentsTitle: "Termine des Tages",
+    noAppointmentsDay: "Für diesen Tag sind keine Termine gebucht.",
+    summary: "Zusammenfassung",
+    summaryHint: "berechnet aus `final_cost` (oder `cost_estimate` falls leer).",
+    total: "Gesamt",
+    noCustomer: "Kein Kunde",
+    newAppointmentQuestion: "Möchten Sie einen neuen Termin anlegen?",
+    cannotPast: "Für vergangene Tage können Sie keinen neuen Termin erstellen.",
+    canCreate: "Sie können für den gewählten Tag einen neuen Termin anlegen.",
+    createNew: "Neuen Termin anlegen",
+    monthView: "Monat",
+    weekView: "Woche",
+    groupByLabel: "Gruppieren nach",
+    groupByCrew: "Nach Team",
+    groupByAssignee: "Nach Zuständigem",
+    unassignedCrew: "Kein Team",
+    unassignedUser: "Nicht zugewiesen",
+    exportToCalendarTitle: "In meinem Kalender",
+    exportToCalendarButton: "Zum Kalender hinzufügen",
+    exportScopeLabel: "Was importieren",
+    exportAllWeek: "Alle Termine dieser Woche",
+    exportSectionCrews: "Teams",
+    exportSectionAssignees: "Zuständige",
+    exportDownload: "Datei herunterladen (.ics)",
+    cancel: "Abbrechen",
+    exportHint:
+      "Datei herunterladen und öffnen: Auf dem iPhone (Dateien oder Mail) können Sie Termine hinzufügen. In Google Kalender: Einstellungen → Importieren & exportieren → Importieren → .ics wählen. Teamfarben werden unterstützt, wo die App es erlaubt.",
+    exportEmpty: "Keine Termine für diese Auswahl.",
+    icsWhen: "Wann",
+    icsCustomer: "Kunde",
+    icsCrew: "Team",
+    icsAssignee: "Zuständig",
+    icsStatus: "Status",
+    dayShort: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+    statusShort: {
+      pending: "Ausst.",
+      confirmed: "Best.",
+      in_progress: "Bearb.",
+      completed: "Fert.",
+      cancelled: "Storn.",
+      no_show: "N. ersch.",
+      rescheduled: "Versch.",
+    } as Record<AppointmentJob["status"], string>,
+  },
 } as const
 
 const weekOptions = { weekStartsOn: 1 as const }
@@ -174,7 +234,7 @@ const weekOptions = { weekStartsOn: 1 as const }
 export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps) {
   const { language } = useLanguage()
   const t = i18n[language]
-  const locale = language === "en" ? enUS : el
+  const locale = language === "en" ? enUS : language === "de" ? de : el
   const [viewDate, setViewDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<"month" | "week">("month")
   const [groupBy, setGroupBy] = useState<"crew" | "assignee">("crew")
@@ -231,7 +291,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
       [...entries].sort((a, b) => {
         if (a[0] === "__none__") return 1
         if (b[0] === "__none__") return -1
-        return a[1].localeCompare(b[1], language === "en" ? "en" : "el", { sensitivity: "base" })
+        return a[1].localeCompare(b[1], appCollatorLocale(language), { sensitivity: "base" })
       })
     return {
       crewEntries: sortEntries([...crews.entries()]),
@@ -272,7 +332,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
     arr.sort((a, b) => {
       if (a.key === "__none__") return 1
       if (b.key === "__none__") return -1
-      return a.label.localeCompare(b.label, language === "en" ? "en" : "el", { sensitivity: "base" })
+      return a.label.localeCompare(b.label, appCollatorLocale(language), { sensitivity: "base" })
     })
     for (const g of arr) {
       g.items.sort((x, y) => x.start_time.localeCompare(y.start_time))
@@ -419,7 +479,7 @@ export function CalendarView({ businessId, onCreateFromDate }: CalendarViewProps
     const from = format(weekStart, "yyyy-MM-dd")
     const to = format(weekEnd, "yyyy-MM-dd")
     let calName =
-      (language === "en" ? "Appointments" : "Ραντεβού") + ` ${from}–${to}`
+      (language === "en" ? "Appointments" : language === "de" ? "Termine" : "Ραντεβού") + ` ${from}–${to}`
     if (exportScope !== "all") {
       if (exportScope.startsWith("crew:")) {
         const id = exportScope.slice(5)

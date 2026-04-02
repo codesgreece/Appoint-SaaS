@@ -115,6 +115,44 @@ const i18n = {
     unitKg: "Kg",
     stockEndsSoon: (name: string) => `Item "${name}" is running low.`,
   },
+  de: {
+    title: "Lager",
+    subtitle: "Kategorien und Bestand pro Unternehmen",
+    searchPlaceholder: "Kategorie oder Artikel suchen…",
+    categories: "Kategorien",
+    categoryName: "Kategoriename",
+    addCategory: "Kategorie hinzufügen",
+    edit: "Bearbeiten",
+    save: "Speichern",
+    cancel: "Abbrechen",
+    deleteCategory: "Kategorie löschen",
+    deleteCategoryConfirm: (name: string) =>
+      `Kategorie „${name}“ und alle Artikel darin löschen?`,
+    items: "Artikel",
+    itemName: "Artikelname",
+    itemCategory: "Kategorie",
+    itemUnit: "Einheit",
+    quantity: "Aktuelle Menge",
+    orangeThreshold: "Orange ab",
+    redThreshold: "Rot ab",
+    addItem: "Artikel hinzufügen",
+    noCategories: "Noch keine Kategorien.",
+    noItems: "Noch keine Artikel.",
+    noSearchResults: "Keine Treffer.",
+    saved: "Gespeichert",
+    deleted: "Gelöscht",
+    saveFailed: "Kategorie konnte nicht gespeichert werden.",
+    duplicateCategory: "Eine Kategorie mit diesem Namen existiert bereits.",
+    validationCategory: "Kategoriename ist erforderlich.",
+    validationItem: "Name, Kategorie und Menge ausfüllen.",
+    validationThreshold: "Orange-Schwelle muss größer oder gleich der roten sein.",
+    nearEnd: "Lager niedrig",
+    openAlerts: (n: number) => `${n} Artikel`,
+    unitPieces: "Stück",
+    unitMeters: "Meter",
+    unitKg: "kg",
+    stockEndsSoon: (name: string) => `Artikel „${name}“: Bestand niedrig.`,
+  },
 } as const
 
 function toNumber(v: string): number | null {
@@ -237,7 +275,7 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
     } catch (e) {
       const msg = formatSupabaseError(e)
       toast({
-        title: language === "en" ? "Error" : "Σφάλμα",
+        title: language === "en" ? "Error" : language === "de" ? "Fehler" : "Σφάλμα",
         description: isDuplicateKeyError(e) ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
         variant: "destructive",
       })
@@ -271,7 +309,7 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
     } catch (e) {
       const msg = formatSupabaseError(e)
       toast({
-        title: language === "en" ? "Error" : "Σφάλμα",
+        title: language === "en" ? "Error" : language === "de" ? "Fehler" : "Σφάλμα",
         description: isDuplicateKeyError(e) ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
         variant: "destructive",
       })

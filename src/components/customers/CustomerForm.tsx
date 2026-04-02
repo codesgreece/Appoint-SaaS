@@ -10,8 +10,10 @@ import { useLanguage } from "@/contexts/LanguageContext"
 import type { AppLanguage } from "@/contexts/LanguageContext"
 
 function buildSchema(lang: AppLanguage) {
-  const required = lang === "en" ? "Required" : "Απαιτείται"
-  const invalidEmail = lang === "en" ? "Invalid email" : "Άκυρο email"
+  const required =
+    lang === "en" ? "Required" : lang === "de" ? "Erforderlich" : "Απαιτείται"
+  const invalidEmail =
+    lang === "en" ? "Invalid email" : lang === "de" ? "Ungültige E-Mail" : "Άκυρο email"
   return z.object({
     first_name: z.string().min(1, required),
     last_name: z.string().min(1, required),
@@ -38,7 +40,8 @@ interface CustomerFormProps {
 export function CustomerForm({ initial, onSubmit, onCancel }: CustomerFormProps) {
   const { language } = useLanguage()
   const schema = useMemo(() => buildSchema(language), [language])
-  const en = language === "en"
+  /** Non-Greek UI uses English copy (same for en and de until translated). */
+  const en = language !== "el"
 
   const {
     register,

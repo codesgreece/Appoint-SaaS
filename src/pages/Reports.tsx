@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useLanguage } from "@/contexts/LanguageContext"
 import type { AppLanguage } from "@/contexts/LanguageContext"
+import { appLocaleTag } from "@/lib/app-language"
 import { fetchDashboardStats, fetchReportsSummary } from "@/services/api"
 import { ManualPaymentButton } from "@/components/payments/ManualPaymentButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -95,16 +96,57 @@ const reportsI18n = {
     mobileBalance: "Balance",
     paymentFallback: "Payment",
   },
+  de: {
+    premiumBadge: "Berichte • Premium",
+    pageTitle: "Berichte",
+    pageSubtitle: "Umsatz, Termine und Zahlungen",
+    fromLabel: "Von",
+    toLabel: "Bis",
+    revenueToday: "Umsatz heute",
+    revenueTodayDesc: "Aus heute erfassten Zahlungen.",
+    revenueMonth: "Umsatz Monat",
+    revenueMonthDesc: "Zahlungssumme für den laufenden Monat.",
+    outstanding: "Offene Beträge",
+    outstandingDesc: "Unbezahlte Salden über alle Zahlungen.",
+    appointmentStatus: "Terminstatus",
+    appointmentRange: (from: string, to: string) => `Von ${from} bis ${to}.`,
+    noData: "Keine Daten verfügbar.",
+    statusPending: "Ausstehend",
+    statusConfirmed: "Bestätigt",
+    statusInProgress: "In Bearbeitung",
+    statusCompleted: "Abgeschlossen",
+    statusCancelled: "Storniert",
+    statusNoShow: "Nicht erschienen",
+    statusRescheduled: "Verschoben",
+    topCustomers: "Top-Kunden",
+    topCustomersEmpty: "Noch kein Umsatz pro Kunde.",
+    revenueWord: "Umsatz",
+    revenueByService: "Umsatz nach Leistung",
+    revenueByServiceEmpty: "Kein Umsatz nach Leistung in diesem Zeitraum.",
+    revenueByStaff: "Umsatz nach Mitarbeiter",
+    revenueByStaffEmpty: "Kein Umsatz nach Mitarbeiter in diesem Zeitraum.",
+    pctOfMax: (pct: number) => `${pct} % des Maximums`,
+    recentPayments: "Letzte Zahlungen",
+    recentPaymentsEmpty: "Keine Zahlungen im gewählten Zeitraum.",
+    colAppointment: "Termin",
+    colCustomer: "Kunde",
+    colDate: "Datum",
+    colPaid: "Bezahlt",
+    colBalance: "Saldo",
+    mobilePaid: "Bezahlt",
+    mobileBalance: "Saldo",
+    paymentFallback: "Zahlung",
+  },
 }
 
 function formatReportDate(iso: string | Date, lang: AppLanguage) {
-  return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "el-GR", { dateStyle: "short" }).format(
+  return new Intl.DateTimeFormat(appLocaleTag(lang), { dateStyle: "short" }).format(
     typeof iso === "string" ? new Date(iso) : iso,
   )
 }
 
 function formatReportMoney(amount: number, lang: AppLanguage) {
-  return new Intl.NumberFormat(lang === "en" ? "en-GB" : "el-GR", {
+  return new Intl.NumberFormat(appLocaleTag(lang), {
     style: "currency",
     currency: "EUR",
   }).format(amount)

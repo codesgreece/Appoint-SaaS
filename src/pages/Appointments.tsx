@@ -47,12 +47,12 @@ import { formatDate, formatCurrency, localIsoDate } from "@/lib/utils"
 import { AppointmentForm } from "@/components/appointments/AppointmentForm"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { CalendarView } from "@/components/appointments/CalendarView"
-import { useLanguage } from "@/contexts/LanguageContext"
+import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext"
 import type { Customer } from "@/types"
 import type { User } from "@/types"
 import type { Service } from "@/types"
 import type { Crew } from "@/types"
-function getStatusLabels(language: "el" | "en"): Record<AppointmentJobStatus, string> {
+function getStatusLabels(language: AppLanguage): Record<AppointmentJobStatus, string> {
   if (language === "en") {
     return {
       pending: "Pending",
@@ -62,6 +62,17 @@ function getStatusLabels(language: "el" | "en"): Record<AppointmentJobStatus, st
       cancelled: "Cancelled",
       no_show: "No show",
       rescheduled: "Rescheduled",
+    }
+  }
+  if (language === "de") {
+    return {
+      pending: "Ausstehend",
+      confirmed: "Bestätigt",
+      in_progress: "In Bearbeitung",
+      completed: "Abgeschlossen",
+      cancelled: "Storniert",
+      no_show: "Nicht erschienen",
+      rescheduled: "Verschoben",
     }
   }
   return {

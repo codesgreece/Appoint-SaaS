@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 
-export type AppLanguage = "el" | "en"
+export type AppLanguage = "el" | "en" | "de"
 
 type LanguageContextValue = {
   language: AppLanguage
@@ -13,9 +13,11 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 function getInitialLanguage(): AppLanguage {
   const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === "el" || saved === "en") return saved
+  if (saved === "el" || saved === "en" || saved === "de") return saved
   const browserLang = navigator.language.toLowerCase()
-  return browserLang.startsWith("el") ? "el" : "en"
+  if (browserLang.startsWith("el")) return "el"
+  if (browserLang.startsWith("de")) return "de"
+  return "en"
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
