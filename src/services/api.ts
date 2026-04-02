@@ -1005,6 +1005,48 @@ export async function upsertPaymentForAppointment(payload: {
   return row
 }
 
+/** Records a standalone cash/card payment by creating a completed job row and a fully paid payment. */
+export async function createManualPaymentRecord(params: {
+  businessId: string
+  customerId: string
+  amount: number
+  paymentMethod?: string | null
+  notes?: string | null
+}): Promise<Payment> {
+  const today = new Date().toISOString().slice(0, 10)
+  const job = await createAppointment({
+    business_id: params.businessId,
+    customer_id: params.customerId,
+    title: "Χειροκίνητη πληρωμή",
+    assigned_user_id: null,
+    crew_id: null,
+    service_id: null,
+    status: "completed",
+    scheduled_date: today,
+    start_time: "09:00:00",
+    end_time: "10:00:00",
+    description: null,
+    cost_estimate: null,
+    final_cost: params.amount,
+    creation_notes: null,
+    completion_notes: null,
+    recurrence_rule: null,
+    parent_appointment_id: null,
+  })
+  const amt = params.amount
+  return upsertPaymentForAppointment({
+    business_id: params.businessId,
+    appointment_job_id: job.id,
+    amount: amt,
+    paid_amount: amt,
+    remaining_balance: 0,
+    payment_status: "paid",
+    payment_method: params.paymentMethod ?? null,
+    notes: params.notes ?? null,
+    deposit: null,
+  })
+}
+
 export async function updatePayment(id: string, payload: Partial<Payment>): Promise<Payment> {
   const { data, error } = await supabase.from("payments").update(payload).eq("id", id).select().single()
   if (error) throw error

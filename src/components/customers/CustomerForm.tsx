@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -5,22 +6,28 @@ import type { Customer } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useLanguage } from "@/contexts/LanguageContext"
+import type { AppLanguage } from "@/contexts/LanguageContext"
 
-const schema = z.object({
-  first_name: z.string().min(1, "Απαιτείται"),
-  last_name: z.string().min(1, "Απαιτείται"),
-  phone: z.string().optional(),
-  email: z.string().email("Άκυρο email").optional().or(z.literal("")),
-  address: z.string().optional(),
-  area: z.string().optional(),
-  postal_code: z.string().optional(),
-  company: z.string().optional(),
-  vat_number: z.string().optional(),
-  notes: z.string().optional(),
-  tags: z.string().optional(),
-})
+function buildSchema(lang: AppLanguage) {
+  const required = lang === "en" ? "Required" : "Απαιτείται"
+  const invalidEmail = lang === "en" ? "Invalid email" : "Άκυρο email"
+  return z.object({
+    first_name: z.string().min(1, required),
+    last_name: z.string().min(1, required),
+    phone: z.string().optional(),
+    email: z.string().email(invalidEmail).optional().or(z.literal("")),
+    address: z.string().optional(),
+    area: z.string().optional(),
+    postal_code: z.string().optional(),
+    company: z.string().optional(),
+    vat_number: z.string().optional(),
+    notes: z.string().optional(),
+    tags: z.string().optional(),
+  })
+}
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<ReturnType<typeof buildSchema>>
 
 interface CustomerFormProps {
   initial?: Customer
@@ -29,6 +36,10 @@ interface CustomerFormProps {
 }
 
 export function CustomerForm({ initial, onSubmit, onCancel }: CustomerFormProps) {
+  const { language } = useLanguage()
+  const schema = useMemo(() => buildSchema(language), [language])
+  const en = language === "en"
+
   const {
     register,
     handleSubmit,
@@ -72,20 +83,20 @@ export function CustomerForm({ initial, onSubmit, onCancel }: CustomerFormProps)
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Όνομα</Label>
-          <Input {...register("first_name")} placeholder="Όνομα" />
+          <Label>{en ? "First name" : "Όνομα"}</Label>
+          <Input {...register("first_name")} placeholder={en ? "First name" : "Όνομα"} />
           {errors.first_name && <p className="text-sm text-destructive">{errors.first_name.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label>Επώνυμο</Label>
-          <Input {...register("last_name")} placeholder="Επώνυμο" />
+          <Label>{en ? "Last name" : "Επώνυμο"}</Label>
+          <Input {...register("last_name")} placeholder={en ? "Last name" : "Επώνυμο"} />
           {errors.last_name && <p className="text-sm text-destructive">{errors.last_name.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Τηλέφωνο</Label>
-          <Input {...register("phone")} placeholder="Τηλ." />
+          <Label>{en ? "Phone" : "Τηλέφωνο"}</Label>
+          <Input {...register("phone")} placeholder={en ? "Phone" : "Τηλ."} />
         </div>
         <div className="space-y-2">
           <Label>Email</Label>
@@ -94,42 +105,42 @@ export function CustomerForm({ initial, onSubmit, onCancel }: CustomerFormProps)
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Διεύθυνση</Label>
-        <Input {...register("address")} placeholder="Διεύθυνση" />
+        <Label>{en ? "Address" : "Διεύθυνση"}</Label>
+        <Input {...register("address")} placeholder={en ? "Address" : "Διεύθυνση"} />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Περιοχή</Label>
-          <Input {...register("area")} placeholder="Περιοχή" />
+          <Label>{en ? "Area" : "Περιοχή"}</Label>
+          <Input {...register("area")} placeholder={en ? "Area" : "Περιοχή"} />
         </div>
         <div className="space-y-2">
-          <Label>Τ.Κ.</Label>
-          <Input {...register("postal_code")} placeholder="Ταχ. Κώδικας" />
+          <Label>{en ? "Postal code" : "Τ.Κ."}</Label>
+          <Input {...register("postal_code")} placeholder={en ? "Postal code" : "Ταχ. Κώδικας"} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Εταιρεία</Label>
-          <Input {...register("company")} placeholder="Εταιρεία" />
+          <Label>{en ? "Company" : "Εταιρεία"}</Label>
+          <Input {...register("company")} placeholder={en ? "Company" : "Εταιρεία"} />
         </div>
         <div className="space-y-2">
-          <Label>ΑΦΜ</Label>
-          <Input {...register("vat_number")} placeholder="ΑΦΜ" />
+          <Label>{en ? "VAT / Tax ID" : "ΑΦΜ"}</Label>
+          <Input {...register("vat_number")} placeholder={en ? "VAT / Tax ID" : "ΑΦΜ"} />
         </div>
       </div>
       <div className="space-y-2">
-        <Label>Σημειώσεις</Label>
-        <Input {...register("notes")} placeholder="Σημειώσεις" />
+        <Label>{en ? "Notes" : "Σημειώσεις"}</Label>
+        <Input {...register("notes")} placeholder={en ? "Notes" : "Σημειώσεις"} />
       </div>
       <div className="space-y-2">
-        <Label>Tags (χωρισμένα με κόμμα)</Label>
+        <Label>{en ? "Tags (comma-separated)" : "Tags (χωρισμένα με κόμμα)"}</Label>
         <Input {...register("tags")} placeholder="vip, retail" />
       </div>
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Ακύρωση
+          {en ? "Cancel" : "Ακύρωση"}
         </Button>
-        <Button type="submit">Αποθήκευση</Button>
+        <Button type="submit">{en ? "Save" : "Αποθήκευση"}</Button>
       </div>
     </form>
   )
