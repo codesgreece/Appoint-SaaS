@@ -28,7 +28,7 @@ type WarehouseTabProps = {
   onLowStockCountChange?: (count: number) => void
 }
 
-type CategoryForm = { name: string; image_url: string }
+type CategoryForm = { name: string }
 type ItemForm = {
   name: string
   category_id: string
@@ -45,7 +45,6 @@ const i18n = {
     searchPlaceholder: "Αναζήτηση κατηγορίας ή υλικού…",
     categories: "Κατηγορίες",
     categoryName: "Όνομα κατηγορίας",
-    categoryImage: "Εικόνα (URL)",
     addCategory: "Προσθήκη κατηγορίας",
     edit: "Επεξεργασία",
     save: "Αποθήκευση",
@@ -66,6 +65,8 @@ const i18n = {
     noSearchResults: "Δεν βρέθηκαν αποτελέσματα.",
     saved: "Αποθηκεύτηκε",
     deleted: "Διαγράφηκε",
+    saveFailed: "Αποτυχία αποθήκευσης κατηγορίας.",
+    duplicateCategory: "Υπάρχει ήδη κατηγορία με αυτό το όνομα.",
     validationCategory: "Συμπλήρωσε όνομα κατηγορίας.",
     validationItem: "Συμπλήρωσε όνομα, κατηγορία και ποσότητα.",
     validationThreshold: "Το πορτοκαλί όριο πρέπει να είναι μεγαλύτερο ή ίσο από το κόκκινο.",
@@ -82,7 +83,6 @@ const i18n = {
     searchPlaceholder: "Search category or item…",
     categories: "Categories",
     categoryName: "Category name",
-    categoryImage: "Image (URL)",
     addCategory: "Add category",
     edit: "Edit",
     save: "Save",
@@ -103,6 +103,8 @@ const i18n = {
     noSearchResults: "No matches.",
     saved: "Saved",
     deleted: "Deleted",
+    saveFailed: "Could not save category.",
+    duplicateCategory: "A category with this name already exists.",
     validationCategory: "Category name is required.",
     validationItem: "Fill name, category and quantity.",
     validationThreshold: "Orange threshold must be greater than or equal to red threshold.",
@@ -132,9 +134,9 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [categoryForm, setCategoryForm] = useState<CategoryForm>({ name: "", image_url: "" })
+  const [categoryForm, setCategoryForm] = useState<CategoryForm>({ name: "" })
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
-  const [editCategoryDraft, setEditCategoryDraft] = useState<CategoryForm>({ name: "", image_url: "" })
+  const [editCategoryDraft, setEditCategoryDraft] = useState<CategoryForm>({ name: "" })
   const [itemForm, setItemForm] = useState<ItemForm>({
     name: "",
     category_id: "",
@@ -192,28 +194,43 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
   }, [lowStockCount, onLowStockCountChange])
 
   async function onAddCategory() {
-    if (!businessId || !categoryForm.name.trim()) {
+    if (!businessId) {
       toast({ title: "Error", description: t.validationCategory, variant: "destructive" })
       return
     }
-    await createInventoryCategory({
-      business_id: businessId,
-      name: categoryForm.name.trim(),
-      image_url: categoryForm.image_url.trim() ? categoryForm.image_url.trim() : null,
-    })
-    setCategoryForm({ name: "", image_url: "" })
-    await refresh()
-    toast({ title: t.saved })
+    const name = categoryForm.name.trim()
+    if (!name) {
+      toast({ title: "Error", description: t.validationCategory, variant: "destructive" })
+      return
+    }
+    try {
+      await createInventoryCategory({
+        business_id: businessId,
+        name,
+        image_url: null,
+      })
+      setCategoryForm({ name: "" })
+      await refresh()
+      toast({ title: t.saved })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const isDup = msg.includes("23505") || msg.toLowerCase().includes("unique")
+      toast({
+        title: language === "en" ? "Error" : "Σφάλμα",
+        description: isDup ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
+        variant: "destructive",
+      })
+    }
   }
 
   function startEditCategory(c: InventoryCategory) {
     setEditingCategoryId(c.id)
-    setEditCategoryDraft({ name: c.name, image_url: c.image_url ?? "" })
+    setEditCategoryDraft({ name: c.name })
   }
 
   function cancelEditCategory() {
     setEditingCategoryId(null)
-    setEditCategoryDraft({ name: "", image_url: "" })
+    setEditCategoryDraft({ name: "" })
   }
 
   async function saveEditCategory() {
@@ -221,14 +238,24 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
       toast({ title: "Error", description: t.validationCategory, variant: "destructive" })
       return
     }
-    await updateInventoryCategory(editingCategoryId, {
-      name: editCategoryDraft.name.trim(),
-      image_url: editCategoryDraft.image_url.trim() ? editCategoryDraft.image_url.trim() : null,
-    })
-    setEditingCategoryId(null)
-    setEditCategoryDraft({ name: "", image_url: "" })
-    await refresh()
-    toast({ title: t.saved })
+    try {
+      await updateInventoryCategory(editingCategoryId, {
+        name: editCategoryDraft.name.trim(),
+        image_url: null,
+      })
+      setEditingCategoryId(null)
+      setEditCategoryDraft({ name: "" })
+      await refresh()
+      toast({ title: t.saved })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const isDup = msg.includes("23505") || msg.toLowerCase().includes("unique")
+      toast({
+        title: language === "en" ? "Error" : "Σφάλμα",
+        description: isDup ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
+        variant: "destructive",
+      })
+    }
   }
 
   async function onDeleteCategory(c: InventoryCategory) {
@@ -325,22 +352,24 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
           <CardTitle>{t.categories}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-3">
+          <form
+            className="grid gap-2 md:grid-cols-[1fr_auto]"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void onAddCategory()
+            }}
+          >
             <Input
               placeholder={t.categoryName}
               value={categoryForm.name}
               onChange={(e) => setCategoryForm((x) => ({ ...x, name: e.target.value }))}
+              autoComplete="off"
             />
-            <Input
-              placeholder={t.categoryImage}
-              value={categoryForm.image_url}
-              onChange={(e) => setCategoryForm((x) => ({ ...x, image_url: e.target.value }))}
-            />
-            <Button onClick={() => void onAddCategory()}>
+            <Button type="submit">
               <Plus className="mr-2 h-4 w-4" />
               {t.addCategory}
             </Button>
-          </div>
+          </form>
           {categories.length === 0 && !loading ? <p className="text-sm text-muted-foreground">{t.noCategories}</p> : null}
           {q && visibleCategories.length === 0 && categories.length > 0 ? (
             <p className="text-sm text-muted-foreground">{t.noSearchResults}</p>
@@ -352,35 +381,26 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
                 <div key={c.id} className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-2">
                   {isEditing ? (
                     <>
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <Input
                           value={editCategoryDraft.name}
                           onChange={(e) => setEditCategoryDraft((x) => ({ ...x, name: e.target.value }))}
                           placeholder={t.categoryName}
                         />
-                        <Input
-                          value={editCategoryDraft.image_url}
-                          onChange={(e) => setEditCategoryDraft((x) => ({ ...x, image_url: e.target.value }))}
-                          placeholder={t.categoryImage}
-                        />
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" onClick={() => void saveEditCategory()}>
-                          {t.save}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEditCategory}>
-                          {t.cancel}
-                        </Button>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          <Button type="button" size="sm" onClick={() => void saveEditCategory()}>
+                            {t.save}
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={cancelEditCategory}>
+                            {t.cancel}
+                          </Button>
+                        </div>
                       </div>
                     </>
                   ) : (
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        {c.image_url ? (
-                          <img src={c.image_url} alt={c.name} className="h-8 w-8 shrink-0 rounded object-cover" />
-                        ) : (
-                          <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        )}
+                        <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="font-medium truncate">{c.name}</span>
                       </div>
                       <div className="flex shrink-0 gap-1">
@@ -460,7 +480,7 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
               onChange={(e) => setItemForm((x) => ({ ...x, red_threshold: e.target.value }))}
             />
           </div>
-          <Button onClick={() => void onAddItem()} disabled={categories.length === 0}>
+          <Button type="button" onClick={() => void onAddItem()} disabled={categories.length === 0}>
             <Plus className="mr-2 h-4 w-4" />
             {t.addItem}
           </Button>
