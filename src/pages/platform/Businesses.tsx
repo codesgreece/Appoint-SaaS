@@ -169,6 +169,23 @@ function getSubscriptionRecordStatusBadge(status: string | null): { label: strin
   return { label: status, className: "bg-muted text-foreground border-border" }
 }
 
+/** PostgREST επιστρέφει 0 γραμμές χωρίς error όταν το RLS μπλοκάρει UPDATE — ελέγχουμε ότι ενημερώθηκε γραμμή. */
+const RLS_BUSINESS_UPDATE_FAILED_MSG =
+  "Η ενημέρωση δεν εφαρμόστηκε (άδεια πρόσβασης στη βάση). Τρέξτε τα migrations Supabase (πολιτική `super_admin_can_update_businesses` στον πίνακα `businesses`) και βεβαιωθείτε ότι ο λογαριασμός σας είναι super_admin στον πίνακα users."
+
+async function updateBusinessRowChecked(businessId: string, patch: Record<string, unknown>) {
+  const { data, error } = await supabase
+    .from("businesses")
+    .update(patch)
+    .eq("id", businessId)
+    .select("id")
+    .maybeSingle()
+  if (error) throw error
+  if (!data) {
+    throw new Error(RLS_BUSINESS_UPDATE_FAILED_MSG)
+  }
+}
+
 export default function PlatformBusinesses() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -428,11 +445,7 @@ export default function PlatformBusinesses() {
       } else if (newPlan !== "demo") {
         updatePayload.subscription_status = "active"
       }
-      const { error } = await supabase
-        .from("businesses")
-        .update(updatePayload)
-        .eq("id", businessId)
-      if (error) throw error
+      await updateBusinessRowChecked(businessId, updatePayload)
       await loadBusinesses()
       await loadAdminUsernames()
       toast({
@@ -685,15 +698,11 @@ export default function PlatformBusinesses() {
     }
     setUpdatingLimits(true)
     try {
-      const { error } = await supabase
-        .from("businesses")
-        .update({
-          max_users: mu,
-          max_customers: mc,
-          max_appointments: ma,
-        })
-        .eq("id", detailsBusinessId)
-      if (error) throw error
+      await updateBusinessRowChecked(detailsBusinessId, {
+        max_users: mu,
+        max_customers: mc,
+        max_appointments: ma,
+      })
       await loadBusinesses()
       toast({
         title: "Όρια αποθηκεύτηκαν",
@@ -715,11 +724,9 @@ export default function PlatformBusinesses() {
     if (!detailsBusinessId || !detailsExpiryDate) return
     setUpdatingExpiry(true)
     try {
-      const { error } = await supabase
-        .from("businesses")
-        .update({ subscription_expires_at: new Date(detailsExpiryDate).toISOString() })
-        .eq("id", detailsBusinessId)
-      if (error) throw error
+      await updateBusinessRowChecked(detailsBusinessId, {
+        subscription_expires_at: new Date(detailsExpiryDate).toISOString(),
+      })
       await loadBusinesses()
       toast({ title: "Ενημερώθηκε", description: "Η λήξη συνδρομής αποθηκεύτηκε." })
     } catch (err) {
