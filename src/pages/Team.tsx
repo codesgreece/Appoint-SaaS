@@ -6,6 +6,7 @@ import {
   fetchTeam,
   fetchCrews,
   createCrew,
+  deleteCrew,
   inviteTeamMember,
   setTeamMemberStatus,
   deleteTeamMember,
@@ -668,6 +669,36 @@ export default function Team() {
     }
   }
 
+  async function handleDeleteCrew(crew: Crew) {
+    if (!businessId || !canManageMembers) return
+    const ok = confirm(
+      language === "en"
+        ? `Delete crew "${crew.name}"?`
+        : `Διαγραφή συνεργείου «${crew.name}»;`,
+    )
+    if (!ok) return
+    try {
+      await deleteCrew(crew.id)
+      const refreshed = await fetchCrews(businessId)
+      setCrews(refreshed)
+      toast({
+        title: t.okTitle,
+        description: language === "en" ? "Crew deleted." : "Το συνεργείο διαγράφηκε.",
+      })
+    } catch (e) {
+      toast({
+        title: t.errorTitle,
+        description:
+          e instanceof Error
+            ? e.message
+            : language === "en"
+              ? "Failed to delete crew."
+              : "Αποτυχία διαγραφής συνεργείου.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <ErrorBoundary>
       {subSection === "shifts" ? (
@@ -806,6 +837,17 @@ export default function Team() {
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: crew.color }} />
                     <span className="font-medium">{crew.name}</span>
                     <span className="ml-auto text-xs text-muted-foreground">{crew.color}</span>
+                    {canManageMembers ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteCrew(crew)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -652,6 +652,11 @@ export async function createCrew(payload: { business_id: string; name: string; c
   return data as Crew
 }
 
+export async function deleteCrew(id: string): Promise<void> {
+  const { error } = await supabase.from("crews").delete().eq("id", id)
+  if (error) throw error
+}
+
 export async function fetchStaffProfiles(businessId: string): Promise<StaffProfile[]> {
   const { data, error } = await supabase.from("staff_profiles").select("*").eq("business_id", businessId)
   if (error) throw error
