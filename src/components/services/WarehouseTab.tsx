@@ -123,6 +123,28 @@ function toNumber(v: string): number | null {
   return n
 }
 
+/** Supabase/PostgREST errors are plain objects; String(e) becomes "[object Object]". */
+function formatSupabaseError(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (typeof e === "object" && e !== null) {
+    const o = e as Record<string, unknown>
+    if (typeof o.message === "string" && o.message) return o.message
+    if (typeof o.details === "string" && o.details) return o.details
+  }
+  if (typeof e === "string") return e
+  try {
+    return JSON.stringify(e)
+  } catch {
+    return "Unknown error"
+  }
+}
+
+function isDuplicateKeyError(e: unknown): boolean {
+  if (typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "23505") return true
+  const msg = formatSupabaseError(e).toLowerCase()
+  return msg.includes("23505") || msg.includes("unique constraint") || msg.includes("duplicate key")
+}
+
 function stockState(item: InventoryItem): "green" | "orange" | "red" {
   return inventoryStockLevel(item)
 }
@@ -213,11 +235,10 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
       await refresh()
       toast({ title: t.saved })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const isDup = msg.includes("23505") || msg.toLowerCase().includes("unique")
+      const msg = formatSupabaseError(e)
       toast({
         title: language === "en" ? "Error" : "Σφάλμα",
-        description: isDup ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
+        description: isDuplicateKeyError(e) ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
         variant: "destructive",
       })
     }
@@ -248,11 +269,10 @@ export function WarehouseTab({ businessId, language, onLowStockCountChange }: Wa
       await refresh()
       toast({ title: t.saved })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const isDup = msg.includes("23505") || msg.toLowerCase().includes("unique")
+      const msg = formatSupabaseError(e)
       toast({
         title: language === "en" ? "Error" : "Σφάλμα",
-        description: isDup ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
+        description: isDuplicateKeyError(e) ? t.duplicateCategory : `${t.saveFailed} ${msg}`,
         variant: "destructive",
       })
     }
