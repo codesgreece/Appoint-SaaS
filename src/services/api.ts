@@ -902,9 +902,9 @@ export function shouldSendInventoryLowNotification(
 ): boolean {
   const nextLevel = inventoryStockLevel(next)
   if (nextLevel === "green") return false
-  if (!previous) return nextLevel !== "green"
+  if (!previous) return true
   const prevLevel = inventoryStockLevel(previous)
-  if (prevLevel === "green" && nextLevel !== "green") return true
+  if (prevLevel === "green") return true
   if (prevLevel === "orange" && nextLevel === "red") return true
   return false
 }
