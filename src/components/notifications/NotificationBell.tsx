@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Bell, Calendar, CreditCard, User, MessageSquare, Briefcase, BarChart3 } from "lucide-react"
+import { Bell, Calendar, CreditCard, User, MessageSquare, Briefcase, BarChart3, Package } from "lucide-react"
 import {
   fetchNotifications,
   fetchUnreadNotificationCount,
@@ -40,6 +40,7 @@ function notificationIcon(n: InAppNotification) {
   if (n.related_customer_id || t.includes("customer")) return User
   if (n.related_support_request_id || t.includes("support")) return MessageSquare
   if (t.includes("service") || n.metadata?.related_service_id) return Briefcase
+  if (t.includes("inventory") || n.metadata?.related_inventory_item_id) return Package
   if (t.includes("digest") || t.includes("weekly") || t.includes("stats")) return BarChart3
   return Bell
 }
@@ -50,6 +51,7 @@ function linkHint(n: InAppNotification): string | null {
   if (n.related_payment_id) return "Άνοιγμα πληρωμής →"
   if (n.related_support_request_id) return "Άνοιγμα αιτήματος →"
   if (typeof n.metadata?.related_service_id === "string") return "Άνοιγμα υπηρεσίας →"
+  if (typeof n.metadata?.related_inventory_item_id === "string") return "Άνοιγμα αποθήκης →"
   return null
 }
 
@@ -95,6 +97,7 @@ export function NotificationBell({ businessId }: { businessId: string | null }) 
 
   async function onRowClick(n: InAppNotification) {
     const svcId = typeof n.metadata?.related_service_id === "string" ? n.metadata.related_service_id : null
+    const invId = typeof n.metadata?.related_inventory_item_id === "string" ? n.metadata.related_inventory_item_id : null
     if (n.related_appointment_id) {
       navigate(`/appointments?open=${n.related_appointment_id}`)
       setOpen(false)
@@ -109,6 +112,9 @@ export function NotificationBell({ businessId }: { businessId: string | null }) 
       setOpen(false)
     } else if (svcId) {
       navigate(`/services?open=${svcId}`)
+      setOpen(false)
+    } else if (invId) {
+      navigate(`/services?tab=warehouse&item=${invId}`)
       setOpen(false)
     } else if (n.notification_type?.includes("digest") || n.notification_type?.includes("weekly")) {
       navigate("/appointments")

@@ -40,6 +40,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { WarehouseTab } from "@/components/services/WarehouseTab"
 
 type FormState = {
   name: string
@@ -228,6 +230,7 @@ export default function Services() {
   const [editing, setEditing] = useState<Service | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [lowStockCount, setLowStockCount] = useState(0)
 
   useEffect(() => {
     if (!businessId) return
@@ -246,6 +249,7 @@ export default function Services() {
   }, [searchParams])
 
   const openServiceId = searchParams.get("open")
+  const activeTab = searchParams.get("tab") === "warehouse" ? "warehouse" : "services"
 
   useEffect(() => {
     if (!openServiceId || !businessId) return
@@ -411,7 +415,31 @@ export default function Services() {
   const publicBookingVisibleServices = rows.filter((s) => s.is_public_booking_visible).length
 
   return (
-    <div className="space-y-6">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) =>
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev)
+          if (value === "warehouse") next.set("tab", "warehouse")
+          else next.delete("tab")
+          return next
+        })
+      }
+      className="space-y-4"
+    >
+      <TabsList>
+        <TabsTrigger value="services">{t.title}</TabsTrigger>
+        <TabsTrigger value="warehouse">
+          {language === "en" ? "Warehouse" : "Αποθήκη"}
+          {lowStockCount > 0 ? (
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 text-[10px]">
+              {lowStockCount > 99 ? "99+" : lowStockCount}
+            </Badge>
+          ) : null}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="services">
+        <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/20 via-purple-500/10 to-transparent blur-2xl" />
@@ -587,6 +615,11 @@ export default function Services() {
           )}
         </CardContent>
       </Card>
+        </div>
+      </TabsContent>
+      <TabsContent value="warehouse">
+        <WarehouseTab businessId={businessId} language={language} onLowStockCountChange={setLowStockCount} />
+      </TabsContent>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
@@ -672,7 +705,7 @@ export default function Services() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </Tabs>
   )
 }
 

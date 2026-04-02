@@ -16,6 +16,7 @@ export type AppointmentJobStatus =
 
 export type PaymentStatus = "unpaid" | "partial" | "paid"
 export type ServiceBillingType = "fixed" | "hourly"
+export type InventoryUnitType = "pieces" | "meters" | "kg"
 
 export type SubscriptionStatus = "active" | "trialing" | "past_due" | "cancelled" | "none"
 
@@ -172,6 +173,28 @@ export interface Service {
   updated_at: string
 }
 
+export interface InventoryCategory {
+  id: string
+  business_id: string
+  name: string
+  image_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryItem {
+  id: string
+  business_id: string
+  category_id: string
+  name: string
+  unit_type: InventoryUnitType
+  quantity_current: number
+  orange_threshold: number
+  red_threshold: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Crew {
   id: string
   business_id: string
@@ -314,6 +337,8 @@ export type Database = {
       staff_profiles: { Row: StaffProfile; Insert: Omit<StaffProfile, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<StaffProfile> }
       customers: { Row: Customer; Insert: Omit<Customer, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Customer> }
       services: { Row: Service; Insert: Omit<Service, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Service> }
+      inventory_categories: { Row: InventoryCategory; Insert: Omit<InventoryCategory, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<InventoryCategory> }
+      inventory_items: { Row: InventoryItem; Insert: Omit<InventoryItem, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<InventoryItem> }
       crews: { Row: Crew; Insert: Omit<Crew, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<Crew> }
       appointments_jobs: { Row: AppointmentJob; Insert: Omit<AppointmentJob, "created_at" | "updated_at"> & { created_at?: string; updated_at?: string }; Update: Partial<AppointmentJob> }
       appointment_job_comments: { Row: AppointmentJobComment; Insert: Omit<AppointmentJobComment, "created_at"> & { created_at?: string }; Update: Partial<AppointmentJobComment> }

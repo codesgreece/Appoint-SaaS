@@ -13,6 +13,8 @@ import type {
   InAppNotification,
   ServiceReminder,
   Shift,
+  InventoryCategory,
+  InventoryItem,
 } from "@/types"
 
 const OUTSTANDING_NOTIFY_THRESHOLD_EUR = 150
@@ -820,6 +822,108 @@ export async function updateService(id: string, payload: Partial<Service>): Prom
 export async function deleteService(id: string): Promise<void> {
   const { error } = await supabase.from("services").delete().eq("id", id)
   if (error) throw error
+}
+
+export async function fetchInventoryCategories(businessId: string): Promise<InventoryCategory[]> {
+  const { data, error } = await supabase
+    .from("inventory_categories")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true })
+  if (error) throw error
+  return (data ?? []) as InventoryCategory[]
+}
+
+export async function createInventoryCategory(payload: Partial<InventoryCategory>): Promise<InventoryCategory> {
+  const { data, error } = await supabase.from("inventory_categories").insert(payload).select().single()
+  if (error) throw error
+  return data as InventoryCategory
+}
+
+export async function updateInventoryCategory(id: string, payload: Partial<InventoryCategory>): Promise<InventoryCategory> {
+  const { data, error } = await supabase.from("inventory_categories").update(payload).eq("id", id).select().single()
+  if (error) throw error
+  return data as InventoryCategory
+}
+
+export async function deleteInventoryCategory(id: string): Promise<void> {
+  const { error } = await supabase.from("inventory_categories").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function fetchInventoryItems(businessId: string): Promise<InventoryItem[]> {
+  const { data, error } = await supabase
+    .from("inventory_items")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true })
+  if (error) throw error
+  return (data ?? []) as InventoryItem[]
+}
+
+export async function createInventoryItem(payload: Partial<InventoryItem>): Promise<InventoryItem> {
+  const { data, error } = await supabase.from("inventory_items").insert(payload).select().single()
+  if (error) throw error
+  return data as InventoryItem
+}
+
+export async function updateInventoryItem(id: string, payload: Partial<InventoryItem>): Promise<InventoryItem> {
+  const { data, error } = await supabase.from("inventory_items").update(payload).eq("id", id).select().single()
+  if (error) throw error
+  return data as InventoryItem
+}
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  const { error } = await supabase.from("inventory_items").delete().eq("id", id)
+  if (error) throw error
+}
+
+/** Stock level from quantity vs user-defined orange/red thresholds. */
+export type InventoryStockLevel = "green" | "orange" | "red"
+
+export function inventoryStockLevel(
+  item: Pick<InventoryItem, "quantity_current" | "orange_threshold" | "red_threshold">,
+): InventoryStockLevel {
+  const qty = Number(item.quantity_current)
+  const red = Number(item.red_threshold)
+  const orange = Number(item.orange_threshold)
+  if (qty <= red) return "red"
+  if (qty <= orange) return "orange"
+  return "green"
+}
+
+/**
+ * Notify only when stock enters a worse band (green→orange/red, orange→red).
+ * Avoids repeating the same alert while quantity stays in orange or red.
+ */
+export function shouldSendInventoryLowNotification(
+  previous: InventoryItem | null,
+  next: InventoryItem,
+): boolean {
+  const nextLevel = inventoryStockLevel(next)
+  if (nextLevel === "green") return false
+  if (!previous) return nextLevel !== "green"
+  const prevLevel = inventoryStockLevel(previous)
+  if (prevLevel === "green" && nextLevel !== "green") return true
+  if (prevLevel === "orange" && nextLevel === "red") return true
+  return false
+}
+
+/** Sends at most one low-stock notification per transition into warning levels. */
+export async function notifyInventoryLowIfNeeded(
+  businessId: string,
+  message: string,
+  previous: InventoryItem | null,
+  next: InventoryItem,
+): Promise<void> {
+  if (!shouldSendInventoryLowNotification(previous, next)) return
+  await notifyInAppQuiet(businessId, message, {
+    notificationType: "inventory_low",
+    metadata: {
+      related_inventory_item_id: next.id,
+      inventory_stock_level: inventoryStockLevel(next),
+    },
+  })
 }
 
 export async function fetchPayments(_businessId: string) {

@@ -42,7 +42,7 @@ const translations = {
   el: {
     navDashboard: "Dashboard",
     navCustomers: "Πελάτες",
-    navServices: "Υπηρεσίες",
+    navServices: "Υπηρεσίες / Αποθήκη",
     navAppointments: "Ραντεβού",
     navRouteOrder: "Ημερ. Διαδρομή",
     navReminders: "Υπενθυμίσεις",
@@ -71,7 +71,7 @@ const translations = {
   en: {
     navDashboard: "Dashboard",
     navCustomers: "Customers",
-    navServices: "Services",
+    navServices: "Services / Warehouse",
     navAppointments: "Appointments",
     navRouteOrder: "Daily Route",
     navReminders: "Reminders",
