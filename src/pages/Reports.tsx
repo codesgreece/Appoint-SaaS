@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useLanguage } from "@/contexts/LanguageContext"
 import type { AppLanguage } from "@/contexts/LanguageContext"
 import { fetchDashboardStats, fetchReportsSummary } from "@/services/api"
+import { ManualPaymentButton } from "@/components/payments/ManualPaymentButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -173,7 +174,7 @@ export default function Reports() {
       <div className="relative">
         <div className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl bg-gradient-to-r from-primary/25 via-purple-500/10 to-transparent blur-2xl" />
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
               <Sparkles className="h-4 w-4 text-primary" />
@@ -183,7 +184,21 @@ export default function Reports() {
             <p className="text-muted-foreground">{t.pageSubtitle}</p>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end w-full lg:w-auto shrink-0">
+            <ManualPaymentButton
+              businessId={businessId}
+              fullWidthMobile={false}
+              onSuccess={async () => {
+                if (!businessId || !from || !to) return
+                const [dash, sum] = await Promise.all([
+                  fetchDashboardStats(businessId),
+                  fetchReportsSummary(businessId, { from, to }),
+                ])
+                setDashboard(dash)
+                setSummary(sum)
+              }}
+            />
+            <div className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur-xl p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
               <div className="space-y-1">
                 <Label className="text-xs">{t.fromLabel}</Label>
@@ -209,6 +224,7 @@ export default function Reports() {
                   {from && to ? `(${formatReportDate(from, language)} → ${formatReportDate(to, language)})` : "—"}
                 </span>
               </div>
+            </div>
             </div>
           </div>
         </div>

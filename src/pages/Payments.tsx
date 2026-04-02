@@ -1,18 +1,10 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { CreditCard, Euro, Pencil, PlusCircle, CheckCircle2, Banknote } from "lucide-react"
+import { CreditCard, Euro, Pencil, PlusCircle, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import {
-  fetchPayments,
-  updatePayment,
-  fetchPaymentById,
-  notifyPaymentRecordChange,
-  fetchCustomers,
-  createCustomer,
-  createManualPaymentRecord,
-} from "@/services/api"
-import type { Customer, Payment, PaymentStatus } from "@/types"
-import { CustomerForm } from "@/components/customers/CustomerForm"
+import { fetchPayments, updatePayment, fetchPaymentById, notifyPaymentRecordChange } from "@/services/api"
+import type { Payment, PaymentStatus } from "@/types"
+import { ManualPaymentButton } from "@/components/payments/ManualPaymentButton"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
@@ -29,17 +21,9 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -74,77 +58,10 @@ export default function Payments() {
   const [notesInput, setNotesInput] = useState("")
   const [saving, setSaving] = useState(false)
 
-  const [manualOpen, setManualOpen] = useState(false)
-  const [createCustomerOpen, setCreateCustomerOpen] = useState(false)
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [customersLoading, setCustomersLoading] = useState(false)
-  const [manualCustomerId, setManualCustomerId] = useState("")
-  const [manualAmount, setManualAmount] = useState("")
-  const [manualMethod, setManualMethod] = useState("")
-  const [manualNotes, setManualNotes] = useState("")
-  const [manualSaving, setManualSaving] = useState(false)
-
   useEffect(() => {
     if (!businessId) return
     fetchPayments(businessId).then((data) => setPayments(data as PaymentRow[])).finally(() => setLoading(false))
   }, [businessId])
-
-  useEffect(() => {
-    if (!manualOpen || !businessId) return
-    setCustomersLoading(true)
-    fetchCustomers(businessId)
-      .then(setCustomers)
-      .finally(() => setCustomersLoading(false))
-  }, [manualOpen, businessId])
-
-  function openManualPayment() {
-    setManualCustomerId("")
-    setManualAmount("")
-    setManualMethod("")
-    setManualNotes("")
-    setManualOpen(true)
-  }
-
-  async function handleManualSave() {
-    if (!businessId) return
-    if (!manualCustomerId) {
-      toast({
-        title: "Σφάλμα",
-        description: "Επιλέξτε πελάτη ή καταχωρήστε νέο πελάτη.",
-        variant: "destructive",
-      })
-      return
-    }
-    const amt = Number(manualAmount.replace(",", "."))
-    if (!Number.isFinite(amt) || amt <= 0) {
-      toast({
-        title: "Σφάλμα",
-        description: "Εισάγετε έγκυρο θετικό ποσό πληρωμής.",
-        variant: "destructive",
-      })
-      return
-    }
-    try {
-      setManualSaving(true)
-      await createManualPaymentRecord({
-        businessId,
-        customerId: manualCustomerId,
-        amount: amt,
-        paymentMethod: manualMethod.trim() || null,
-        notes: manualNotes.trim() || null,
-      })
-      const data = await fetchPayments(businessId)
-      setPayments(data as PaymentRow[])
-      toast({ title: "Πληρωμή καταχωρήθηκε", description: "Η χειροκίνητη πληρωμή αποθηκεύτηκε." })
-      setManualOpen(false)
-    } catch (err) {
-      console.error("Manual payment error:", err)
-      const message = err instanceof Error ? err.message : "Αποτυχία καταχώρησης πληρωμής"
-      toast({ title: "Σφάλμα", description: message, variant: "destructive" })
-    } finally {
-      setManualSaving(false)
-    }
-  }
 
   const statusVariant = (s: string) =>
     s === "paid" ? "completed" : s === "partial" ? "pending" : "destructive"
@@ -312,10 +229,14 @@ export default function Payments() {
               <CreditCard className="h-5 w-5" />
               <span>Λίστα πληρωμών</span>
             </div>
-            <Button type="button" className="w-full sm:w-auto shrink-0" onClick={openManualPayment}>
-              <Banknote className="h-4 w-4 mr-2" />
-              Χειροκίνητη πληρωμή
-            </Button>
+            <ManualPaymentButton
+              businessId={businessId}
+              onSuccess={async () => {
+                if (!businessId) return
+                const data = await fetchPayments(businessId)
+                setPayments(data as PaymentRow[])
+              }}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -432,111 +353,6 @@ export default function Payments() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={manualOpen} onOpenChange={setManualOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Χειροκίνητη πληρωμή</DialogTitle>
-            <DialogDescription>
-              Επιλέξτε πελάτη, εισάγετε το ποσό που ελήφθη και τον τρόπο πληρωμής. Αν ο πελάτης δεν υπάρχει στη λίστα,
-              χρησιμοποιήστε «Νέος πελάτης».
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="manual-customer">Πελάτης</Label>
-                <Button type="button" variant="link" className="h-auto px-0 py-0 text-xs" onClick={() => setCreateCustomerOpen(true)}>
-                  Νέος πελάτης
-                </Button>
-              </div>
-              <Select
-                value={manualCustomerId || "none"}
-                onValueChange={(v) => setManualCustomerId(v === "none" ? "" : v)}
-                disabled={customersLoading}
-              >
-                <SelectTrigger id="manual-customer">
-                  <SelectValue placeholder={customersLoading ? "Φόρτωση..." : "Επιλέξτε πελάτη"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Επιλέξτε πελάτη —</SelectItem>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manual-amount">Ποσό που ελήφθη (€)</Label>
-              <Input
-                id="manual-amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={manualAmount}
-                onChange={(e) => setManualAmount(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manual-method">Τρόπος πληρωμής</Label>
-              <Input
-                id="manual-method"
-                placeholder="π.χ. Μετρητά, Κάρτα, Τραπεζική κατάθεση"
-                value={manualMethod}
-                onChange={(e) => setManualMethod(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manual-notes-pay">Σημειώσεις</Label>
-              <Input
-                id="manual-notes-pay"
-                placeholder="Προαιρετικά"
-                value={manualNotes}
-                onChange={(e) => setManualNotes(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setManualOpen(false)} disabled={manualSaving}>
-                Ακύρωση
-              </Button>
-              <Button type="button" onClick={handleManualSave} disabled={manualSaving}>
-                {manualSaving ? "Αποθήκευση..." : "Καταχώρηση πληρωμής"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Νέος πελάτης</DialogTitle>
-            <DialogDescription>
-              Μετά την αποθήκευση ο πελάτης θα επιλεγεί αυτόματα για τη χειροκίνητη πληρωμή.
-            </DialogDescription>
-          </DialogHeader>
-          <CustomerForm
-            onCancel={() => setCreateCustomerOpen(false)}
-            onSubmit={async (payload) => {
-              if (!businessId) return
-              try {
-                const created = await createCustomer({ ...payload, business_id: businessId })
-                setCustomers((prev) => [created, ...prev])
-                setManualCustomerId(created.id)
-                setCreateCustomerOpen(false)
-                toast({ title: "Πελάτης αποθηκεύτηκε", description: "Μπορείτε να συνεχίσετε με την πληρωμή." })
-              } catch (err) {
-                console.error(err)
-                const message = err instanceof Error ? err.message : "Αποτυχία αποθήκευσης"
-                toast({ title: "Σφάλμα", description: message, variant: "destructive" })
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
