@@ -234,8 +234,7 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const { toast } = useToast()
   const { language } = useLanguage()
-  /** Non-Greek UI uses English copy; German (de) follows English until strings are translated. */
-  const en = language !== "el"
+  const tr = (en: string, el: string, de: string) => uiLang(language, en, el, de)
   const safeCustomers = Array.isArray(customers) ? customers : []
   const safeTeam = Array.isArray(team) ? team : []
   const safeCrews = Array.isArray(crews) ? crews : []
@@ -430,14 +429,16 @@ export function AppointmentForm({
     if (selectedShift?.status === "off") {
       setValue("assigned_user_id", "")
       toast({
-        title: en ? "Member off shift" : "Μέλος εκτός βάρδιας",
-        description: en
-          ? "The selected team member is OFF for this day."
-          : "Το επιλεγμένο μέλος είναι OFF για τη συγκεκριμένη ημέρα.",
+        title: tr("Member off shift", "Μέλος εκτός βάρδιας", "Teammitglied nicht im Dienst"),
+        description: tr(
+          "The selected team member is OFF for this day.",
+          "Το επιλεγμένο μέλος είναι OFF για τη συγκεκριμένη ημέρα.",
+          "Das ausgewählte Teammitglied ist an diesem Tag nicht im Dienst.",
+        ),
         variant: "destructive",
       })
     }
-  }, [assignedUserIdRaw, assignmentMode, shiftsByUserId, setValue, toast, en])
+  }, [assignedUserIdRaw, assignmentMode, shiftsByUserId, setValue, toast, language])
 
   useEffect(() => {
     if (!businessId || !scheduledDateWatch) {
@@ -649,9 +650,11 @@ export function AppointmentForm({
     try {
       if (!businessId) {
         throw new Error(
-          en
-            ? "Missing business ID. Reload the page and try again."
-            : "Λείπει το αναγνωριστικό επιχείρησης. Κάντε επαναφόρτωση και δοκιμάστε ξανά.",
+          tr(
+            "Missing business ID. Reload the page and try again.",
+            "Λείπει το αναγνωριστικό επιχείρησης. Κάντε επαναφόρτωση και δοκιμάστε ξανά.",
+            "Fehlende Unternehmens-ID. Seite neu laden und erneut versuchen.",
+          ),
         )
       }
 
@@ -664,10 +667,12 @@ export function AppointmentForm({
         const totalAppointments = await countAppointmentsForBusiness(businessId)
         if (!initial?.id && totalAppointments >= biz.max_appointments) {
           toast({
-            title: en ? "Appointment plan limit" : "Όριο ραντεβού πλάνου",
-            description: en
-              ? "You reached the maximum number of appointments for your current business plan."
-              : "Έχεις φτάσει το μέγιστο πλήθος ραντεβού για το τρέχον πλάνο επιχείρησης.",
+            title: tr("Appointment plan limit", "Όριο ραντεβού πλάνου", "Terminlimit des Plans"),
+            description: tr(
+              "You reached the maximum number of appointments for your current business plan.",
+              "Έχεις φτάσει το μέγιστο πλήθος ραντεβού για το τρέχον πλάνο επιχείρησης.",
+              "Sie haben die maximale Anzahl an Terminen für Ihren aktuellen Plan erreicht.",
+            ),
             variant: "destructive",
           })
           return
@@ -697,16 +702,20 @@ export function AppointmentForm({
       if (hasOverlap) {
         void notifyInAppQuiet(
           businessId,
-          en
-            ? `Double-booking prevented: ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) overlaps another appointment.`
-            : `Αποφεύχθηκε διπλοκράτηση: η ώρα ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) συγκρούεται με άλλο ραντεβού.`,
+          tr(
+            `Double-booking prevented: ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) overlaps another appointment.`,
+            `Αποφεύχθηκε διπλοκράτηση: η ώρα ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) συγκρούεται με άλλο ραντεβού.`,
+            `Doppelbuchung verhindert: ${(data.start_time ?? "").slice(0, 5)}–${(data.end_time ?? "").slice(0, 5)} (${formatDate(data.scheduled_date)}) kollidiert mit einem anderen Termin.`,
+          ),
           { notificationType: "appointment_overlap_blocked", metadata: { source: "panel" } },
         )
         toast({
-          title: en ? "Time unavailable" : "Μη διαθέσιμη ώρα",
-          description: en
-            ? "Another appointment already uses this time slot. Choose a different time or assignee."
-            : "Υπάρχει ήδη ραντεβού σε αυτό το διάστημα. Διάλεξε άλλη ώρα ή υπεύθυνο.",
+          title: tr("Time unavailable", "Μη διαθέσιμη ώρα", "Zeit nicht verfügbar"),
+          description: tr(
+            "Another appointment already uses this time slot. Choose a different time or assignee.",
+            "Υπάρχει ήδη ραντεβού σε αυτό το διάστημα. Διάλεξε άλλη ώρα ή υπεύθυνο.",
+            "Dieser Zeitraum ist bereits belegt. Wählen Sie eine andere Zeit oder Person.",
+          ),
           variant: "destructive",
         })
         return
@@ -717,10 +726,12 @@ export function AppointmentForm({
         const shift = shiftsByUserId[activeAssigneeUserId]
         if (shift?.status === "off") {
           toast({
-            title: en ? "Member off shift" : "Μέλος εκτός βάρδιας",
-            description: en
-              ? "The selected team member is OFF for this day."
-              : "Το μέλος που επέλεξες είναι OFF για αυτή την ημέρα.",
+            title: tr("Member off shift", "Μέλος εκτός βάρδιας", "Teammitglied nicht im Dienst"),
+            description: tr(
+              "The selected team member is OFF for this day.",
+              "Το μέλος που επέλεξες είναι OFF για αυτή την ημέρα.",
+              "Das ausgewählte Teammitglied ist an diesem Tag nicht im Dienst.",
+            ),
             variant: "destructive",
           })
           return
@@ -730,10 +741,12 @@ export function AppointmentForm({
           const shiftEnd = timeToMinutes(shift.end_time.slice(0, 5))
           if (newStart < shiftStart || newEnd > shiftEnd) {
             toast({
-              title: en ? "Outside shift" : "Εκτός βάρδιας",
-              description: en
-                ? `The appointment is outside the shift (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`
-                : `Το ραντεβού είναι εκτός βάρδιας (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`,
+              title: tr("Outside shift", "Εκτός βάρδιας", "Außerhalb der Schicht"),
+              description: tr(
+                `The appointment is outside the shift (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`,
+                `Το ραντεβού είναι εκτός βάρδιας (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`,
+                `Der Termin liegt außerhalb der Schicht (${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}).`,
+              ),
               variant: "destructive",
             })
             return
@@ -769,10 +782,12 @@ export function AppointmentForm({
               newEnd <= workStart
             if (outside) {
               toast({
-                title: en ? "Outside working hours" : "Εκτός ωραρίου εργασίας",
-                description: en
-                  ? `The appointment is outside the assignee's declared hours (${def.from}–${def.to}). Adjust the time or their schedule.`
-                  : `Το ραντεβού είναι εκτός δηλωμένου ωραρίου για τον υπεύθυνο (${def.from}–${def.to}). Προσαρμόστε την ώρα ή το ωράριο.`,
+                title: tr("Outside working hours", "Εκτός ωραρίου εργασίας", "Außerhalb der Arbeitszeiten"),
+                description: tr(
+                  `The appointment is outside the assignee's declared hours (${def.from}–${def.to}). Adjust the time or their schedule.`,
+                  `Το ραντεβού είναι εκτός δηλωμένου ωραρίου για τον υπεύθυνο (${def.from}–${def.to}). Προσαρμόστε την ώρα ή το ωράριο.`,
+                  `Der Termin liegt außerhalb der angegebenen Zeiten (${def.from}–${def.to}). Passen Sie die Zeit oder den Plan an.`,
+                ),
                 variant: "destructive",
               })
               return
@@ -814,7 +829,7 @@ export function AppointmentForm({
         const b = editBaselineRef.current
         if (b && businessId) {
           const customer = customerOptions.find((c) => c.id === data.customer_id)
-          const fallbackCustomer = en ? "Customer" : "Πελάτης"
+          const fallbackCustomer = tr("Customer", "Πελάτης", "Kunde")
           const customerLabel = customer
             ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || fallbackCustomer
             : fallbackCustomer
@@ -831,9 +846,11 @@ export function AppointmentForm({
           if (dateTimeChanged) {
             await notifyInAppQuiet(
               businessId,
-              en
-                ? `Date/time changed: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Panel`
-                : `Αλλαγή ώρας/ημερομηνίας: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Πίνακας`,
+              tr(
+                `Date/time changed: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Panel`,
+                `Αλλαγή ώρας/ημερομηνίας: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Πίνακας`,
+                `Datum/Zeit geändert: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart} · Panel`,
+              ),
               {
                 notificationType: "appointment_rescheduled",
                 relatedAppointmentId: initial.id,
@@ -845,17 +862,21 @@ export function AppointmentForm({
             if (data.status === "cancelled") {
               await notifyInAppQuiet(
                 businessId,
-                en
-                  ? `Appointment cancelled: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`
-                  : `Ακύρωση ραντεβού: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                tr(
+                  `Appointment cancelled: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                  `Ακύρωση ραντεβού: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                  `Termin storniert: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                ),
                 { notificationType: "appointment_cancelled", relatedAppointmentId: initial.id },
               )
             } else if (data.status === "no_show") {
               await notifyInAppQuiet(
                 businessId,
-                en
-                  ? `No-show: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`
-                  : `No-show (δεν εμφανίστηκε): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                tr(
+                  `No-show: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                  `No-show (δεν εμφανίστηκε): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                  `Nicht erschienen: ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+                ),
                 { notificationType: "appointment_no_show", relatedAppointmentId: initial.id },
               )
             }
@@ -865,9 +886,11 @@ export function AppointmentForm({
           if (newRec && newRec !== oldRec) {
             await notifyInAppQuiet(
               businessId,
-              en
-                ? `Recurring appointment (rule): ${customerLabel} — «${newRec}»`
-                : `Επαναλαμβανόμενο ραντεβού (κανόνας): ${customerLabel} — «${newRec}»`,
+              tr(
+                `Recurring appointment (rule): ${customerLabel} — «${newRec}»`,
+                `Επαναλαμβανόμενο ραντεβού (κανόνας): ${customerLabel} — «${newRec}»`,
+                `Wiederkehrender Termin (Regel): ${customerLabel} — «${newRec}»`,
+              ),
               { notificationType: "appointment_recurrence", relatedAppointmentId: initial.id },
             )
           }
@@ -878,7 +901,7 @@ export function AppointmentForm({
         await replaceAppointmentServiceIds(created.id, businessId, selectedServiceIds)
         try {
           const customer = customerOptions.find((c) => c.id === data.customer_id)
-          const fallbackCustomer = en ? "Customer" : "Πελάτης"
+          const fallbackCustomer = tr("Customer", "Πελάτης", "Kunde")
           const customerLabel = customer
             ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || fallbackCustomer
             : fallbackCustomer
@@ -888,9 +911,11 @@ export function AppointmentForm({
             .map((sid) => safeServices.find((s) => s.id === sid)?.name)
             .filter(Boolean) as string[]
           const svcPart = svcLabels.length ? ` · ${svcLabels.join(", ")}` : ""
-          const msg = en
-            ? `New appointment (panel): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`
-            : `Νέο ραντεβού (πίνακας): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`
+          const msg = tr(
+            `New appointment (panel): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+            `Νέο ραντεβού (πίνακας): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+            `Neuer Termin (Panel): ${customerLabel} — ${dateLabel} ${timeLabel}${svcPart}`,
+          )
           await notifyInAppQuiet(businessId, msg, {
             notificationType: "appointment_created",
             relatedAppointmentId: created.id,
@@ -900,9 +925,11 @@ export function AppointmentForm({
           if (rec) {
             await notifyInAppQuiet(
               businessId,
-              en
-                ? `Recurrence set for upcoming periods: ${customerLabel} — «${rec}»`
-                : `Ορίστηκε επανάληψη για τις επόμενες περιόδους: ${customerLabel} — «${rec}»`,
+              tr(
+                `Recurrence set for upcoming periods: ${customerLabel} — «${rec}»`,
+                `Ορίστηκε επανάληψη για τις επόμενες περιόδους: ${customerLabel} — «${rec}»`,
+                `Wiederholung für künftige Zeiträume: ${customerLabel} — «${rec}»`,
+              ),
               { notificationType: "appointment_recurrence", relatedAppointmentId: created.id },
             )
           }
@@ -919,8 +946,12 @@ export function AppointmentForm({
 
         if (!dueDate) {
           toast({
-            title: en ? "Maintenance reminder" : "Υπενθύμιση συντήρησης",
-            description: en ? "Pick a date for the reminder." : "Επίλεξε ημερομηνία για την υπενθύμιση.",
+            title: tr("Maintenance reminder", "Υπενθύμιση συντήρησης", "Wartungserinnerung"),
+            description: tr(
+              "Pick a date for the reminder.",
+              "Επίλεξε ημερομηνία για την υπενθύμιση.",
+              "Wählen Sie ein Datum für die Erinnerung.",
+            ),
             variant: "destructive",
           })
           return
@@ -930,7 +961,7 @@ export function AppointmentForm({
           business_id: businessId,
           customer_id: data.customer_id,
           appointment_job_id: savedAppointmentId,
-          title: en ? "Maintenance reminder" : "Υπενθύμιση συντήρησης",
+          title: tr("Maintenance reminder", "Υπενθύμιση συντήρησης", "Wartungserinnerung"),
           notes: reminderNotes.trim() || null,
           due_date: dueDate,
           status: "pending",
@@ -940,8 +971,8 @@ export function AppointmentForm({
     } catch (err) {
       console.error("Appointment save error:", err)
       const message =
-        err instanceof Error ? err.message : en ? "Failed to save" : "Αποτυχία αποθήκευσης"
-      toast({ title: en ? "Error" : "Σφάλμα", description: message, variant: "destructive" })
+        err instanceof Error ? err.message : tr("Failed to save", "Αποτυχία αποθήκευσης", "Speichern fehlgeschlagen")
+      toast({ title: tr("Error", "Σφάλμα", "Fehler"), description: message, variant: "destructive" })
     }
   }
 
@@ -949,28 +980,32 @@ export function AppointmentForm({
     try {
       if (!initial?.id) {
         toast({
-          title: en ? "Error" : "Σφάλμα",
-          description: en
-            ? "Payment can only be saved for an existing appointment."
-            : "Η πληρωμή μπορεί να αποθηκευτεί μόνο για υπάρχον ραντεβού.",
+          title: tr("Error", "Σφάλμα", "Fehler"),
+          description: tr(
+            "Payment can only be saved for an existing appointment.",
+            "Η πληρωμή μπορεί να αποθηκευτεί μόνο για υπάρχον ραντεβού.",
+            "Zahlungen können nur für einen bestehenden Termin gespeichert werden.",
+          ),
           variant: "destructive",
         })
         return
       }
       if (!businessId) {
         toast({
-          title: en ? "Error" : "Σφάλμα",
-          description: en ? "Missing business ID." : "Λείπει το αναγνωριστικό επιχείρησης.",
+          title: tr("Error", "Σφάλμα", "Fehler"),
+          description: tr("Missing business ID.", "Λείπει το αναγνωριστικό επιχείρησης.", "Fehlende Unternehmens-ID."),
           variant: "destructive",
         })
         return
       }
       if (derivedAmount <= 0 && paidAmount <= 0) {
         toast({
-          title: en ? "Error" : "Σφάλμα",
-          description: en
-            ? "Enter an amount or paid amount before saving."
-            : "Ορίστε ποσό ή πληρωμένο ποσό πριν την αποθήκευση.",
+          title: tr("Error", "Σφάλμα", "Fehler"),
+          description: tr(
+            "Enter an amount or paid amount before saving.",
+            "Ορίστε ποσό ή πληρωμένο ποσό πριν την αποθήκευση.",
+            "Geben Sie vor dem Speichern einen Betrag oder gezahlten Betrag ein.",
+          ),
           variant: "destructive",
         })
         return
@@ -996,14 +1031,20 @@ export function AppointmentForm({
       const updated = await upsertPaymentForAppointment(payload)
       setPayment(updated)
       toast({
-        title: en ? "Payment saved" : "Πληρωμή αποθηκεύτηκε",
-        description: en ? "Payment updated successfully." : "Η πληρωμή ενημερώθηκε επιτυχώς.",
+        title: tr("Payment saved", "Πληρωμή αποθηκεύτηκε", "Zahlung gespeichert"),
+        description: tr(
+          "Payment updated successfully.",
+          "Η πληρωμή ενημερώθηκε επιτυχώς.",
+          "Zahlung wurde erfolgreich aktualisiert.",
+        ),
       })
     } catch (err) {
       console.error("Save payment error:", err)
       const message =
-        err instanceof Error ? err.message : en ? "Failed to save payment" : "Αποτυχία αποθήκευσης πληρωμής"
-      toast({ title: en ? "Error" : "Σφάλμα", description: message, variant: "destructive" })
+        err instanceof Error
+          ? err.message
+          : tr("Failed to save payment", "Αποτυχία αποθήκευσης πληρωμής", "Zahlung konnte nicht gespeichert werden")
+      toast({ title: tr("Error", "Σφάλμα", "Fehler"), description: message, variant: "destructive" })
     } finally {
       setPaymentSaving(false)
     }
@@ -1015,12 +1056,14 @@ export function AppointmentForm({
         <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4" />
           <div>
-            <p className="font-medium">{en ? "Form load error" : "Σφάλμα φόρτωσης φόρμας"}</p>
+            <p className="font-medium">{tr("Form load error", "Σφάλμα φόρτωσης φόρμας", "Fehler beim Laden des Formulars")}</p>
             <p className="text-xs text-destructive/80">
               {initError}{" "}
-              {en
-                ? "If this continues, check the appointment data or create a new one."
-                : "Αν το πρόβλημα συνεχιστεί, ελέγξτε τα δεδομένα του ραντεβού ή δημιουργήστε νέο."}
+              {tr(
+                "If this continues, check the appointment data or create a new one.",
+                "Αν το πρόβλημα συνεχιστεί, ελέγξτε τα δεδομένα του ραντεβού ή δημιουργήστε νέο.",
+                "Wenn das weiterhin auftritt, prüfen Sie die Termindaten oder legen Sie einen neuen an.",
+              )}
             </p>
           </div>
         </div>
@@ -1029,7 +1072,9 @@ export function AppointmentForm({
         <CardHeader className="space-y-1.5">
           <CardTitle className="flex items-center justify-between gap-2 text-sm">
             <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-              {initial?.id ? (en ? "Edit appointment" : "Επεξεργασία ραντεβού") : en ? "New appointment" : "Νέο ραντεβού"}
+              {initial?.id
+                ? tr("Edit appointment", "Επεξεργασία ραντεβού", "Termin bearbeiten")
+                : tr("New appointment", "Νέο ραντεβού", "Neuer Termin")}
             </span>
             <span className="inline-flex items-center rounded-full border border-border/60 bg-background/60 px-2.5 py-0.5 text-[11px] text-muted-foreground">
               {formatDate(defaultValues.scheduled_date)} • {defaultValues.start_time}–{defaultValues.end_time}
@@ -1039,20 +1084,20 @@ export function AppointmentForm({
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2 md:col-span-2">
-              <Label>{en ? "Title" : "Τίτλος"}</Label>
-              <Input {...register("title")} placeholder={en ? "Appointment title" : "Τίτλος ραντεβού"} />
+              <Label>{tr("Title", "Τίτλος", "Titel")}</Label>
+              <Input {...register("title")} placeholder={tr("Appointment title", "Τίτλος ραντεβού", "Termintitel")} />
               {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>{en ? "Customer" : "Πελάτης"}</Label>
+                <Label>{tr("Customer", "Πελάτης", "Kunde")}</Label>
                 <Button
                   type="button"
                   variant="link"
                   className="px-0 text-[11px]"
                   onClick={() => setCreateCustomerOpen(true)}
                 >
-                  {en ? "New customer" : "Νέος πελάτης"}
+                  {tr("New customer", "Νέος πελάτης", "Neuer Kunde")}
                 </Button>
               </div>
               <Select
@@ -1066,11 +1111,11 @@ export function AppointmentForm({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={en ? "Select customer" : "Επιλέξτε πελάτη"} />
+                  <SelectValue placeholder={tr("Select customer", "Επιλέξτε πελάτη", "Kunde wählen")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">
-                    {en ? "— Select customer —" : "— Επιλέξτε πελάτη —"}
+                    {tr("— Select customer —", "— Επιλέξτε πελάτη —", "— Kunde wählen —")}
                   </SelectItem>
                   {customerOptions.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
@@ -1080,7 +1125,7 @@ export function AppointmentForm({
               {errors.customer_id && <p className="text-sm text-destructive">{errors.customer_id.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>{en ? "Assignment" : "Ανάθεση"}</Label>
+              <Label>{tr("Assignment", "Ανάθεση", "Zuweisung")}</Label>
               <div className="space-y-2 rounded-lg border border-border/60 bg-card/40 p-2">
                 <div className="flex items-center gap-2">
                   <Button
@@ -1092,7 +1137,7 @@ export function AppointmentForm({
                       setValue("crew_id", "")
                     }}
                   >
-                    {en ? "Assignee" : "Υπεύθυνος"}
+                    {tr("Assignee", "Υπεύθυνος", "Zuständig")}
                   </Button>
                   <Button
                     type="button"
@@ -1103,7 +1148,7 @@ export function AppointmentForm({
                       setValue("assigned_user_id", "")
                     }}
                   >
-                    {en ? "Crew" : "Συνεργείο"}
+                    {tr("Crew", "Συνεργείο", "Team")}
                   </Button>
                 </div>
                 {assignmentMode === "responsible" ? (
@@ -1118,7 +1163,7 @@ export function AppointmentForm({
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={en ? "Select assignee" : "Επιλέξτε υπεύθυνο"} />
+                      <SelectValue placeholder={tr("Select assignee", "Επιλέξτε υπεύθυνο", "Zuständige Person wählen")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">—</SelectItem>
@@ -1139,7 +1184,7 @@ export function AppointmentForm({
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={en ? "Select crew" : "Επιλέξτε συνεργείο"} />
+                      <SelectValue placeholder={tr("Select crew", "Επιλέξτε συνεργείο", "Team wählen")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">—</SelectItem>
@@ -1154,19 +1199,19 @@ export function AppointmentForm({
               </div>
             </div>
             <div className="space-y-2">
-              <Label>{en ? "Services" : "Υπηρεσίες"}</Label>
+              <Label>{tr("Services", "Υπηρεσίες", "Leistungen")}</Label>
               <details className="group rounded-xl border border-border/60 bg-gradient-to-b from-card/80 to-muted/20 open:border-primary/25 open:shadow-md open:shadow-primary/5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
                   <span className="flex items-center gap-2">
-                    {en ? "Choose services" : "Επιλογή υπηρεσιών"}
+                    {tr("Choose services", "Επιλογή υπηρεσιών", "Leistungen wählen")}
                     {selectedServiceIds.length > 0 ? (
                       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
                         {selectedServiceIds.length}{" "}
-                        {en ? "selected" : "επιλεγμένες"}
+                        {tr("selected", "επιλεγμένες", "ausgewählt")}
                       </span>
                     ) : (
                       <span className="text-[11px] font-normal text-muted-foreground">
-                        {en ? "(optional)" : "(προαιρετικό)"}
+                        {tr("(optional)", "(προαιρετικό)", "(optional)")}
                       </span>
                     )}
                   </span>
@@ -1195,16 +1240,18 @@ export function AppointmentForm({
                     })}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {en
-                      ? "Select one or more services. Cost and duration are calculated automatically."
-                      : "Επιλέξτε μία ή περισσότερες υπηρεσίες. Το κόστος και η διάρκεια υπολογίζονται αυτόματα."}
+                    {tr(
+                      "Select one or more services. Cost and duration are calculated automatically.",
+                      "Επιλέξτε μία ή περισσότερες υπηρεσίες. Το κόστος και η διάρκεια υπολογίζονται αυτόματα.",
+                      "Wählen Sie eine oder mehrere Leistungen. Kosten und Dauer werden automatisch berechnet.",
+                    )}
                   </p>
                   <input type="hidden" value={serviceSelectValue} {...register("service_id")} />
                 </div>
               </details>
             </div>
             <div className="space-y-2">
-              <Label>{en ? "Status" : "Κατάσταση"}</Label>
+              <Label>{tr("Status", "Κατάσταση", "Status")}</Label>
               <Select
                 value={status}
                 onValueChange={(v) => setValue("status", (v as FormValues["status"]) ?? "pending")}
@@ -1225,7 +1272,7 @@ export function AppointmentForm({
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>{en ? "Date" : "Ημ/νία"}</Label>
+              <Label>{tr("Date", "Ημ/νία", "Datum")}</Label>
               <Input type="date" {...register("scheduled_date")} />
               {errors.scheduled_date && <p className="text-sm text-destructive">{errors.scheduled_date.message}</p>}
             </div>
@@ -1233,7 +1280,7 @@ export function AppointmentForm({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label className="flex items-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-primary" />
-                  {en ? "Appointment time" : "Ώρα ραντεβού"}
+                  {tr("Appointment time", "Ώρα ραντεβού", "Terminzeit")}
                 </Label>
                 <Button
                   type="button"
@@ -1243,25 +1290,21 @@ export function AppointmentForm({
                   onClick={() => setManualTimeMode((m) => !m)}
                 >
                   {manualTimeMode
-                    ? en
-                      ? "Use available slots"
-                      : "Χρήση διαθέσιμων κουλάκιων"
-                    : en
-                      ? "Manual time"
-                      : "Χειροκίνητη ώρα"}
+                    ? tr("Use available slots", "Χρήση διαθέσιμων κουλάκιων", "Freie Zeiten nutzen")
+                    : tr("Manual time", "Χειροκίνητη ώρα", "Manuelle Zeit")}
                 </Button>
               </div>
               {manualTimeMode ? (
                 <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {en ? "Start" : "Έναρξη"}
+                      {tr("Start", "Έναρξη", "Beginn")}
                     </span>
                     <Input type="time" className="w-full sm:w-[8.5rem]" {...register("start_time")} />
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {en ? "End" : "Λήξη"}
+                      {tr("End", "Λήξη", "Ende")}
                     </span>
                     <Input type="time" className="w-full sm:w-[8.5rem]" {...register("end_time")} />
                   </div>
@@ -1270,13 +1313,17 @@ export function AppointmentForm({
                 <div className="space-y-2">
                   <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-background via-muted/20 to-muted/40 p-3 shadow-inner sm:p-4">
                     <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground">
-                      {en
-                        ? `Only free slots are shown (08:00–22:00, 15-minute steps${
-                            activeAssigneeUserId ? " · same assignee" : " · all assignees"
-                          }).`
-                        : `Εμφανίζονται μόνο ελεύθερα κουλάκια (08:00–22:00, βήμα 15 λεπτά${
-                            activeAssigneeUserId ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"
-                          }).`}
+                      {tr(
+                        `Only free slots are shown (08:00–22:00, 15-minute steps${
+                          activeAssigneeUserId ? " · same assignee" : " · all assignees"
+                        }).`,
+                        `Εμφανίζονται μόνο ελεύθερα κουλάκια (08:00–22:00, βήμα 15 λεπτά${
+                          activeAssigneeUserId ? " · ίδιος υπεύθυνος" : " · όλοι οι υπεύθυνοι"
+                        }).`,
+                        `Es werden nur freie Zeiten angezeigt (08:00–22:00, 15-Minuten-Schritte${
+                          activeAssigneeUserId ? " · gleiche Person" : " · alle Personen"
+                        }).`,
+                      )}
                     </p>
                     <div className="max-h-48 overflow-y-auto pr-1">
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
@@ -1308,19 +1355,21 @@ export function AppointmentForm({
                     </div>
                     {availableStartSlots.length === 0 && (
                       <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                        {en
-                          ? "No free slots for this date and duration. Change the date, assignee, or use manual time."
-                          : "Δεν υπάρχουν ελεύθερα κουλάκια για αυτή την ημερομηνία και διάρκεια. Άλλαξε ημερομηνία, υπεύθυνο ή χρησιμοποίησε χειροκίνητη ώρα."}
+                        {tr(
+                          "No free slots for this date and duration. Change the date, assignee, or use manual time.",
+                          "Δεν υπάρχουν ελεύθερα κουλάκια για αυτή την ημερομηνία και διάρκεια. Άλλαξε ημερομηνία, υπεύθυνο ή χρησιμοποίησε χειροκίνητη ώρα.",
+                          "Keine freien Zeiten für dieses Datum und diese Dauer. Datum, Person ändern oder manuelle Zeit.",
+                        )}
                       </p>
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {en ? "Ends:" : "Λήξη:"}{" "}
+                    {tr("Ends:", "Λήξη:", "Ende:")}{" "}
                     <span className="font-medium text-foreground tabular-nums">
                       {toTimeInputValue(watchedEndTime)}
                     </span>{" "}
                     <span className="text-muted-foreground">
-                      ({slotDurationMinutesForPicker} {en ? "min" : "λεπ."})
+                      ({slotDurationMinutesForPicker} {tr("min", "λεπ.", "Min.")})
                     </span>
                   </p>
                   <input type="hidden" {...register("start_time")} />
@@ -1329,105 +1378,121 @@ export function AppointmentForm({
               )}
             </div>
             <div className="space-y-2">
-              <Label>{en ? "Cost estimate (€)" : "Εκτίμηση κόστους (€)"}</Label>
+              <Label>{tr("Cost estimate (€)", "Εκτίμηση κόστους (€)", "Kostenschätzung (€)")}</Label>
               <Input type="number" step="0.01" {...register("cost_estimate")} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="appointment-location-address">
-              {en ? "Appointment address (optional)" : "Διεύθυνση ραντεβού (προαιρετικό)"}
+              {tr("Appointment address (optional)", "Διεύθυνση ραντεβού (προαιρετικό)", "Terminadresse (optional)")}
             </Label>
             <Input
               id="appointment-location-address"
               {...register("location_address")}
-              placeholder={
-                en
-                  ? "Street, number, area — visit location for this appointment"
-                  : "Οδός, αριθμός, περιοχή — τόπος επίσκεψης για αυτό το ραντεβού"
-              }
+              placeholder={tr(
+                "Street, number, area — visit location for this appointment",
+                "Οδός, αριθμός, περιοχή — τόπος επίσκεψης για αυτό το ραντεβού",
+                "Straße, Nr., Ort — Besuchsort für diesen Termin",
+              )}
               autoComplete="street-address"
             />
             <p className="text-[11px] text-muted-foreground">
-              {en
-                ? "Separate from the customer address; use when the visit is at a different location."
-                : "Ξεχωριστά από τη διεύθυνση πελάτη· χρησιμοποιείται όταν η επίσκεψη γίνεται σε άλλο σημείο."}
+              {tr(
+                "Separate from the customer address; use when the visit is at a different location.",
+                "Ξεχωριστά από τη διεύθυνση πελάτη· χρησιμοποιείται όταν η επίσκεψη γίνεται σε άλλο σημείο.",
+                "Getrennt von der Kundenadresse; nutzen, wenn der Besuch woanders stattfindet.",
+              )}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{en ? "Description" : "Περιγραφή"}</Label>
+              <Label>{tr("Description", "Περιγραφή", "Beschreibung")}</Label>
               <Input
                 {...register("description")}
-                placeholder={en ? "Short description of the work..." : "Σύντομη περιγραφή εργασίας..."}
+                placeholder={tr(
+                  "Short description of the work...",
+                  "Σύντομη περιγραφή εργασίας...",
+                  "Kurze Beschreibung der Arbeit...",
+                )}
               />
             </div>
             <div className="space-y-2">
-              <Label>{en ? "Creation notes" : "Σημειώσεις δημιουργίας"}</Label>
+              <Label>{tr("Creation notes", "Σημειώσεις δημιουργίας", "Anmerkungen (Anlage)")}</Label>
               <Input
                 {...register("creation_notes")}
-                placeholder={
-                  en ? "Special instructions, preferences, etc." : "Ειδικές οδηγίες, προτιμήσεις κ.λπ."
-                }
+                placeholder={tr(
+                  "Special instructions, preferences, etc.",
+                  "Ειδικές οδηγίες, προτιμήσεις κ.λπ.",
+                  "Besondere Hinweise, Wünsche usw.",
+                )}
               />
             </div>
           </div>
           {status === "completed" && (
             <Card className="border-border/60 bg-background/40">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{en ? "Completion & billing" : "Ολοκλήρωση & Χρέωση"}</CardTitle>
+                <CardTitle className="text-sm">{tr("Completion & billing", "Ολοκλήρωση & Χρέωση", "Abschluss & Abrechnung")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>{en ? "Appointment duration (minutes)" : "Διάρκεια ραντεβού (λεπτά)"}</Label>
+                    <Label>{tr("Appointment duration (minutes)", "Διάρκεια ραντεβού (λεπτά)", "Termindauer (Minuten)")}</Label>
                     <Input
                       type="number"
                       inputMode="numeric"
                       value={completionDurationInput}
                       onChange={(e) => setCompletionDurationInput(e.target.value)}
-                      placeholder={en ? "e.g. 90" : "π.χ. 90"}
+                      placeholder={tr("e.g. 90", "π.χ. 90", "z. B. 90")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{en ? "Extra charges (€)" : "Έξτρα χρεώσεις (€)"}</Label>
+                    <Label>{tr("Extra charges (€)", "Έξτρα χρεώσεις (€)", "Zusatzkosten (€)")}</Label>
                     <Input
                       type="number"
                       step="0.01"
                       inputMode="decimal"
                       value={extraChargesInput}
                       onChange={(e) => setExtraChargesInput(e.target.value)}
-                      placeholder={en ? "e.g. 15.00" : "π.χ. 15.00"}
+                      placeholder={tr("e.g. 15.00", "π.χ. 15.00", "z. B. 15,00")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{en ? "Total price (€)" : "Τελική τιμή συνόλου (€)"}</Label>
+                    <Label>{tr("Total price (€)", "Τελική τιμή συνόλου (€)", "Gesamtpreis (€)")}</Label>
                     <Input value={completionTotalAmount.toFixed(2)} readOnly />
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {en
-                    ? `Services base: ${completionBaseAmount.toFixed(2)} € + extra charges.`
-                    : `Βάση υπηρεσιών: ${completionBaseAmount.toFixed(2)} € + έξτρα χρεώσεις.`}
+                  {tr(
+                    `Services base: ${completionBaseAmount.toFixed(2)} € + extra charges.`,
+                    `Βάση υπηρεσιών: ${completionBaseAmount.toFixed(2)} € + έξτρα χρεώσεις.`,
+                    `Leistungsbasis: ${completionBaseAmount.toFixed(2)} € + Zusatzkosten.`,
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>{en ? "Completion notes" : "Σημειώσεις ολοκλήρωσης"}</Label>
+                  <Label>{tr("Completion notes", "Σημειώσεις ολοκλήρωσης", "Abschlussnotizen")}</Label>
                   <Input
                     {...register("completion_notes")}
-                    placeholder={en ? "What was done at the appointment" : "Τι έγινε στο ραντεβού"}
+                    placeholder={tr(
+                      "What was done at the appointment",
+                      "Τι έγινε στο ραντεβού",
+                      "Was wurde beim Termin erledigt",
+                    )}
                   />
                 </div>
                 <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">
-                        {en ? "Needs follow-up service" : "Χρειάζεται επόμενο service"}
+                        {tr("Needs follow-up service", "Χρειάζεται επόμενο service", "Nachfolgetermin nötig")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {en
-                          ? "Create a maintenance reminder for future follow-up."
-                          : "Δημιούργησε υπενθύμιση συντήρησης για μελλοντική επικοινωνία."}
+                        {tr(
+                          "Create a maintenance reminder for future follow-up.",
+                          "Δημιούργησε υπενθύμιση συντήρησης για μελλοντική επικοινωνία.",
+                          "Wartungserinnerung für späteren Kontakt anlegen.",
+                        )}
                       </p>
                     </div>
                     <Switch checked={needsServiceReminder} onCheckedChange={setNeedsServiceReminder} />
@@ -1436,34 +1501,34 @@ export function AppointmentForm({
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2">
                         <Button type="button" size="sm" variant={reminderPresetMonths === "3" ? "default" : "outline"} onClick={() => setReminderPresetMonths("3")}>
-                          {en ? "3 months" : "3 μήνες"}
+                          {tr("3 months", "3 μήνες", "3 Monate")}
                         </Button>
                         <Button type="button" size="sm" variant={reminderPresetMonths === "6" ? "default" : "outline"} onClick={() => setReminderPresetMonths("6")}>
-                          {en ? "6 months" : "6 μήνες"}
+                          {tr("6 months", "6 μήνες", "6 Monate")}
                         </Button>
                         <Button type="button" size="sm" variant={reminderPresetMonths === "12" ? "default" : "outline"} onClick={() => setReminderPresetMonths("12")}>
-                          {en ? "12 months" : "12 μήνες"}
+                          {tr("12 months", "12 μήνες", "12 Monate")}
                         </Button>
                         <Button type="button" size="sm" variant={reminderPresetMonths === "custom" ? "default" : "outline"} onClick={() => setReminderPresetMonths("custom")}>
-                          {en ? "Custom" : "Προσαρμοσμένη"}
+                          {tr("Custom", "Προσαρμοσμένη", "Benutzerdefiniert")}
                         </Button>
                       </div>
                       {reminderPresetMonths === "custom" && (
                         <div className="space-y-1">
-                          <Label>{en ? "Reminder date" : "Ημερομηνία υπενθύμισης"}</Label>
+                          <Label>{tr("Reminder date", "Ημερομηνία υπενθύμισης", "Erinnerungsdatum")}</Label>
                           <Input type="date" value={reminderCustomDate} onChange={(e) => setReminderCustomDate(e.target.value)} />
                         </div>
                       )}
                       <div className="space-y-1">
-                        <Label>{en ? "Reminder notes (optional)" : "Σημειώσεις υπενθύμισης (προαιρετικά)"}</Label>
+                        <Label>{tr("Reminder notes (optional)", "Σημειώσεις υπενθύμισης (προαιρετικά)", "Erinnerungsnotizen (optional)")}</Label>
                         <Textarea
                           value={reminderNotes}
                           onChange={(e) => setReminderNotes(e.target.value)}
-                          placeholder={
-                            en
-                              ? "e.g. follow up on filters, maintenance check…"
-                              : "Υπενθύμισε μου ξανά για φίλτρα, έλεγχο συντήρησης κ.λπ."
-                          }
+                          placeholder={tr(
+                            "e.g. follow up on filters, maintenance check…",
+                            "Υπενθύμισε μου ξανά για φίλτρα, έλεγχο συντήρησης κ.λπ.",
+                            "z. B. Filter nachziehen, Wartung prüfen …",
+                          )}
                         />
                       </div>
                     </div>
@@ -1478,40 +1543,34 @@ export function AppointmentForm({
       {initial?.id && (
         <Card className="mt-4">
           <CardHeader>
-            <CardTitle className="text-base">{en ? "Payment" : "Πληρωμή"}</CardTitle>
+            <CardTitle className="text-base">{tr("Payment", "Πληρωμή", "Zahlung")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {paymentLoading ? (
               <p className="text-sm text-muted-foreground">
-                {en ? "Loading payment details..." : "Φόρτωση στοιχείων πληρωμής..."}
+                {tr("Loading payment details...", "Φόρτωση στοιχείων πληρωμής...", "Zahlungsdetails werden geladen...")}
               </p>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label>{en ? "Total amount (€)" : "Τελικό ποσό (€)"}</Label>
+                    <Label>{tr("Total amount (€)", "Τελικό ποσό (€)", "Gesamtbetrag (€)")}</Label>
                     <p className="text-sm text-muted-foreground">
                       {derivedAmount > 0 ? derivedAmount.toFixed(2) : "0.00"}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <Label>{en ? "Payment status" : "Κατάσταση πληρωμής"}</Label>
+                    <Label>{tr("Payment status", "Κατάσταση πληρωμής", "Zahlungsstatus")}</Label>
                     <p className="text-sm text-muted-foreground">
                       {paymentStatus === "paid"
-                        ? en
-                          ? "Paid"
-                          : "Πληρωμένο"
+                        ? tr("Paid", "Πληρωμένο", "Bezahlt")
                         : paymentStatus === "partial"
-                          ? en
-                            ? "Partial"
-                            : "Μερικό"
-                          : en
-                            ? "Unpaid"
-                            : "Απλήρωτο"}
+                          ? tr("Partial", "Μερικό", "Teilweise")
+                          : tr("Unpaid", "Απλήρωτο", "Unbezahlt")}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="paid-amount">{en ? "Amount paid (€)" : "Πληρωμένο ποσό (€)"}</Label>
+                    <Label htmlFor="paid-amount">{tr("Amount paid (€)", "Πληρωμένο ποσό (€)", "Gezahlter Betrag (€)")}</Label>
                     <Input
                       id="paid-amount"
                       type="number"
@@ -1521,49 +1580,43 @@ export function AppointmentForm({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>{en ? "Balance (€)" : "Υπόλοιπο (€)"}</Label>
+                    <Label>{tr("Balance (€)", "Υπόλοιπο (€)", "Saldo (€)")}</Label>
                     <p className="text-sm text-muted-foreground">
                       {remainingBalance.toFixed(2)}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="payment-method">{en ? "Payment method" : "Τρόπος πληρωμής"}</Label>
+                    <Label htmlFor="payment-method">{tr("Payment method", "Τρόπος πληρωμής", "Zahlungsart")}</Label>
                     <Input
                       id="payment-method"
-                      placeholder={en ? "e.g. Cash, Card" : "π.χ. Μετρητά, Κάρτα"}
+                      placeholder={tr("e.g. Cash, Card", "π.χ. Μετρητά, Κάρτα", "z. B. Bar, Karte")}
                       value={paymentMethodInput}
                       onChange={(e) => setPaymentMethodInput(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="payment-notes">{en ? "Payment notes" : "Σημειώσεις πληρωμής"}</Label>
+                    <Label htmlFor="payment-notes">{tr("Payment notes", "Σημειώσεις πληρωμής", "Zahlungsnotizen")}</Label>
                     <Input
                       id="payment-notes"
-                      placeholder={en ? "Notes" : "Σημειώσεις"}
+                      placeholder={tr("Notes", "Σημειώσεις", "Notizen")}
                       value={paymentNotesInput}
                       onChange={(e) => setPaymentNotesInput(e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>{en ? "Payment date" : "Ημερομηνία πληρωμής"}</Label>
+                    <Label>{tr("Payment date", "Ημερομηνία πληρωμής", "Zahlungsdatum")}</Label>
                     <p className="text-sm text-muted-foreground">
                       {payment?.created_at
                         ? formatDate(payment.created_at)
-                        : en
-                          ? "Set on first payment"
-                          : "Θα οριστεί κατά την πρώτη πληρωμή"}
+                        : tr("Set on first payment", "Θα οριστεί κατά την πρώτη πληρωμή", "Wird bei erster Zahlung gesetzt")}
                     </p>
                   </div>
                 </div>
                 <div className="flex justify-end pt-2">
                   <Button type="button" variant="outline" onClick={handleSavePayment} disabled={paymentSaving}>
                     {paymentSaving
-                      ? en
-                        ? "Saving..."
-                        : "Αποθήκευση..."
-                      : en
-                        ? "Save payment"
-                        : "Αποθήκευση πληρωμής"}
+                      ? tr("Saving...", "Αποθήκευση...", "Speichern...")
+                      : tr("Save payment", "Αποθήκευση πληρωμής", "Zahlung speichern")}
                   </Button>
                 </div>
               </>
@@ -1574,12 +1627,12 @@ export function AppointmentForm({
       <Dialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{en ? "New customer" : "Νέος πελάτης"}</DialogTitle>
+            <DialogTitle>{tr("New customer", "Νέος πελάτης", "Neuer Kunde")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="new-first-name">{en ? "First name *" : "Όνομα *"}</Label>
+                <Label htmlFor="new-first-name">{tr("First name *", "Όνομα *", "Vorname *")}</Label>
                 <Input
                   id="new-first-name"
                   value={newFirstName}
@@ -1587,7 +1640,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-last-name">{en ? "Last name *" : "Επώνυμο *"}</Label>
+                <Label htmlFor="new-last-name">{tr("Last name *", "Επώνυμο *", "Nachname *")}</Label>
                 <Input
                   id="new-last-name"
                   value={newLastName}
@@ -1595,7 +1648,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-phone">{en ? "Phone" : "Τηλέφωνο"}</Label>
+                <Label htmlFor="new-phone">{tr("Phone", "Τηλέφωνο", "Telefon")}</Label>
                 <Input
                   id="new-phone"
                   value={newPhone}
@@ -1612,16 +1665,16 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="new-address">{en ? "Address (optional)" : "Διεύθυνση (προαιρετικό)"}</Label>
+                <Label htmlFor="new-address">{tr("Address (optional)", "Διεύθυνση (προαιρετικό)", "Adresse (optional)")}</Label>
                 <Input
                   id="new-address"
                   value={newAddress}
                   onChange={(e) => setNewAddress(e.target.value)}
-                  placeholder={en ? "Street, number…" : "Οδός, αριθμός…"}
+                  placeholder={tr("Street, number…", "Οδός, αριθμός…", "Straße, Nr. …")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-area">{en ? "Area" : "Περιοχή"}</Label>
+                <Label htmlFor="new-area">{tr("Area", "Περιοχή", "Ort")}</Label>
                 <Input
                   id="new-area"
                   value={newArea}
@@ -1629,7 +1682,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-postal-code">{en ? "Postal code" : "Τ.Κ."}</Label>
+                <Label htmlFor="new-postal-code">{tr("Postal code", "Τ.Κ.", "PLZ")}</Label>
                 <Input
                   id="new-postal-code"
                   value={newPostalCode}
@@ -1637,7 +1690,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-company">{en ? "Company" : "Εταιρεία"}</Label>
+                <Label htmlFor="new-company">{tr("Company", "Εταιρεία", "Firma")}</Label>
                 <Input
                   id="new-company"
                   value={newCompany}
@@ -1645,7 +1698,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-vat-number">{en ? "VAT / Tax ID" : "ΑΦΜ"}</Label>
+                <Label htmlFor="new-vat-number">{tr("VAT / Tax ID", "ΑΦΜ", "USt-ID / Steuernummer")}</Label>
                 <Input
                   id="new-vat-number"
                   value={newVatNumber}
@@ -1653,7 +1706,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="new-notes">{en ? "Notes" : "Σημειώσεις"}</Label>
+                <Label htmlFor="new-notes">{tr("Notes", "Σημειώσεις", "Notizen")}</Label>
                 <Input
                   id="new-notes"
                   value={newNotes}
@@ -1661,7 +1714,7 @@ export function AppointmentForm({
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="new-tags">{en ? "Tags (comma-separated)" : "Tags (χωρισμένα με κόμμα)"}</Label>
+                <Label htmlFor="new-tags">{tr("Tags (comma-separated)", "Tags (χωρισμένα με κόμμα)", "Tags (kommagetrennt)")}</Label>
                 <Input
                   id="new-tags"
                   value={newTags}
@@ -1670,9 +1723,11 @@ export function AppointmentForm({
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              {en
-                ? "* First and last name required. At least one of phone or email. Address is optional."
-                : "* Όνομα και επώνυμο υποχρεωτικά. Απαιτείται τουλάχιστον ένα από Τηλέφωνο ή Email. Η διεύθυνση είναι προαιρετική."}
+              {tr(
+                "* First and last name required. At least one of phone or email. Address is optional.",
+                "* Όνομα και επώνυμο υποχρεωτικά. Απαιτείται τουλάχιστον ένα από Τηλέφωνο ή Email. Η διεύθυνση είναι προαιρετική.",
+                "* Vor- und Nachname erforderlich. Mindestens Telefon oder E-Mail. Adresse optional.",
+              )}
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -1681,7 +1736,7 @@ export function AppointmentForm({
                 onClick={() => setCreateCustomerOpen(false)}
                 disabled={creatingCustomer}
               >
-                {en ? "Cancel" : "Ακύρωση"}
+                {tr("Cancel", "Ακύρωση", "Abbrechen")}
               </Button>
               <Button
                 type="button"
@@ -1689,28 +1744,36 @@ export function AppointmentForm({
                   try {
                     if (!businessId) {
                       toast({
-                        title: en ? "Error" : "Σφάλμα",
-                        description: en
-                          ? "Missing business ID. Cannot create customer."
-                          : "Λείπει το αναγνωριστικό επιχείρησης. Δεν μπορεί να δημιουργηθεί πελάτης.",
+                        title: tr("Error", "Σφάλμα", "Fehler"),
+                        description: tr(
+                          "Missing business ID. Cannot create customer.",
+                          "Λείπει το αναγνωριστικό επιχείρησης. Δεν μπορεί να δημιουργηθεί πελάτης.",
+                          "Fehlende Unternehmens-ID. Kunde kann nicht angelegt werden.",
+                        ),
                         variant: "destructive",
                       })
                       return
                     }
                     if (!newFirstName.trim() || !newLastName.trim()) {
                       toast({
-                        title: en ? "Error" : "Σφάλμα",
-                        description: en ? "Enter first and last name." : "Συμπληρώστε όνομα και επώνυμο.",
+                        title: tr("Error", "Σφάλμα", "Fehler"),
+                        description: tr(
+                          "Enter first and last name.",
+                          "Συμπληρώστε όνομα και επώνυμο.",
+                          "Vor- und Nachname eingeben.",
+                        ),
                         variant: "destructive",
                       })
                       return
                     }
                     if (!newPhone.trim() && !newEmail.trim()) {
                       toast({
-                        title: en ? "Error" : "Σφάλμα",
-                        description: en
-                          ? "Enter at least a phone number or email."
-                          : "Συμπληρώστε τουλάχιστον τηλέφωνο ή email.",
+                        title: tr("Error", "Σφάλμα", "Fehler"),
+                        description: tr(
+                          "Enter at least a phone number or email.",
+                          "Συμπληρώστε τουλάχιστον τηλέφωνο ή email.",
+                          "Mindestens Telefonnummer oder E-Mail eingeben.",
+                        ),
                         variant: "destructive",
                       })
                       return
@@ -1726,10 +1789,12 @@ export function AppointmentForm({
                     })
                     if (duplicate) {
                       toast({
-                        title: en ? "Customer already exists" : "Υπάρχει ήδη πελάτης",
-                        description: en
-                          ? "A customer with the same phone or email was found. The existing customer was selected."
-                          : "Βρέθηκε πελάτης με ίδιο τηλέφωνο ή email. Επιλέχθηκε ο υπάρχων πελάτης.",
+                        title: tr("Customer already exists", "Υπάρχει ήδη πελάτης", "Kunde existiert bereits"),
+                        description: tr(
+                          "A customer with the same phone or email was found. The existing customer was selected.",
+                          "Βρέθηκε πελάτης με ίδιο τηλέφωνο ή email. Επιλέχθηκε ο υπάρχων πελάτης.",
+                          "Ein Kunde mit derselben Telefonnummer oder E-Mail wurde gefunden. Der bestehende Kunde wurde ausgewählt.",
+                        ),
                       })
                       setValue("customer_id", duplicate.id)
                       setCreateCustomerOpen(false)
@@ -1742,10 +1807,12 @@ export function AppointmentForm({
                     const biz = await fetchBusiness(businessId)
                     if (biz?.max_customers != null && customerOptions.length >= biz.max_customers) {
                       toast({
-                        title: en ? "Customer plan limit" : "Όριο πελατών πλάνου",
-                        description: en
-                          ? "You reached the maximum customers for your current business plan."
-                          : "Έχεις φτάσει το μέγιστο πλήθος πελατών για το τρέχον πλάνο επιχείρησης.",
+                        title: tr("Customer plan limit", "Όριο πελατών πλάνου", "Kundenlimit des Plans"),
+                        description: tr(
+                          "You reached the maximum customers for your current business plan.",
+                          "Έχεις φτάσει το μέγιστο πλήθος πελατών για το τρέχον πλάνο επιχείρησης.",
+                          "Sie haben die maximale Kundenanzahl für Ihren aktuellen Plan erreicht.",
+                        ),
                         variant: "destructive",
                       })
                       setCreatingCustomer(false)
@@ -1775,9 +1842,11 @@ export function AppointmentForm({
                     const { notifyInAppQuiet } = await import("@/services/api")
                     await notifyInAppQuiet(
                       businessId,
-                      en
-                        ? `New customer from appointment form: ${created.first_name} ${created.last_name}`.trim()
-                        : `Νέος πελάτης από φόρμα ραντεβού: ${created.first_name} ${created.last_name}`.trim(),
+                      tr(
+                        `New customer from appointment form: ${created.first_name} ${created.last_name}`.trim(),
+                        `Νέος πελάτης από φόρμα ραντεβού: ${created.first_name} ${created.last_name}`.trim(),
+                        `Neuer Kunde aus Terminformular: ${created.first_name} ${created.last_name}`.trim(),
+                      ),
                       {
                         notificationType: "customer_created",
                         relatedCustomerId: created.id,
@@ -1785,24 +1854,30 @@ export function AppointmentForm({
                       },
                     )
                     toast({
-                      title: en ? "Customer created" : "Πελάτης δημιουργήθηκε",
-                      description: en
-                        ? "The new customer was added and selected for this appointment."
-                        : "Ο νέος πελάτης προστέθηκε και επιλέχθηκε στο ραντεβού.",
+                      title: tr("Customer created", "Πελάτης δημιουργήθηκε", "Kunde angelegt"),
+                      description: tr(
+                        "The new customer was added and selected for this appointment.",
+                        "Ο νέος πελάτης προστέθηκε και επιλέχθηκε στο ραντεβού.",
+                        "Der neue Kunde wurde hinzugefügt und für diesen Termin ausgewählt.",
+                      ),
                     })
                     setCreateCustomerOpen(false)
                   } catch (err) {
                     console.error("Create inline customer error:", err)
                     const message =
-                      err instanceof Error ? err.message : en ? "Failed to create customer" : "Αποτυχία δημιουργίας πελάτη"
-                    toast({ title: en ? "Error" : "Σφάλμα", description: message, variant: "destructive" })
+                      err instanceof Error
+                        ? err.message
+                        : tr("Failed to create customer", "Αποτυχία δημιουργίας πελάτη", "Kunde konnte nicht angelegt werden")
+                    toast({ title: tr("Error", "Σφάλμα", "Fehler"), description: message, variant: "destructive" })
                   } finally {
                     setCreatingCustomer(false)
                   }
                 }}
                 disabled={creatingCustomer}
               >
-                {creatingCustomer ? (en ? "Creating..." : "Δημιουργία...") : en ? "Save customer" : "Αποθήκευση πελάτη"}
+                {creatingCustomer
+                  ? tr("Creating...", "Δημιουργία...", "Wird erstellt...")
+                  : tr("Save customer", "Αποθήκευση πελάτη", "Kunde speichern")}
               </Button>
             </div>
           </div>
@@ -1810,10 +1885,10 @@ export function AppointmentForm({
       </Dialog>
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          {en ? "Cancel" : "Ακύρωση"}
+          {tr("Cancel", "Ακύρωση", "Abbrechen")}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (en ? "Saving..." : "Αποθήκευση...") : en ? "Save" : "Αποθήκευση"}
+          {isSubmitting ? tr("Saving...", "Αποθήκευση...", "Speichern...") : tr("Save", "Αποθήκευση", "Speichern")}
         </Button>
       </div>
     </form>
