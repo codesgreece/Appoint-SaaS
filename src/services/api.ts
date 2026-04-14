@@ -161,6 +161,16 @@ export async function upsertShift(payload: {
   return data as Shift
 }
 
+export async function fetchActiveTeamMemberCount(businessId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("users")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("status", "active")
+  if (error) throw error
+  return count ?? 0
+}
+
 export async function fetchWorkingStaffToday(
   businessId: string,
   todayDate: string,

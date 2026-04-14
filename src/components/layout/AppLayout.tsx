@@ -35,7 +35,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { appLocaleTag } from "@/lib/app-language"
+import { appLocaleTag, pickLang } from "@/lib/app-language"
+import { countStaffOnShiftNow } from "@/lib/staff-shift-presence"
+import { fetchActiveTeamMemberCount, fetchWorkingStaffToday } from "@/services/api"
+import { StaffPresenceLeds } from "@/components/layout/StaffPresenceLeds"
 import { CommandPalette } from "@/components/CommandPalette"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
 
@@ -204,6 +207,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState<number | null>(null)
   const [publicBookingUnreadCount, setPublicBookingUnreadCount] = useState<number | null>(null)
+  const [staffPresence, setStaffPresence] = useState<{ live: number; off: number } | null>(null)
   const t = translations[language]
   const businessNavItems = getBusinessNavItems(language)
   const platformNavItems = getPlatformNavItems(language)
@@ -231,6 +235,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = prev
     }
   }, [isExpiredSubscription])
+
+  useEffect(() => {
+    if (!businessId) {
+      setStaffPresence(null)
+      return
+    }
+    const bid = businessId
+    let cancelled = false
+    async function loadPresence() {
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const [rows, total] = await Promise.all([
+          fetchWorkingStaffToday(bid, today),
+          fetchActiveTeamMemberCount(bid),
+        ])
+        const live = countStaffOnShiftNow(rows, new Date())
+        const off = Math.max(0, total - live)
+        if (!cancelled) setStaffPresence({ live, off })
+      } catch {
+        if (!cancelled) setStaffPresence(null)
+      }
+    }
+    void loadPresence()
+    const id = window.setInterval(() => void loadPresence(), 30000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [businessId])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -498,6 +531,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <div className="flex items-center gap-1.5">
+            {businessId && staffPresence !== null ? (
+              <StaffPresenceLeds
+                workingLive={staffPresence.live}
+                notWorking={staffPresence.off}
+                titleGreen={pickLang(language, {
+                  el: "Σε βάρδια τώρα (ζωντανά)",
+                  en: "On shift now (live)",
+                  de: "Jetzt in Schicht (live)",
+                })}
+                titleRed={pickLang(language, {
+                  el: "Δεν είναι σε βάρδια τώρα",
+                  en: "Not on shift now",
+                  de: "Jetzt nicht in Schicht",
+                })}
+              />
+            ) : null}
             <div className="inline-flex items-center rounded-full border border-border/60 bg-card/80 p-0.5 text-[10px] sm:text-[11px]">
               <button
                 type="button"
