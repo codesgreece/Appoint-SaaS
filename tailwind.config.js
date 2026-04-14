@@ -58,6 +58,8 @@ export default {
       animation: {
         "fade-in": "fadeIn 0.3s ease-out",
         "slide-up": "slideUp 0.3s ease-out",
+        "led-halo-green": "ledHaloGreen 2s ease-in-out infinite",
+        "led-halo-red": "ledHaloRed 2s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
@@ -67,6 +69,30 @@ export default {
         slideUp: {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        ledHaloGreen: {
+          "0%, 100%": {
+            opacity: "0.45",
+            transform: "scale(1)",
+            boxShadow: "0 0 0 0 rgba(52, 211, 153, 0)",
+          },
+          "50%": {
+            opacity: "0.95",
+            transform: "scale(1.12)",
+            boxShadow: "0 0 14px 3px rgba(52, 211, 153, 0.55)",
+          },
+        },
+        ledHaloRed: {
+          "0%, 100%": {
+            opacity: "0.45",
+            transform: "scale(1)",
+            boxShadow: "0 0 0 0 rgba(251, 113, 133, 0)",
+          },
+          "50%": {
+            opacity: "0.95",
+            transform: "scale(1.12)",
+            boxShadow: "0 0 14px 3px rgba(251, 113, 133, 0.55)",
+          },
         },
       },
       backdropBlur: {
