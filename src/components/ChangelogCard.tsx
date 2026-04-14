@@ -30,14 +30,6 @@ const FALLBACK_ENTRIES: ChangelogEntry[] = [
     visible: true,
   },
   {
-    id: 16,
-    created_at: new Date().toISOString(),
-    title: "Ημερήσια Διαδρομή: σειρά εργασιών & άνοιγμα σε Google Maps",
-    description:
-      "Νέα σελίδα «Ημερήσια Διαδρομή» με drag-and-drop για τα σημερινά ραντεβού, αποθήκευση σειράς (order_index) και κουμπί «Άνοιγμα διαδρομής» σε Google Maps.",
-    visible: true,
-  },
-  {
     id: 15,
     created_at: new Date().toISOString(),
     title: "Υπενθυμίσεις Συντήρησης: δημιουργία, μεταφορά και dashboard widget",

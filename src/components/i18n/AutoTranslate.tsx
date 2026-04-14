@@ -21,7 +21,6 @@ const exactPhraseMap: Record<string, string> = {
   "Εκκρεμές": "Pending",
   "Εκκρεμή": "Pending",
   "Ολοκληρωμένα": "Completed",
-  "Ημερήσια Διαδρομή": "Daily Route",
   "Υπενθυμίσεις Συντήρησης": "Service Reminders",
   "Reminders Συντήρησης": "Service Reminders",
   "Λίστα υπηρεσιών": "Service list",
@@ -39,7 +38,6 @@ const exactPhraseMap: Record<string, string> = {
   "Εφαρμογή · Settings": "Business · Settings",
   "Εφαρμογή · Reports": "Reports · Premium",
   "Εφαρμογή · Team": "Business · Team",
-  "Εφαρμογή · Route Order": "Business · Route Order",
 }
 
 const exactContainsMap: Array<[string, string]> = [
@@ -48,10 +46,6 @@ const exactContainsMap: Array<[string, string]> = [
   ["Δεν υπάρχουν ραντεβού για σήμερα.", "There are no appointments for today."],
   ["Δεν υπάρχουν υπενθυμίσεις για το φίλτρο που επέλεξες.", "There are no reminders for the selected filter."],
   ["Δεν υπάρχουν upcoming service reminders.", "There are no upcoming service reminders."],
-  ["Κάνε drag-and-drop για να ορίσεις τη σειρά εκτέλεσης.", "Drag and drop to define execution order."],
-  ["Αποθήκευση σειράς", "Save order"],
-  ["Άνοιγμα διαδρομής", "Open route"],
-  ["Ανοιγμα διαδρομής", "Open route"],
   ["Εξαγωγή λίστας πελατών", "Export customer list"],
   ["σε αρχείο Excel", "to Excel file"],
   ["για backup ή μεταφορά σε άλλο σύστημα", "for backup or migration to another system"],
@@ -88,8 +82,6 @@ const tokenMap: Array<[string, string]> = [
   ["Ραντεβού", "Appointments"],
   ["Ραντεβο", "Appointment"],
   ["Ημερολόγιο", "Calendar"],
-  ["Ημερήσια", "Daily"],
-  ["Διαδρομή", "Route"],
   ["Υπενθυμίσεις", "Reminders"],
   ["Συντήρησης", "Maintenance"],
   ["Συντήρηση", "Maintenance"],

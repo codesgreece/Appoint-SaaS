@@ -7,11 +7,6 @@ VALUES
     true
   ),
   (
-    'Ημερήσια Διαδρομή: σειρά εργασιών & άνοιγμα σε Google Maps',
-    'Νέα σελίδα «Ημερήσια Διαδρομή» με drag-and-drop για τα σημερινά ραντεβού, αποθήκευση σειράς (order_index) και κουμπί «Άνοιγμα διαδρομής» σε Google Maps.',
-    true
-  ),
-  (
     'Public Site: animated στατιστικά στην σελίδα /site',
     'Προστέθηκε premium section με count-up αριθμούς (IntersectionObserver + animation μόνο μία φορά): ενεργές επιχειρήσεις, κλεισμένα ραντεβού, πελάτες και συναλλαγές.',
     true

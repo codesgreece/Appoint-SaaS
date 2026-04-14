@@ -37,7 +37,6 @@ import PlatformUsers from "@/pages/platform/Users"
 import PlatformTools from "@/pages/platform/Tools"
 import PublicBooking from "@/pages/PublicBooking"
 import PublicSite from "@/pages/PublicSite"
-import RouteOrder from "@/pages/RouteOrder"
 import Shifts from "@/pages/Shifts"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
@@ -135,14 +134,6 @@ export default function App() {
                       element={
                         <TenantApp>
                           <Appointments />
-                        </TenantApp>
-                      }
-                    />
-                    <Route
-                      path="/route-order"
-                      element={
-                        <TenantApp>
-                          <RouteOrder />
                         </TenantApp>
                       }
                     />
