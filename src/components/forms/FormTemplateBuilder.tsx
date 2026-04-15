@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { PdfDocumentViewer } from "@/components/forms/PdfDocumentViewer"
 import type { FormFieldType, FormTemplateField } from "@/types"
+import { Check } from "lucide-react"
 
 interface FormTemplateBuilderProps {
   pdfUrl: string
@@ -179,7 +180,8 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                     <div
                       key={field.id}
                       className={cn(
-                        "absolute border text-[11px] px-1 py-0.5 cursor-move bg-primary/10",
+                        "absolute border text-[11px] px-1 py-0.5 cursor-move",
+                        field.type === "checkbox" ? "bg-primary/5" : "bg-primary/10",
                         selectedFieldId === field.id ? "border-primary ring-2 ring-primary/40" : "border-primary/40",
                       )}
                       style={{ left, top, width, height }}
@@ -211,7 +213,13 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                       }}
                       onMouseUp={() => setDragState(null)}
                     >
-                      <div className="truncate font-medium">{field.label || field.name}</div>
+                      {field.type === "checkbox" ? (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <div className="truncate font-medium">{field.label || field.name}</div>
+                      )}
                       <button
                         type="button"
                         className="absolute -right-1 -bottom-1 h-3 w-3 rounded-full bg-primary"
@@ -366,8 +374,43 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                   <Input
                     value={selectedField.placeholder ?? ""}
                     onChange={(e) => updateField(selectedField.id, { placeholder: e.target.value })}
+                    disabled={selectedField.type === "checkbox"}
                   />
                 </div>
+                {selectedField.type === "checkbox" ? (
+                  <div className="grid gap-2">
+                    <label className="text-xs text-muted-foreground">Checkbox quick tools</label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateField(selectedField.id, { width: 0.018, height: 0.024 })}
+                      >
+                        Small box
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateField(selectedField.id, { width: 0.024, height: 0.03 })}
+                      >
+                        Medium box
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateField(selectedField.id, { width: 0.03, height: 0.035 })}
+                      >
+                        Large box
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Tip: για checkbox βάλε το πεδίο ακριβώς πάνω στο τετράγωνο του PDF και κράτα το label μόνο για εσωτερική οργάνωση.
+                    </p>
+                  </div>
+                ) : null}
                 {(selectedField.type === "radio" || selectedField.type === "select") && (
                   <div className="grid gap-2">
                     <label className="text-xs text-muted-foreground">Options (one per line: label|value)</label>

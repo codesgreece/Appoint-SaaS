@@ -46,11 +46,18 @@ export async function renderFilledSubmissionPdf(params: {
     switch (field.type) {
       case "checkbox": {
         if (Boolean(value)) {
-          page.drawText("X", {
-            x: x + width * 0.25,
-            y: yBottom + height * 0.2,
-            size: Math.max(10, height * 0.8),
-            font,
+          // Draw a crisp check-mark stroke so it aligns better inside tiny PDF boxes.
+          page.drawLine({
+            start: { x: x + width * 0.18, y: yBottom + height * 0.5 },
+            end: { x: x + width * 0.42, y: yBottom + height * 0.24 },
+            thickness: Math.max(0.8, Math.min(2.2, width * 0.08)),
+            color: rgb(0.1, 0.1, 0.1),
+          })
+          page.drawLine({
+            start: { x: x + width * 0.38, y: yBottom + height * 0.24 },
+            end: { x: x + width * 0.84, y: yBottom + height * 0.82 },
+            thickness: Math.max(0.8, Math.min(2.2, width * 0.08)),
+            color: rgb(0.1, 0.1, 0.1),
           })
         }
         break

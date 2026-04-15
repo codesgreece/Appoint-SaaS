@@ -6,6 +6,7 @@ import { PdfDocumentViewer } from "@/components/forms/PdfDocumentViewer"
 import { SignaturePad } from "@/components/forms/SignaturePad"
 import { evaluateConditionalVisibility } from "@/lib/formEngine"
 import type { FormSubmissionValueMap, FormTemplateField } from "@/types"
+import { Check } from "lucide-react"
 
 interface FormRendererProps {
   pdfUrl: string
@@ -40,6 +41,8 @@ export function FormRenderer({ pdfUrl, fields, values, onChange, readonly = fals
     onChange({ ...values, [fieldKey]: nextValue })
   }
 
+  const isChecked = (value: unknown) => value === true || value === "true" || value === 1 || value === "1"
+
   return (
     <div className={cn("space-y-4", className)}>
       <PdfDocumentViewer
@@ -56,19 +59,25 @@ export function FormRenderer({ pdfUrl, fields, values, onChange, readonly = fals
               return (
                 <div
                   key={field.id}
-                  className="absolute p-0.5 bg-background/40 rounded border border-primary/15"
-                  style={{ left, top, width, height, minHeight: 20 }}
+                  className={cn(
+                    "absolute p-0.5 rounded",
+                    field.type === "checkbox" ? "bg-transparent border-0" : "bg-background/40 border border-primary/15",
+                  )}
+                  style={{ left, top, width, height, minHeight: field.type === "checkbox" ? undefined : 20 }}
                 >
                   {field.type === "checkbox" ? (
-                    <label className="flex h-full items-center gap-1 text-[11px]">
-                      <input
-                        type="checkbox"
-                        disabled={readonly || field.readonly}
-                        checked={Boolean(value)}
-                        onChange={(e) => setValue(field.field_key, e.target.checked)}
-                      />
-                      <span className="truncate">{field.label}</span>
-                    </label>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-full w-full items-center justify-center rounded-sm border border-primary/40 bg-transparent transition-colors",
+                        isChecked(value) ? "bg-primary/10 border-primary/70" : "hover:bg-primary/5",
+                      )}
+                      title={field.label || field.name}
+                      disabled={readonly || field.readonly}
+                      onClick={() => setValue(field.field_key, !isChecked(value))}
+                    >
+                      {isChecked(value) ? <Check className="h-4 w-4 text-foreground" /> : null}
+                    </button>
                   ) : field.type === "textarea" ? (
                     <Textarea
                       className="h-full min-h-0 text-[11px]"
@@ -149,7 +158,7 @@ export function FormRenderer({ pdfUrl, fields, values, onChange, readonly = fals
                   ) : (
                     <Input
                       className="h-full text-[11px]"
-                      disabled={readonly || field.readonly}
+                        disabled={readonly || field.readonly}
                       placeholder={field.placeholder ?? undefined}
                       value={typeof value === "string" ? value : ""}
                       onChange={(e) => setValue(field.field_key, e.target.value)}
