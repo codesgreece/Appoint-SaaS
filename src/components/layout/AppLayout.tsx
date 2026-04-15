@@ -19,6 +19,7 @@ import {
   Monitor,
   Wrench,
   Lock,
+  FileText,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTheme } from "@/components/theme-provider"
@@ -50,6 +51,7 @@ const translations = {
     navCalendar: "Ημερολόγιο",
     navTeam: "Ομάδα & Βάρδιες",
     navReports: "Αναφορές & Πληρωμές",
+    navForms: "PDF Φόρμες",
     navSupport: "Υποστήριξη",
     navSettings: "Ρυθμίσεις & Στοιχεία",
     navPlatformOverview: "Επισκόπηση πλατφόρμας",
@@ -79,6 +81,7 @@ const translations = {
     navCalendar: "Kalender",
     navTeam: "Team & Schichten",
     navReports: "Berichte & Zahlungen",
+    navForms: "PDF-Formulare",
     navSupport: "Support",
     navSettings: "Einstellungen & Daten",
     navPlatformOverview: "Plattform-Übersicht",
@@ -108,6 +111,7 @@ const translations = {
     navCalendar: "Calendar",
     navTeam: "Team & Shifts",
     navReports: "Reports & Payments",
+    navForms: "PDF Forms",
     navSupport: "Support",
     navSettings: "Settings & Details",
     navPlatformOverview: "Platform Overview",
@@ -141,6 +145,7 @@ function getBusinessNavItems(language: AppLanguage) {
     { to: "/calendar", icon: CalendarDays, label: t.navCalendar },
     { to: "/team", icon: UserCircle, label: t.navTeam },
     { to: "/reports", icon: BarChart3, label: t.navReports },
+    { to: "/forms", icon: FileText, label: t.navForms },
     { to: "/support", icon: LifeBuoy, label: t.navSupport },
     { to: "/settings", icon: Settings, label: t.navSettings },
   ]

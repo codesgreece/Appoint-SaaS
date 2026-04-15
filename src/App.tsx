@@ -38,6 +38,9 @@ import PlatformTools from "@/pages/platform/Tools"
 import PublicBooking from "@/pages/PublicBooking"
 import PublicSite from "@/pages/PublicSite"
 import Shifts from "@/pages/Shifts"
+import FormTemplates from "@/pages/FormTemplates"
+import FormTemplateBuilderPage from "@/pages/FormTemplateBuilderPage"
+import FormSubmissionPage from "@/pages/FormSubmissionPage"
 
 function TenantApp({ children }: { children: React.ReactNode }) {
   return (
@@ -218,6 +221,38 @@ export default function App() {
                       element={
                         <TenantApp>
                           <FAQ />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/forms"
+                      element={
+                        <TenantApp>
+                          <FormTemplates />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/forms/templates/:templateId/builder"
+                      element={
+                        <TenantApp>
+                          <FormTemplateBuilderPage />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/forms/templates/:templateId/fill"
+                      element={
+                        <TenantApp>
+                          <FormSubmissionPage />
+                        </TenantApp>
+                      }
+                    />
+                    <Route
+                      path="/forms/submissions/:submissionId"
+                      element={
+                        <TenantApp>
+                          <FormSubmissionPage />
                         </TenantApp>
                       }
                     />
