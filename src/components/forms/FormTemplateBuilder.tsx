@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -100,6 +100,9 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(fields[0]?.id ?? null)
   const [pendingFieldType, setPendingFieldType] = useState<FormFieldType>("text")
   const [dragState, setDragState] = useState<DragState | null>(null)
+  const [isAddMode, setIsAddMode] = useState(false)
+  const [continuousAddMode, setContinuousAddMode] = useState(false)
+  const [suppressPageClickUntil, setSuppressPageClickUntil] = useState(0)
 
   const selectedField = useMemo(() => fields.find((f) => f.id === selectedFieldId) ?? null, [fields, selectedFieldId])
 
@@ -115,6 +118,44 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
   const updateField = (fieldId: string, patch: Partial<FormTemplateField>) => {
     onFieldsChange(fields.map((field) => (field.id === fieldId ? { ...field, ...patch, updated_at: new Date().toISOString() } : field)))
   }
+
+  useEffect(() => {
+    if (!dragState) return
+
+    const onMouseMove = (e: MouseEvent) => {
+      const targetField = fields.find((f) => f.id === dragState.fieldId)
+      if (!targetField) return
+      if (dragState.mode === "move") {
+        const deltaX = (e.clientX - dragState.startClientX) / dragState.pageWidth
+        const deltaY = (e.clientY - dragState.startClientY) / dragState.pageHeight
+        updateField(targetField.id, {
+          position_x: Math.max(0, Math.min(1 - targetField.width, dragState.originX + deltaX)),
+          position_y: Math.max(0, Math.min(1 - targetField.height, dragState.originY + deltaY)),
+        })
+        return
+      }
+
+      const deltaX = (e.clientX - dragState.startClientX) / dragState.pageWidth
+      const deltaY = (e.clientY - dragState.startClientY) / dragState.pageHeight
+      updateField(targetField.id, {
+        width: Math.max(0.012, Math.min(1 - targetField.position_x, dragState.originWidth + deltaX)),
+        height: Math.max(0.012, Math.min(1 - targetField.position_y, dragState.originHeight + deltaY)),
+      })
+    }
+
+    const onMouseUp = () => {
+      setDragState(null)
+      // Prevent accidental page click after drag/resize end.
+      setSuppressPageClickUntil(Date.now() + 200)
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [dragState, fields, onFieldsChange])
 
   const removeField = (fieldId: string) => {
     onFieldsChange(fields.filter((field) => field.id !== fieldId))
@@ -144,9 +185,27 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
           <CardHeader className="py-3">
             <CardTitle className="text-base">Builder Toolbar</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2">
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={isAddMode ? "default" : "outline"}
+                onClick={() => setIsAddMode((prev) => !prev)}
+              >
+                {isAddMode ? "Add Mode ON" : "Add Field"}
+              </Button>
+              <label className="inline-flex items-center gap-2 text-xs rounded-full border px-3 py-1.5 bg-background">
+                <input
+                  type="checkbox"
+                  checked={continuousAddMode}
+                  onChange={(e) => setContinuousAddMode(e.target.checked)}
+                />
+                Continuous add
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 p-2.5">
             <select
-              className="h-9 rounded-md border bg-background px-3 text-sm"
+              className="h-9 rounded-md border bg-background px-3 text-sm min-w-[180px]"
               value={pendingFieldType}
               onChange={(e) => setPendingFieldType(e.target.value as FormFieldType)}
             >
@@ -156,16 +215,24 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">Click on PDF to place a new field.</p>
+              <p className="text-xs text-muted-foreground">
+                {isAddMode
+                  ? "Click on PDF to place field."
+                  : "Select/drag fields normally. Enable Add Mode to create new fields."}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         <PdfDocumentViewer
           pdfUrl={pdfUrl}
           onPageClick={({ pageNumber, relativeX, relativeY }) => {
+            if (!isAddMode) return
+            if (Date.now() < suppressPageClickUntil) return
             const next = createField(pendingFieldType, pageNumber, relativeX, relativeY)
             onFieldsChange([...fields, next])
             setSelectedFieldId(next.id)
+            if (!continuousAddMode) setIsAddMode(false)
           }}
           renderOverlay={({ pageNumber, pageWidth, pageHeight }) => (
             <div className="absolute inset-0">
@@ -202,16 +269,11 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                           mode: "move",
                         })
                       }}
-                      onMouseMove={(e) => {
-                        if (!dragState || dragState.fieldId !== field.id || dragState.mode !== "move") return
-                        const deltaX = (e.clientX - dragState.startClientX) / dragState.pageWidth
-                        const deltaY = (e.clientY - dragState.startClientY) / dragState.pageHeight
-                        updateField(field.id, {
-                          position_x: Math.max(0, Math.min(1 - field.width, dragState.originX + deltaX)),
-                          position_y: Math.max(0, Math.min(1 - field.height, dragState.originY + deltaY)),
-                        })
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSelectedFieldId(field.id)
                       }}
-                      onMouseUp={() => setDragState(null)}
                     >
                       {field.type === "checkbox" ? (
                         <div className="flex h-full w-full items-center justify-center">
@@ -239,16 +301,10 @@ export function FormTemplateBuilder({ pdfUrl, fields, onFieldsChange }: FormTemp
                             mode: "resize",
                           })
                         }}
-                        onMouseMove={(e) => {
-                          if (!dragState || dragState.fieldId !== field.id || dragState.mode !== "resize") return
-                          const deltaX = (e.clientX - dragState.startClientX) / dragState.pageWidth
-                          const deltaY = (e.clientY - dragState.startClientY) / dragState.pageHeight
-                          updateField(field.id, {
-                            width: Math.max(0.02, Math.min(1 - field.position_x, dragState.originWidth + deltaX)),
-                            height: Math.max(0.02, Math.min(1 - field.position_y, dragState.originHeight + deltaY)),
-                          })
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
                         }}
-                        onMouseUp={() => setDragState(null)}
                       />
                     </div>
                   )
